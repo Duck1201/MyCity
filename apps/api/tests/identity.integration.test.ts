@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { createDatabase } from '../src/database.js';
 import { createIdentity } from '../src/modules/identity/index.js';
 
@@ -10,7 +10,7 @@ const database = createDatabase(url.toString());
 const identity = createIdentity(database);
 const initialPassword = 'first-test-password-2026';
 
-beforeAll(async () => {
+beforeEach(async () => {
     await database.user.deleteMany({
         where: {
             cpf: {
@@ -35,6 +35,7 @@ describe('provisionamento das contas de demonstração', () => {
     });
 
     it('reexecutar seed preserva identidade e senha existente', async () => {
+        await identity.provisionDemoAccounts(initialPassword);
         const before = await identity.verifyCredentials('00000000003', initialPassword);
         await identity.provisionDemoAccounts('different-test-password-2026');
         expect(await identity.verifyCredentials('00000000003', initialPassword)).toEqual(before);
@@ -42,16 +43,19 @@ describe('provisionamento das contas de demonstração', () => {
     });
 
     it('credencial errada e conta inexistente não autenticam', async () => {
+        await identity.provisionDemoAccounts(initialPassword);
         expect(await identity.verifyCredentials('00000000003', 'wrong-password')).toBeNull();
         expect(await identity.verifyCredentials('00000000099', initialPassword)).toBeNull();
     });
 
     it('aceita CPF formatado e rejeita login por e-mail', async () => {
+        await identity.provisionDemoAccounts(initialPassword);
         const user = await identity.verifyCredentials('000.000.000-03', initialPassword);
         expect(user?.cpf).toBe('00000000003');
         expect(await identity.verifyCredentials('gestor@mycity.example', initialPassword)).toBeNull();
     });
     it.each(['123', 'abcdefghijk', '000000000003', '000.000.00003'])('recusa identificador malformado: %s', async (cpf) => {
+        await identity.provisionDemoAccounts(initialPassword);
         expect(await identity.verifyCredentials(cpf, initialPassword)).toBeNull();
     });
 });
