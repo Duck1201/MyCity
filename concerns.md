@@ -25,7 +25,7 @@ Atualizado em 18/11/2026. O projeto tem documentação e fundação executável;
 | C15 | Mitigação especificada              | Reenvio após resposta perdida pode duplicar denúncia ou mudança.                                                                    | Contrato proposto de idempotência e versão em `docs/api/contract.md`; verificar resposta perdida e repetição com payload diferente.                                                                       |
 | C16 | Mitigação especificada              | Polling pode continuar em segundo plano, sobrepor consultas ou aplicar resposta obsoleta.                                           | Pausar com tela/app inativos, uma requisição por consulta, descartar respostas ultrapassadas e testar ciclo de vida. Intervalo não é SLA de entrega.                                                      |
 | C17 | Mitigação especificada              | Seed/reset ou recriação indevida de volumes pode apagar dados de demonstração.                                                      | Seed idempotente e explícito, sem reset no startup; backup consistente de banco+fotos e restauração verificada.                                                                                           |
-| C18 | Parcial                             | Fundação e automação verificadas; jornadas do MVP ainda não implementadas.                                                          | São 40 testes atuais, incluindo 10 de Conventional Commits. Não representam cobertura integral de T01–T29.                                                                                                |
+| C18 | Parcial                             | Fundação e automação verificadas; jornadas do MVP ainda não implementadas.                                                          | São 41 testes atuais, incluindo 10 de Conventional Commits e um de proteção dos workflows. Não representam cobertura integral de T01–T29.                                                                 |
 
 | ID  | Situação | Problema e impacto                                                                                  | Tratamento proposto / condição de encerramento                                                                                                                         |
 | --- | -------- | --------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -54,3 +54,7 @@ Atualizado em 18/11/2026. O projeto tem documentação e fundação executável;
 ## Manutenção
 
 Ao resolver um item, registrar decisão, documento alterado e evidência de verificação quando houver código. Não remover o histórico de diferenças aprovadas. Revisar este arquivo antes de iniciar cada etapa do [plano](plan.md).
+
+## Auditoria de segredos
+
+**C26 — Mitigação aplicada:** dois artefatos públicos de diagnóstico Docker continham metadados transitórios de autenticação do Docker Hub. Foram removidos. Nenhuma credencial própria do MyCity foi encontrada no histórico, logs, imagens ou artefatos auditados. O upload automático desses diagnósticos foi desativado no workflow e recebeu teste de regressão. Escopo e limites: [auditoria](docs/evidence/secret-audit.md).
