@@ -88,9 +88,11 @@ A direção visual usa os conceitos próprios `mycity-conceito-visual.png` e `my
 
 - Login funcional com contas criadas pelo seed; cadastro e recuperação de senha ficam fora desta entrega.
 - Separar os papéis cidadão e gestor, com autorização aplicada no backend.
+- Exigir login para consultar denúncias, fotos, mapa e histórico; não haverá acesso anônimo a esses conteúdos.
+- Restringir gestão ao papel de gestor e uploads ao cidadão autorizado, com validação no backend antes de processar arquivos. Cadastro permanece fechado; seguir [política de acesso restrito](docs/security.md).
 - O cidadão cancela apenas suas próprias denúncias e acessa apenas suas próprias notificações.
 - O gestor pode consultar e atender denúncias de qualquer região.
-- Especificar sessão, expiração, logout e armazenamento das credenciais de sessão antes de implementar autenticação.
+- Sessão aprovada: validade de 24 horas, sem renovação automática; cookie HttpOnly/Secure na web e token no armazenamento seguro do Android. Backend guarda hash do token; logout revoga imediatamente e expiração exige novo login.
 
 ### 4.2 Criação e consulta de denúncias
 
@@ -261,6 +263,12 @@ Interfaces de teste aprovadas: interface HTTP da API, interfaces visíveis do ap
 - Executar verificações do projeto e a suíte inteira disponível antes da entrega; registrar falhas e limitações reais.
 - Manter em `docs/testing.md` as verificações manuais e os comportamentos não alcançados pela automação.
 
+## Gate obrigatório por fase
+
+Após qualquer fase implementada, executar os checks automáticos e delegar revisão independente ao Pentest Sol e testes à Luna, seguindo [agents/readme.md](agents/readme.md). QA de interface e integração entram conforme a mudança; os QAs usam as personas de `docs/references/personas-mapa-de-empatia.md`. Corrigir bloqueios e repetir a avaliação antes de concluir a fase ou iniciar a próxima.
+
+A primeira revisão da fundação está em [relatório do Sol](docs/evidence/qa/foundation-security-review.md). Ela não aprova login ou upload futuros: existem pendências de credenciais, privilégio de banco, entrega e proxy que precisam ser tratadas nas fases indicadas.
+
 ## 8. Etapas de implementação
 
 ### Etapa 0 — Especificação e decisões restantes
@@ -367,7 +375,7 @@ Detalhes rotineiros e reversíveis podem ser resolvidos durante a especificaçã
 
 - Documentação SDD complementar em [docs/readme.md](docs/readme.md), com propostas e pendências em [concerns.md](concerns.md).
 - Fundação implementada: npm workspaces, contratos, quatro módulos do backend, clientes React/Expo, Prisma/PostgreSQL, Compose, seed de contas e runners.
-- Verificado: lint, typecheck, 40 testes, build web/API, compatibilidade Expo e exportação do bundle Android. Evidência: [fundação](docs/evidence/foundation.md).
+- Verificado: lint, typecheck, 50 testes, build web/API, compatibilidade Expo e exportação do bundle Android. Evidência: [fundação](docs/evidence/foundation.md).
 - Regras puras de transição e localização implementadas; isso ainda não significa atendimento persistido por API.
 - Ainda pendentes: sessão/login HTTP, denúncias/fotos/mapas, atendimento, notificações, frontend do gestor e APK em dispositivo. A fundação possui pipeline de publicação/deploy; consultar [CI/CD](docs/ci-cd.md) para configuração e evidências.
 - O seed atual cria somente as três contas; dados fictícios de denúncias acompanham as próximas fatias.

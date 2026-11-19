@@ -30,7 +30,10 @@
         "check": "npm run lint && npm run typecheck && npm test && npm run build",
         "test:local": "npm run build:contracts && npm run test -w @mycity/contracts && npm run test -w @mycity/api && npm run test -w @mycity/web && npm run test -w @mycity/mobile && npm run test:tooling",
         "setup": "node scripts/setup-env.mjs && npm run db:generate && npm run build:contracts",
-        "test:tooling": "vitest run scripts/tests"
+        "test:tooling": "vitest run scripts/tests",
+        "security:secrets": "node scripts/security/secrets.mjs",
+        "security:dependencies": "npm audit --package-lock-only --audit-level=high",
+        "security:check": "npm run security:secrets && npm run security:dependencies"
     },
     "devDependencies": {
         "@eslint/js": "10.0.1",

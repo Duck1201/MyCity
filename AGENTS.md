@@ -11,6 +11,7 @@
 
 - Para termos do domínio, leia `docs/context.md`; para regras, `docs/requirements.md` e `docs/flows.md`.
 - Para API, consulte `docs/api/contract.md`; para entidades, `docs/data-model.md`. Atualize contrato e critérios de aceitação junto de mudanças de comportamento.
+- Antes de implementar autenticação, painel ou uploads, leia `docs/security.md`. Repositório público não autoriza acesso anônimo nem cadastro público; permissões são verificadas no backend, antes de processar uploads.
 - Antes de mudar arquitetura ou dependências entre módulos, consulte `docs/architecture.md` e `docs/decisions/`.
 - Preserve o conteúdo histórico em `docs/references/`. Use exatamente a origem indicada pelo usuário antes de converter ou enviar um artefato.
 - Registre pendências em `concerns.md` e evidências reais em `docs/evidence/`. Mantenha o estado do plano coerente com o código, sem marcar cenários futuros como testados.
@@ -39,6 +40,7 @@
 
 ## Visual e integração
 
+- Antes de desenhar, implementar ou revisar interfaces, leia `docs/usability.md` e aplique as 10 heurísticas de Nielsen ao app e ao painel. Registre problemas observados e evidências; respeite o escopo e as regras aprovadas.
 - Use os conceitos da raiz como direção, não como produto final. O painel precisa de refinamento no frontend conforme feedback; não aguarde referências externas inexistentes.
 - Verifique telas, estados de erro/vazio e ações no navegador. Verifique câmera, GPS, mapa e APK em Android real antes de afirmar que funcionam.
 - Bundle exportado, imagem gerada ou thumbnail não comprovam funcionamento integrado. Complete o fluxo no aplicativo de destino.
@@ -54,4 +56,8 @@
 
 ## Subagentes
 
-Delegue apenas partes independentes quando autorizado pelas instruções da sessão. Antes de iniciar, informe a finalidade; confira os resultados e reporte quem terminou e o que entregou. Status de agentes deve ser consultado no estado real.
+Ao encerrar qualquer fase implementada de `plan.md`, execute o gate de `agents/readme.md`: delegue obrigatoriamente a revisão ao Pentest Sol e os testes à Luna; use QA de interface e integração conforme a superfície alterada. A autorização para esse fluxo foi dada pelo responsável. Não declare a fase concluída ou avance com achados bloqueantes ou verificações materiais pendentes.
+
+Use os modelos configurados em `.codex/agents/`. Se a ferramenta de subagentes não oferecer Luna, utilize o Codex CLI local com o modelo solicitado conforme `agents/readme.md`; se indisponível, registre a limitação, sem substituir o modelo silenciosamente. As personas de `docs/references/personas-mapa-de-empatia.md` são a base dos QAs.
+
+Antes de iniciar, informe a finalidade; confira os resultados e reporte quem terminou e o que entregou. Status de agentes deve ser consultado no estado real. Coordene testes que alteram banco/arquivos para não concorrerem no mesmo ambiente.

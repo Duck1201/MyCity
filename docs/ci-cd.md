@@ -7,7 +7,7 @@ Repositório: [Duck1201/MyCity](https://github.com/Duck1201/MyCity), público, c
 - Commits e títulos de PR seguem Conventional Commits, verificados por `scripts/check-commits.mjs` e testes em `scripts/tests/`.
 - Usar branches de trabalho e PRs para `main`. Squash merge habilitado; merge commits e rebase merge desabilitados. O título do PR vira o título do commit de squash.
 - Branches de origem são removidas após merge. Nenhum colaborador externo foi adicionado.
-- Proteção aplicada e conferida pela API de `main`: PR, checks `Conventional Commits`, `Quality checks` e `Container builds`, histórico linear, conversas resolvidas, bloqueio de force push e exclusão. As regras também se aplicam a administradores; o projeto individual exige PR, mas não uma aprovação de outro colaborador.
+- Proteção aplicada e conferida pela API de `main`: PR, checks `Conventional Commits`, `Quality checks`, `Container builds` e `Security checks`, histórico linear, conversas resolvidas, bloqueio de force push e exclusão. As regras também se aplicam a administradores; o projeto individual exige PR, mas não uma aprovação de outro colaborador.
 
 ## Permissões do Actions
 
@@ -110,3 +110,9 @@ As execuções acima são evidência do commit identificado. Para releases poste
 ## Diagnósticos de build
 
 O upload automático de arquivos `.dockerbuild` fica desativado por `DOCKER_BUILD_RECORD_UPLOAD=false`. Esses diagnósticos podem incluir metadados temporários de downloads de terceiros; imagens e logs normais continuam disponíveis. A política é verificada por teste e foi motivada pela [auditoria de segredos](evidence/secret-audit.md).
+
+## Gate automático de segurança
+
+O job `Security checks` executa Gitleaks 8.30.1 com arquivo/binário verificados por SHA-256, primeiro confirmando a detecção de uma chave sintética descartável. Depois examina histórico, índice Git e conteúdo versionável atual, com saída redigida. A política é controlada fora do checkout, variáveis Gitleaks herdadas são removidas, ignores da fonte são rejeitados e links não podem escapar do repositório. `npm audit --package-lock-only --audit-level=high` bloqueia vulnerabilidades altas/críticas e mantém as demais visíveis para triagem. A publicação depende desse job.
+
+O gate de modelos por fase está em `agents/readme.md`; Actions não executa Sol ou Luna e um scanner verde não substitui o parecer independente.
