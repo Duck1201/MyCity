@@ -26,7 +26,7 @@ Status: requisitos do recorte confirmados; decisões ainda propostas apontam par
 
 ## Critérios verificáveis
 
-- **AC01:** credenciais válidas retornam usuário/papel; inválidas produzem erro genérico sem sessão. Logout invalida a sessão conforme contrato a aprovar em C05. Não existe cadastro público.
+- **AC01:** credenciais válidas retornam usuário/papel; inválidas produzem erro genérico sem sessão. Logout invalida imediatamente a sessão; ela expira em 24 horas sem renovação automática e exige novo login (C05 aprovado). Não existe cadastro público.
 - **AC02:** denúncia válida é criada em Enviado com autor autenticado. Ausência de categoria, descrição, coordenadas ou foto impede publicação. Quatro fotos são rejeitadas. Upload inválido não deixa denúncia parcialmente publicada.
 - **AC03:** com permissão e coordenadas válidas, preencher a localização; com negativa/indisponibilidade, permitir ponto manual. Sem um ponto, não enviar. Coordenadas fora de latitude [-90,90] e longitude [-180,180] são rejeitadas.
 - **AC04:** a ocorrência criada torna-se consultável pelo feed correspondente; filtros não misturam categorias/regiões. Regras de visibilidade pendentes em C04/C03.
@@ -34,7 +34,7 @@ Status: requisitos do recorte confirmados; decisões ainda propostas apontam par
 - **AC06:** denúncias pendentes com três confirmações precedem aquelas com duas; entre duas com mesma contagem, a criada antes vem primeiro. Ordenação não cria níveis de prioridade.
 - **AC07:** apenas gestor realiza transições aprovadas. Enviado → Resolvido falha sem efeitos. Rejeição exige justificativa não vazia em Em análise. Resposta pública aparece no histórico com ator/data. Respostas após estado final dependem de C08.
 - **AC08:** selecionar marcador abre a denúncia correspondente; canceladas nunca aparecem no mapa público. Captura manual preserva exatamente o ponto confirmado. Outros estados dependem de C04.
-- **AC09:** após resolução, a denúncia pode ser encontrada no histórico de resolvidas e suas mudanças continuam consultáveis. Acesso anônimo versus autenticado depende de C04.
+- **AC09:** após resolução, a denúncia pode ser encontrada no histórico de resolvidas e suas mudanças continuam consultáveis. A consulta exige login, conforme C04 aprovado para controle de acesso.
 - **AC10:** tela mostra Atenção, Alerta e Emergência com indicação de simulação; nenhuma integração meteorológica ou entrega real é necessária ou anunciada.
 - **AC11:** alterar IDs na requisição não permite agir em nome de outro autor, ler notificações alheias ou atualizar status como cidadão. Ocultar botão não substitui autorização na API.
 - **AC12:** autor cancela em Enviado/Em análise; denúncia passa a Cancelado, sai do feed/mapa e permanece para ele. Outro cidadão não cancela. Em andamento e estados finais rejeitam a ação.
@@ -44,6 +44,7 @@ Status: requisitos do recorte confirmados; decisões ainda propostas apontam par
 - **AC16:** dados e fotos permanecem após recriar containers usando os mesmos volumes. Seed repetido não duplica contas/cenários nem remove registros criados na demonstração.
 - **AC17:** JPEG enviado mantém proporção, maior lado até 1.600 px e é legível no destino. Testar orientação e arquivos pequenos/grandes; limites em bytes dependem de C06.
 - **AC18:** APK instalado acessa a API HTTPS do servidor sem depender do bundler de desenvolvimento. Web e APK observam o mesmo fluxo real.
+- **AC19:** somente contas provisionadas podem autenticar; não existe cadastro público. Sem sessão válida, dados protegidos e uploads são negados. Conta de cidadão não acessa operações administrativas, mesmo chamando a API diretamente. Autenticação e autorização antecedem o processamento de multipart; tentativas não autorizadas não gravam arquivos. Fotos não são expostas diretamente pelo servidor estático. Detalhes em [segurança de acesso](security.md), cenários T30–T32.
 
 ## Requisitos não funcionais conciliados
 

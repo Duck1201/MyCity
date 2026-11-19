@@ -1,6 +1,6 @@
 # Contrato HTTP proposto
 
-Status: proposta dos endpoints de negócio. O servidor já implementa apenas as rotas de saúde descritas ao final. Operações refletem o escopo aprovado; nomes de rotas, schemas, sessão, limites e políticas C03–C08 precisam de revisão antes de congelar a interface. Este arquivo é a fonte da proposta HTTP nesta etapa; não há coleção Postman publicada nem OpenAPI executável.
+Status: proposta dos endpoints de negócio. O servidor já implementa apenas as rotas de saúde descritas ao final. Operações refletem o escopo aprovado; nomes de rotas, schemas, limites e políticas C03/C04/C06–C08 precisam de revisão antes de congelar a interface. A política de sessão C05 foi aprovada. Este arquivo é a fonte da proposta HTTP nesta etapa; não há coleção Postman publicada nem OpenAPI executável.
 
 ## Convenções
 
@@ -10,11 +10,11 @@ Status: proposta dos endpoints de negócio. O servidor já implementa apenas as 
 - Erros: `{ "error": { "code": "...", "message": "...", "fields": {} }, "requestId": "..." }`. `fields` é opcional. Mensagens visíveis em pt-BR; códigos estáveis em inglês.
 - Paginação proposta: `limit` padrão 20, máximo 100; `cursor` opaco. Ordenações sempre incluem ID como desempate. Em listas mutáveis, não há snapshot entre páginas; invalidar/recomeçar após ações e deduplicar IDs no cliente.
 - Coleções de fotos e eventos retornam ordem explícita. Não depender da ordem natural do banco.
-- Todas as operações de dados exigem sessão nesta proposta C04. Credenciais, hashes e caminhos internos jamais aparecem nos DTOs.
+- Consulta de denúncias, fotos, mapa e histórico exige sessão, conforme decisão aprovada em C04. As operações de escrita também exigem autenticação. Credenciais, hashes e caminhos internos jamais aparecem nos DTOs.
 
-## Sessão proposta — C05
+## Sessão aprovada — C05
 
-Sessões opacas revogáveis com validade proposta de 24 horas, sem refresh nesta entrega. Guardar apenas hash do segredo no servidor. Web usa cookie HttpOnly, Secure, SameSite=Lax; app usa Bearer com armazenamento seguro do sistema operacional. Não persistir segredo em armazenamento web acessível por JavaScript.
+Sessões opacas revogáveis com validade de 24 horas a partir do login, sem renovação automática nesta entrega. Após expiração, exigir novo login; logout invalida imediatamente a sessão atual. Guardar apenas hash do segredo no servidor. Web usa cookie HttpOnly, Secure, SameSite=Lax; app usa Bearer com armazenamento seguro do sistema operacional. Não persistir segredo em armazenamento web acessível por JavaScript.
 
 Propor web e API na mesma origem via proxy. Em operações autenticadas por cookie, verificar origem e proteção CSRF, incluindo login/logout; definir mecanismo exato na implementação de Identidade. CORS não substitui autorização nem defesa CSRF. Configurar limite de tentativas de login e resposta genérica para credenciais inválidas; parâmetros ainda devem ser definidos.
 
@@ -31,8 +31,8 @@ Email e senha nunca entram em URL. Papel vem do banco, não do corpo. Sessão au
 | Método e caminho                     | Ator                       | Entrada                                                | Sucesso / efeito                                                                                              |
 | ------------------------------------ | -------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------- |
 | POST `/reports`                      | Cidadão                    | Multipart descrito abaixo                              | 201: ReportDetail; cria denúncia, fotos e evento inicial. Replay idempotente retorna 200 com o mesmo recurso. |
-| GET `/reports`                       | Autenticado, proposta C04  | scope, status, category, regionId, sort, limit, cursor | 200: ReportSummary[]; visibilidade filtrada no servidor.                                                      |
-| GET `/reports/map`                   | Autenticado, proposta C04  | bbox?, status, category, regionId, limit, cursor       | 200: ReportMarker[]; mesma política de visibilidade. Paginar até completar a área consultada.                 |
+| GET `/reports`                       | Autenticado                | scope, status, category, regionId, sort, limit, cursor | 200: ReportSummary[]; visibilidade filtrada no servidor.                                                      |
+| GET `/reports/map`                   | Autenticado                | bbox?, status, category, regionId, limit, cursor       | 200: ReportMarker[]; mesma política de visibilidade. Paginar até completar a área consultada.                 |
 | GET `/reports/summary`               | Gestor                     | category?, regionId?                                   | 200: contagens por status no universo filtrado; não limitar à página atual.                                   |
 | GET `/reports/{id}`                  | Leitor autorizado          | ID                                                     | 200: ReportDetail, incluindo versão e ações permitidas.                                                       |
 | GET `/reports/{id}/history`          | Leitor autorizado          | limit, cursor                                          | 200: ReportEvent[] em createdAt asc, id asc.                                                                  |

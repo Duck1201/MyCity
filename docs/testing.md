@@ -1,6 +1,6 @@
 # Estratégia de testes e evidências
 
-Status: estratégia definida e 40 testes executados (fundação e Conventional Commits). Os IDs T01–T29 abaixo continuam sendo cenários do MVP; não devem ser marcados como concluídos pela existência de testes parciais. Resultados concretos em [evidência da fundação](evidence/foundation.md).
+Status: estratégia definida e 50 testes executados (fundação e tooling de segurança). Os IDs T01–T29 abaixo continuam sendo cenários do MVP; não devem ser marcados como concluídos pela existência de testes parciais. Resultados concretos em [evidência da fundação](evidence/foundation.md).
 
 ## Interfaces aprovadas
 
@@ -54,6 +54,14 @@ Regressão acompanha a mesma alteração de feature/bug. Não apagar casos, redu
 
 ## Dependências e isolamento
 
+### Cenários adicionais de acesso restrito
+
+- **T30 — AC19, integração:** sem token ou com token inválido, expirado ou revogado, enviar multipart real para a rota de criação. Verificar acesso negado, ausência de denúncia e nenhum arquivo criado no diretório temporário de upload/staging do teste.
+- **T31 — AC11/AC19, integração e interface:** cidadão tenta entrar no painel e chamar diretamente endpoints de gestão, incluindo adulteração do papel no corpo. A API nega dados/ações administrativas e mantém o estado anterior.
+- **T32 — AC19, integração:** requisitar uma foto diretamente por ID/URL sem autorização, incluindo caminhos estáticos e combinações de foto/denúncia incompatíveis. Nenhum arquivo protegido é entregue. Login não cria contas nem aceita senha de exemplo como credencial de demonstração.
+
+Esses cenários estão planejados; não foram implementados nem executados. Usar PostgreSQL e diretório de arquivos reais e isolados, sem mockar as regras de autorização.
+
 PostgreSQL de teste deve usar banco/credenciais separados da demonstração. Aplicar migrações reais e limpar somente o alvo de teste. Não executar testes destrutivos com a URL de produção. Não substituir banco por mock se estiver indisponível: reportar bloqueio antes de mudar a estratégia.
 
 Mocks/stubs são permitidos nas fronteiras não avaliadas, como câmera/GPS no teste da tela e transporte HTTP no teste de interação visual. O teste de integração usa a API e o banco reais. Simular condições de armazenamento por dependência substituível ou falha controlada não autoriza mockar as regras de negócio. Conferir efeitos de rollback pela interface pública, não por asserção sobre chamada privada do Prisma.
@@ -66,7 +74,7 @@ Runners configurados: Vitest para contratos/API/web e Jest com jest-expo para mo
 
 | Verificação                           | Estado atual                           | Evidência exigida                                                                      |
 | ------------------------------------- | -------------------------------------- | -------------------------------------------------------------------------------------- |
-| Suítes unitárias/integração/interface | Parcial: 40 testes de fundação/tooling | Comando, versão/alteração, resultado e falhas sem ocultação                            |
+| Suítes unitárias/integração/interface | Parcial: 50 testes de fundação/tooling | Comando, versão/alteração, resultado e falhas sem ocultação                            |
 | Cenário integrado                     | Não executado                          | Registro das ações e IDs da denúncia/eventos sem segredos                              |
 | Android real                          | Pendente                               | Modelo/versão, APK usado, GPS negado/aceito, câmera, galeria, mapa e retorno do gestor |
 | Qualidade das fotos                   | Pendente                               | Dimensões/tamanho antes/depois e inspeção das fotos no painel                          |
@@ -74,3 +82,9 @@ Runners configurados: Vitest para contratos/API/web e Jest com jest-expo para mo
 | Visual e acessibilidade               | Aguardando referências                 | Telas e estados relevantes revisados, incluindo vazio/erro/foco                        |
 
 Antes da entrega, executar lint, typecheck, builds aplicáveis e a suíte completa disponível. Uma falha pendente ou verificação manual ausente deve aparecer no relatório como limitação, não como sucesso presumido.
+
+## QA independente após cada fase
+
+O gate definido em [agents/readme.md](../agents/readme.md) é obrigatório. Sol revisa segurança; Luna valida cenários funcionais baseados nas personas; QA de interface aplica Nielsen e QA de integração verifica o fluxo real conforme a fase. Relatórios indicam a revisão e o ambiente, distinguem achados de hipóteses e registram o que não foi executado.
+
+Comandos automáticos: `npm run security:check`, além da suíte funcional. Esses comandos não executam os modelos nem substituem seus relatórios. O principal aciona os agentes, aguarda os resultados e bloqueia avanço quando necessário.

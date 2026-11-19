@@ -104,6 +104,7 @@ Após alterar contratos, execute `npm run build:contracts`. O perfil Expo `previ
 docker compose --profile test up -d --wait test-db
 npm run check
 npm run format:check
+npm run security:check
 npm run export:android -w @mycity/mobile
 ```
 
@@ -133,3 +134,7 @@ Cada feature ou correção inclui testes de regressão. Antes de enviar, execute
 ## Licença
 
 Licenciado sob [Apache License 2.0](LICENSE). Atribuições de componentes de terceiros estão em [NOTICE](NOTICE).
+
+## Agentes de qualidade
+
+Cada fase passa por Pentest Sol e Luna; QA de interface e integração complementam a revisão conforme a mudança. Os cenários de QA usam as personas fornecidas. Papéis, modelos, gatilhos e limites estão em [agents/readme.md](agents/readme.md). Os modelos são acionados pelo orquestrador Codex; a CI executa scanners/testes de forma independente.

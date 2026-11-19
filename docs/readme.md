@@ -19,6 +19,10 @@ Especificação suplementar do MVP acadêmico, elaborada em 18/11/2026 a partir 
 
 ## Como interpretar o status
 
+Para desenhar, implementar ou revisar telas, consulte também as [diretrizes de usabilidade e as 10 heurísticas de Nielsen](usability.md), adotadas como boa prática do projeto.
+
+Para autenticação, painel e uploads, siga a [política de acesso restrito](security.md). O repositório ser público não torna os dados ou as operações da aplicação públicos.
+
 - **Confirmado:** decisão expressamente aprovada na conversa ou requisito das referências preservado no recorte.
 - **Proposto:** detalhamento elaborado para tornar a especificação revisável. Ainda não é um contrato congelado quando altera comportamento importante.
 - **Pendente:** falta uma escolha ou informação externa; identificado por `Cxx` em concerns.
@@ -35,3 +39,7 @@ Os cinco documentos originais foram movidos, sem alteração de conteúdo, para 
 ## Escopo desta edição
 
 A documentação acompanha agora a fundação executável. Consulte o [guia de execução](../README.md) e a [evidência da fundação](evidence/foundation.md) para distinguir o que já funciona do que permanece planejado. Não há OpenAPI executável. O repositório público e a operação de deploy são descritos em [CI/CD](ci-cd.md). O contrato HTTP em Markdown é a fonte da proposta atual; uma futura especificação executável deve ser derivada dele após fechar C03–C08, sem manter contratos conflitantes.
+
+## Agentes de QA e segurança
+
+Papéis e gatilhos: [agents/readme.md](../agents/readme.md). Leia a [revisão inicial do Sol](evidence/qa/foundation-security-review.md), a [validação de personas pela Luna](evidence/qa/luna-personas-check.md) e a [evidência do firewall](evidence/firewall.md).

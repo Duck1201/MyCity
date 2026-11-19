@@ -1,5 +1,7 @@
 # Fluxos, estados e interfaces
 
+O desenho, a implementação e a revisão destes fluxos seguem as [10 heurísticas de Nielsen aplicadas ao MyCity](usability.md), como boa prática aprovada para app e web.
+
 Regras aprovadas estão descritas como confirmadas. A matriz de visibilidade e as políticas de encerramento abaixo são propostas para revisão (C04/C08), não decisões silenciosas de produto.
 
 ## Estados confirmados
@@ -57,7 +59,7 @@ Tela ativa consulta a cada cinco segundos, sem sobreposição, e consulta ao ret
 
 ## Visibilidade proposta — C04
 
-“Público” significa compartilhado entre usuários autenticados nesta proposta. Acesso sem login e dados identificáveis do autor precisam de decisão antes de implementar consultas.
+Decisão aprovada: denúncias, fotos, mapa e histórico exigem login. “Público” significa compartilhado entre usuários autenticados; não haverá consulta anônima desses conteúdos. A exposição de dados do autor e a matriz de status abaixo ainda precisam de aprovação.
 
 | Estado       | Feed/mapa geral                             | Minhas denúncias do autor | Lista do gestor | Histórico de resolvidas |
 | ------------ | ------------------------------------------- | ------------------------- | --------------- | ----------------------- |
