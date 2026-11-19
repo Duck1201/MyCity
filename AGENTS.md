@@ -11,6 +11,7 @@
 
 - Para termos do domínio, leia `docs/context.md`; para regras, `docs/requirements.md` e `docs/flows.md`.
 - Para API, consulte `docs/api/contract.md`; para entidades, `docs/data-model.md`. Atualize contrato e critérios de aceitação junto de mudanças de comportamento.
+- Antes de alterar Prisma ou migrações, leia `docs/prisma.md`: camelCase no código, snake_case com `@map`/`@@map` no banco, `createdAt`/`modifiedAt`, CPF sem e-mail e `password` contendo hash. Preserve dados e migrações publicadas.
 - Antes de implementar autenticação, painel ou uploads, leia `docs/security.md`. Repositório público não autoriza acesso anônimo nem cadastro público; permissões são verificadas no backend, antes de processar uploads.
 - Antes de mudar arquitetura ou dependências entre módulos, consulte `docs/architecture.md` e `docs/decisions/`.
 - Preserve o conteúdo histórico em `docs/references/`. Use exatamente a origem indicada pelo usuário antes de converter ou enviar um artefato.
