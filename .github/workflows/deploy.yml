@@ -18,9 +18,10 @@ jobs:
         name: Deploy to EC2
         if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_repository.full_name == github.repository
         runs-on: ubuntu-latest
+        timeout-minutes: 15
         environment:
             name: demonstration
-            url: https://mycity.private-gateway.site:3443
+            url: https://mycity.private-gateway.site:8080
         permissions:
             contents: read
             packages: read
@@ -61,7 +62,7 @@ jobs:
                   set -euo pipefail
                   printf '%s' "$GHCR_TOKEN" | ssh -o BatchMode=yes -o StrictHostKeyChecking=yes "$DEPLOY_USER@$DEPLOY_HOST" "bash '$DEPLOY_DIR/releases/$RELEASE_SHA/deploy.sh' '$DEPLOY_DIR' '$RELEASE_SHA' '$GHCR_USER'"
             - name: Verify public HTTPS
-              run: curl --fail --silent --show-error https://mycity.private-gateway.site:3443/api/v1/health/ready
+              run: curl --fail --silent --show-error --connect-timeout 10 --max-time 30 https://mycity.private-gateway.site:8080/api/v1/health/ready
             - name: Remove runner SSH key
               if: always()
               run: rm -f ~/.ssh/id_ed25519

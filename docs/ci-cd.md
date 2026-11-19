@@ -1,13 +1,13 @@
 # GitHub, permissões e CI/CD
 
-Repositório: [Duck1201/MyCity](https://github.com/Duck1201/MyCity), privado. O código do projeto é licenciado sob Apache 2.0; isso não altera a visibilidade do repositório.
+Repositório: [Duck1201/MyCity](https://github.com/Duck1201/MyCity), público, conforme escolha explícita do responsável. O código do projeto é licenciado sob Apache 2.0.
 
 ## Colaboração
 
 - Commits e títulos de PR seguem Conventional Commits, verificados por `scripts/check-commits.mjs` e testes em `scripts/tests/`.
 - Usar branches de trabalho e PRs para `main`. Squash merge habilitado; merge commits e rebase merge desabilitados. O título do PR vira o título do commit de squash.
 - Branches de origem são removidas após merge. Nenhum colaborador externo foi adicionado.
-- Proteção pretendida de `main`: PR, checks `Conventional Commits`, `Quality checks` e `Container builds`, histórico linear, conversas resolvidas, bloqueio de force push e exclusão. A aplicação efetiva será registrada após verificar a API do GitHub.
+- Proteção aplicada e conferida pela API de `main`: PR, checks `Conventional Commits`, `Quality checks` e `Container builds`, histórico linear, conversas resolvidas, bloqueio de force push e exclusão. As regras também se aplicam a administradores; o projeto individual exige PR, mas não uma aprovação de outro colaborador.
 
 ## Permissões do Actions
 
@@ -52,9 +52,9 @@ O workflow verifica também o endpoint HTTPS externo. Uma falha externa marca o 
 
 ## Domínio e porta
 
-URL escolhida: **https://mycity.private-gateway.site:3443**. O Security Group precisa permitir TCP 3443; o responsável fará essa liberação.
+URL escolhida: **https://mycity.private-gateway.site:8080**. O responsável informou que DNS e TCP 8080 no Security Group estão configurados; o acesso será confirmado no deploy.
 
-O MyCity tem um Caddy separado, publicado apenas na porta 3443. O Caddy existente mantém suas portas 80/443 e os outros sistemas. Foi adicionada somente uma rota HTTP para o host do MyCity encaminhando a `mycity-edge:80`, para o desafio ACME HTTP-01 e redirecionamento. A validação TLS-ALPN na 443 está desativada no Caddy do MyCity.
+O MyCity tem um Caddy separado, publicado apenas na porta 8080. O Caddy existente mantém suas portas 80/443 e os outros sistemas. Foi adicionada somente uma rota HTTP para o host do MyCity encaminhando a `mycity-edge:80`, para o desafio ACME HTTP-01 e redirecionamento. A validação TLS-ALPN na 443 está desativada no Caddy do MyCity.
 
 O proxy do MyCity participa da rede externa já existente `kim-activity_stream-net`. O banco fica apenas na rede privada do Compose. A web também atende em loopback 8090 para verificações locais.
 
@@ -80,11 +80,18 @@ Para verificar sem imprimir segredos:
 ```bash
 gh run list --repo Duck1201/MyCity
 gh run view <run-id> --repo Duck1201/MyCity
-curl --fail https://mycity.private-gateway.site:3443/api/v1/health/ready
+curl --fail https://mycity.private-gateway.site:8080/api/v1/health/ready
 ```
 
 No servidor, usar o SHA de `current-release` como `RELEASE_SHA`, o arquivo `/opt/mycity/.env` e `/opt/mycity/current/compose.deploy.yaml` nos comandos Compose. Não remover volumes para atualizar. Antes de uma migração destrutiva, preparar backup consistente de banco/fotos e estratégia de restauração.
 
 ## Evidências
 
-Configurações e workflows devem ser distinguidos de execuções aprovadas. O resultado da primeira CI, publicação, deploy, proteção da branch e validação HTTPS será registrado nesta seção após observação real.
+- Repositório tornado público por escolha explícita do responsável após o GitHub recusar proteção de branch no plano privado.
+- Proteção da `main` aplicada e conferida pela API: PR, três checks obrigatórios, branch atualizada, histórico linear e bloqueio de force push/exclusão, inclusive para administradores.
+- Secrets/variáveis do environment `demonstration` configurados; chave exclusiva de CI testada por SSH.
+- Caddy existente validado e recarregado após adicionar somente a rota HTTP do MyCity. DNS A aponta para a EC2.
+- A primeira CI do commit inicial foi cancelada para evitar deploy na porta anterior (3443), substituída por 8080 por solicitação do responsável.
+- As execuções que publicarem e implantarem a versão final serão verificadas no GitHub; esta lista não declara sucesso antecipado.
+
+O edge tem um healthcheck HTTPS limitado para aguardar a emissão inicial do certificado e a API saudável antes de concluir o Compose. A verificação pública no workflow usa timeout explícito; falha não é ignorada.
