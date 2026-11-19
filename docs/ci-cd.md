@@ -116,3 +116,7 @@ O upload automático de arquivos `.dockerbuild` fica desativado por `DOCKER_BUIL
 O job `Security checks` executa Gitleaks 8.30.1 com arquivo/binário verificados por SHA-256, primeiro confirmando a detecção de uma chave sintética descartável. Depois examina histórico, índice Git e conteúdo versionável atual, com saída redigida. A política é controlada fora do checkout, variáveis Gitleaks herdadas são removidas, ignores da fonte são rejeitados e links não podem escapar do repositório. `npm audit --package-lock-only --audit-level=high` bloqueia vulnerabilidades altas/críticas e mantém as demais visíveis para triagem. A publicação depende desse job.
 
 O gate de modelos por fase está em `agents/readme.md`; Actions não executa Sol ou Luna e um scanner verde não substitui o parecer independente.
+
+## Dependabot
+
+`.github/dependabot.yml` cobre o lockfile npm na raiz, workflows e imagens Docker/Compose. Atualizações de versão são semanais, até cinco PRs abertos por ecossistema; dependências acopladas Expo/React e Prisma são agrupadas. Alertas e PRs de correção de segurança estão habilitados no GitHub. Nenhuma atualização é mesclada automaticamente; PRs passam pelos checks da main. Não aceitar downgrade de Expo ou quebra de schema apenas para zerar a auditoria.

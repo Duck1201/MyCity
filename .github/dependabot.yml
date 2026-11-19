@@ -1,0 +1,36 @@
+version: 2
+updates:
+    - package-ecosystem: npm
+      directory: /
+      schedule:
+          interval: weekly
+          day: monday
+          time: '09:00'
+          timezone: America/Sao_Paulo
+      open-pull-requests-limit: 5
+      commit-message:
+          prefix: build
+          include: scope
+      groups:
+          expo-runtime:
+              patterns: ['expo', 'expo-*', '@expo/*', 'react', 'react-dom', 'react-native', 'react-test-renderer', '@react-native/*', 'jest-expo', '@types/react', '@types/react-dom']
+          prisma:
+              patterns: ['prisma', '@prisma/*']
+    - package-ecosystem: github-actions
+      directory: /
+      schedule:
+          interval: weekly
+          day: monday
+      open-pull-requests-limit: 5
+      commit-message:
+          prefix: build
+          include: scope
+    - package-ecosystem: docker
+      directories: ['/', '/apps/api', '/apps/web', '/infra']
+      schedule:
+          interval: weekly
+          day: monday
+      open-pull-requests-limit: 5
+      commit-message:
+          prefix: build
+          include: scope

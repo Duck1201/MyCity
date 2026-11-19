@@ -58,27 +58,27 @@ A documentação acima já foi criada e é acessível pelo [índice](docs/readme
 
 ## 3. Decisões confirmadas
 
-| Área                  | Decisão                                                                             |
-| --------------------- | ----------------------------------------------------------------------------------- |
-| Linguagem             | TypeScript no app, na web e no backend.                                             |
-| App                   | React Native com Expo; entrega de APK Android conectado à API hospedada.            |
-| Estilo mobile         | Componentes nativos com `StyleSheet`, reutilizados dentro do app.                   |
-| Web                   | React com Tailwind CSS e shadcn/ui.                                                 |
-| Backend               | Express com Prisma, executado como um monólito modular.                             |
-| Banco                 | PostgreSQL real e compartilhado entre as interfaces.                                |
-| Repositório           | Monorepo modular, com contratos compartilhados e módulos encapsulados.              |
-| Comunicação interna   | Chamadas diretas em memória entre módulos do backend, sem HTTP interno.             |
-| Comunicação externa   | App e web acessam a API por HTTP/HTTPS; Prisma conecta ao PostgreSQL.               |
-| Hospedagem            | Servidor do responsável, com Docker Compose para web, API e banco.                  |
-| Persistência          | Volumes persistentes para PostgreSQL e fotos.                                       |
-| Dados iniciais        | Seed com duas contas de cidadão, uma de gestor e dados fictícios.                   |
-| Login                 | E-mail e senha reais, com hash seguro e autorização no backend.                     |
-| Gestor                | Pode atender denúncias de todas as regiões da demonstração.                         |
-| Atualizações          | Polling a cada cinco segundos nas telas ativas e atualização ao retornar.           |
-| Fila de processamento | Não será usada no MVP.                                                              |
-| Notificações          | Persistidas dentro do app, com estado de leitura; sem push.                         |
-| Alertas climáticos    | Simulados, sem consulta meteorológica real.                                         |
-| Processo              | SDD antes da implementação; TDD com testes unitários, de integração e de interface. |
+| Área                  | Decisão                                                                                       |
+| --------------------- | --------------------------------------------------------------------------------------------- |
+| Linguagem             | TypeScript no app, na web e no backend.                                                       |
+| App                   | React Native com Expo; entrega de APK Android conectado à API hospedada.                      |
+| Estilo mobile         | Componentes nativos com `StyleSheet`, reutilizados dentro do app.                             |
+| Web                   | React com Tailwind CSS e shadcn/ui.                                                           |
+| Backend               | Express com Prisma, executado como um monólito modular.                                       |
+| Banco                 | PostgreSQL real e compartilhado entre as interfaces.                                          |
+| Repositório           | Monorepo modular, com contratos compartilhados e módulos encapsulados.                        |
+| Comunicação interna   | Chamadas diretas em memória entre módulos do backend, sem HTTP interno.                       |
+| Comunicação externa   | App e web acessam a API por HTTP/HTTPS; Prisma conecta ao PostgreSQL.                         |
+| Hospedagem            | Servidor do responsável, com Docker Compose para web, API e banco.                            |
+| Persistência          | Volumes persistentes para PostgreSQL e fotos.                                                 |
+| Dados iniciais        | Seed com duas contas de cidadão, uma de gestor e dados fictícios.                             |
+| Login                 | CPF e senha próprios do MyCity, sem e-mail/gov.br; contas fictícias e autorização no backend. |
+| Gestor                | Pode atender denúncias de todas as regiões da demonstração.                                   |
+| Atualizações          | Polling a cada cinco segundos nas telas ativas e atualização ao retornar.                     |
+| Fila de processamento | Não será usada no MVP.                                                                        |
+| Notificações          | Persistidas dentro do app, com estado de leitura; sem push.                                   |
+| Alertas climáticos    | Simulados, sem consulta meteorológica real.                                                   |
+| Processo              | SDD antes da implementação; TDD com testes unitários, de integração e de interface.           |
 
 A direção visual usa os conceitos próprios `mycity-conceito-visual.png` e `mycity-gestor-v2.png`. A versão 2 foi considerada no caminho, mas ainda exige refinamento no frontend. Não se aguarda mais uma referência externa como pré-condição; os wireframes continuam orientando os fluxos.
 
@@ -104,7 +104,8 @@ A direção visual usa os conceitos próprios `mycity-conceito-visual.png` e `my
 - Publicar a denúncia com status `Enviado`.
 - Oferecer feed, mapa, detalhes, acompanhamento das próprias denúncias e histórico.
 - Especificar a visibilidade de cada estado no feed, mapa e histórico; denúncias canceladas saem do feed e do mapa e permanecem no histórico do autor.
-- Definir limites da descrição, dados públicos do autor, paginação e filtros na especificação.
+- Definir limites da descrição, paginação e filtros na especificação.
+- Identificação por denúncia: “Quero mostrar minha cara” marcado por padrão mostra nome e foto; desmarcado oculta a identidade inclusive do gestor. CPF nunca público; vínculo interno preservado.
 
 ### 4.3 Fotos
 

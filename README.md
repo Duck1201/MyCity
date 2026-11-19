@@ -138,3 +138,18 @@ Licenciado sob [Apache License 2.0](LICENSE). Atribuições de componentes de te
 ## Agentes de qualidade
 
 Cada fase passa por Pentest Sol e Luna; QA de interface e integração complementam a revisão conforme a mudança. Os cenários de QA usam as personas fornecidas. Papéis, modelos, gatilhos e limites estão em [agents/readme.md](agents/readme.md). Os modelos são acionados pelo orquestrador Codex; a CI executa scanners/testes de forma independente.
+
+## Swagger e atualizações de dependências
+
+O contrato das rotas implementadas é gerado com `swagger-autogen` e exibido com `swagger-ui-express`. Ajuste descrições/schemas nas rotas e no gerador, sem editar `apps/api/src/openapi.json` manualmente.
+
+```bash
+npm run docs:generate -w @mycity/api
+API_DOCS_ENABLED=true npm run dev:api
+```
+
+Abra `http://127.0.0.1:3000/api/docs/`. Com Swagger habilitado, a API de desenvolvimento escuta somente no loopback. Em produção, UI/schema/assets ficam desativados mesmo com a flag ligada. O Swagger documenta apenas as rotas de saúde hoje; não comprova implementação do login ou de denúncias. `npm run check` verifica se a geração está atualizada.
+
+Dependabot está configurado para npm (lockfile único), Docker e GitHub Actions, com PRs semanais e commits `build(deps)`. Atualizações de segurança também abrem PRs. Não há merge automático; os checks e a revisão continuam obrigatórios, especialmente em atualizações de Expo/React Native e Prisma.
+
+A decisão atual de identidade é **CPF e senha próprios, sem e-mail/gov.br**, com dados fictícios. O seed e o módulo de Identidade existentes ainda usam e-mails legados; sua migração, credenciais distintas e o checkbox de anonimato serão implementados na fase funcional correspondente.

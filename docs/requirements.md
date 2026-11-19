@@ -6,7 +6,7 @@ Status: requisitos do recorte confirmados; decisões ainda propostas apontam par
 
 | Fonte | Tratamento no MVP                                                 | Casos de uso     | Critério / teste           |
 | ----- | ----------------------------------------------------------------- | ---------------- | -------------------------- |
-| RF01  | Login real; cadastro removido do recorte                          | UC01             | AC01 / T01                 |
+| RF01  | Login CPF/senha próprios (sem e-mail); cadastro fora do recorte   | UC01             | AC01 / T01                 |
 | RF02  | Criação real com 1–3 fotos                                        | UC02             | AC02 / T02–T04             |
 | RF03  | GPS ou ponto manual obrigatório                                   | UC03             | AC03 / T05–T06             |
 | RF04  | Feed com consulta por categoria/região                            | UC04             | AC04 / T07                 |
@@ -26,7 +26,7 @@ Status: requisitos do recorte confirmados; decisões ainda propostas apontam par
 
 ## Critérios verificáveis
 
-- **AC01:** credenciais válidas retornam usuário/papel; inválidas produzem erro genérico sem sessão. Logout invalida imediatamente a sessão; ela expira em 24 horas sem renovação automática e exige novo login (C05 aprovado). Não existe cadastro público.
+- **AC01:** CPF e senha próprios válidos retornam usuário/papel; credenciais inválidas produzem erro genérico sem sessão. Logout invalida imediatamente a sessão; ela expira em 24 horas sem renovação automática e exige novo login (C05 aprovado). Não existe cadastro público.
 - **AC02:** denúncia válida é criada em Enviado com autor autenticado. Ausência de categoria, descrição, coordenadas ou foto impede publicação. Quatro fotos são rejeitadas. Upload inválido não deixa denúncia parcialmente publicada.
 - **AC03:** com permissão e coordenadas válidas, preencher a localização; com negativa/indisponibilidade, permitir ponto manual. Sem um ponto, não enviar. Coordenadas fora de latitude [-90,90] e longitude [-180,180] são rejeitadas.
 - **AC04:** a ocorrência criada torna-se consultável pelo feed correspondente; filtros não misturam categorias/regiões. Regras de visibilidade pendentes em C04/C03.
@@ -61,3 +61,8 @@ Status: requisitos do recorte confirmados; decisões ainda propostas apontam par
 ## Regras adicionais de integridade
 
 Uma alteração concorrente não pode violar a máquina de estados. Registro de status, histórico e notificação é indivisível no banco. Falhas de foto exigem compensação no armazenamento, não uma promessa de rollback de arquivo. Os testes T20, T25 e T26 devem observar essas condições pelas interfaces públicas.
+
+## Identificação e documentação
+
+- **AC20 (planejado):** checkbox “Quero mostrar minha cara” inicialmente marcado. Ao enviar true, nome/foto de perfil aparecem aos leitores autorizados. Ao enviar false, cidadão e gestor veem “Anônimo” sem campos ou links de identidade, enquanto propriedade e notificações seguem funcionando pelo vínculo interno. CPF nunca público; e-mail não existe no modelo aprovado.
+- **AC21 (implementado nesta alteração):** Swagger gerado por swagger-autogen contém apenas rotas implementadas; UI/schema/assets exigem opt-in de desenvolvimento com listener loopback, e não são publicados em produção. O contrato deve ser válido e atualizado.

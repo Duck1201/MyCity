@@ -26,14 +26,14 @@ Não existem regressões, saltos ou reabertura. Estados finais são Resolvido, R
 
 ### Entrar
 
-Usuário informa e-mail/senha, recebe sua identidade e acessa a interface do papel. Credencial inválida exibe erro genérico. Sem conexão, informar falha e permitir tentativa explícita. Sessão expirada exige novo login, sem executar ação pendente automaticamente. Mecanismo de sessão proposto no contrato HTTP (C05).
+Usuário informa CPF e senha próprios do MyCity, recebe sua identidade e acessa a interface do papel. Credencial inválida exibe erro genérico. Sem conexão, informar falha e permitir tentativa explícita. Sessão expirada exige novo login, sem executar ação pendente automaticamente. Sessão de 24 horas aprovada no contrato HTTP (C05). As contas de demonstração serão fictícias; não há vínculo com gov.br nem e-mail.
 
 ### Registrar denúncia
 
 1. Selecionar uma das seis categorias e preencher descrição.
 2. Escolher de uma a três fotos via câmera/galeria e apresentar prévias/remover antes do envio.
 3. Solicitar GPS em contexto; se negado ou indisponível, oferecer mapa para selecionar o ponto.
-4. Confirmar o ponto e os dados. Comprimir fotos e enviar uma operação de criação.
+4. Revisar “Quero mostrar minha cara”, marcado por padrão: nome e foto de perfil ficam visíveis aos leitores autorizados; desmarcado, a denúncia é apresentada como “Anônimo”, inclusive ao gestor. Confirmar o ponto e os dados. Comprimir fotos e enviar uma operação de criação.
 5. Durante o envio, impedir disparos duplicados pela interface; servidor também trata repetições.
 6. No sucesso, abrir detalhes em Enviado. Na falha, manter campos e fotos enquanto o formulário estiver aberto, permitindo reenvio controlado.
 
@@ -59,7 +59,7 @@ Tela ativa consulta a cada cinco segundos, sem sobreposição, e consulta ao ret
 
 ## Visibilidade proposta — C04
 
-Decisão aprovada: denúncias, fotos, mapa e histórico exigem login. “Público” significa compartilhado entre usuários autenticados; não haverá consulta anônima desses conteúdos. A exposição de dados do autor e a matriz de status abaixo ainda precisam de aprovação.
+Decisão aprovada: denúncias, fotos, mapa e histórico exigem login. “Público” significa compartilhado entre usuários autenticados; não haverá consulta anônima desses conteúdos. A identificação do autor é opcional conforme o checkbox aprovado. A matriz de visibilidade por status abaixo ainda precisa de aprovação.
 
 | Estado       | Feed/mapa geral                             | Minhas denúncias do autor | Lista do gestor | Histórico de resolvidas |
 | ------------ | ------------------------------------------- | ------------------------- | --------------- | ----------------------- |
@@ -70,7 +70,7 @@ Decisão aprovada: denúncias, fotos, mapa e histórico exigem login. “Públic
 | Rejeitado    | Não; detalhes públicos por link autenticado | Sim                       | Sim             | Não                     |
 | Cancelado    | Não; detalhes apenas autor/gestor           | Sim                       | Sim             | Não                     |
 
-Proposta: não expor e-mail nem nome completo do cidadão; exibir “Cidadão” e informar ao próprio usuário quando ele é autor. Coordenadas e imagens seguem a permissão da denúncia, inclusive ao acessar a URL do arquivo diretamente. A matriz acima precisa ser alinhada com o sentido de transparência esperado, não apenas com o desenho das telas.
+Decisão aprovada: exibir nome e foto de perfil somente quando “Quero mostrar minha cara” estiver marcado. Se desmarcado, ocultar a identidade inclusive para o gestor. CPF não é público e e-mail não faz parte do modelo. O backend mantém o vínculo da conta; a publicação não é anônima perante a persistência interna. Fotos da ocorrência, descrição e localização continuam visíveis conforme as permissões e podem conter identificação inserida pelo próprio autor; orientar sua revisão antes de enviar.
 
 ## Inventário de telas
 

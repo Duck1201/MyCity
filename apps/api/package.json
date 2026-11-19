@@ -4,7 +4,7 @@
     "private": true,
     "type": "module",
     "scripts": {
-        "dev": "tsx watch --env-file=../../.env src/server.ts",
+        "dev": "NODE_ENV=development tsx watch --env-file=../../.env src/server.ts",
         "build": "tsc -p tsconfig.build.json",
         "start": "node dist/server.js",
         "typecheck": "tsc --noEmit",
@@ -12,7 +12,9 @@
         "test:integration": "vitest run tests/*.integration.test.ts",
         "db:generate": "prisma generate",
         "db:migrate": "prisma migrate deploy",
-        "db:seed": "prisma db seed"
+        "db:seed": "prisma db seed",
+        "docs:generate": "node scripts/generate-openapi.mjs",
+        "docs:check": "node scripts/generate-openapi.mjs --check"
     },
     "dependencies": {
         "@mycity/contracts": "*",
@@ -20,14 +22,18 @@
         "@prisma/client": "7.10.1",
         "dotenv": "17.2.3",
         "express": "5.3.0",
-        "pg": "8.16.3"
+        "pg": "8.16.3",
+        "swagger-ui-express": "5.0.1"
     },
     "devDependencies": {
+        "@apidevtools/swagger-parser": "13.1.0",
         "@types/express": "5.0.6",
         "@types/pg": "8.23.1",
         "@types/supertest": "7.2.1",
+        "@types/swagger-ui-express": "4.1.8",
         "prisma": "7.10.1",
-        "supertest": "7.3.2"
+        "supertest": "7.3.2",
+        "swagger-autogen": "2.23.7"
     },
     "license": "Apache-2.0"
 }

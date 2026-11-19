@@ -37,7 +37,7 @@ Os cenários são detalhados em `docs/testing.md`. Não considerar a proteção 
 
 A implementação atual da API contém apenas rotas de saúde e resposta para rota inexistente. Ainda não há endpoints de upload, sessão ou gestão. As regras acima são requisitos para a próxima implementação, não uma declaração de que a autorização já foi concluída.
 
-A decisão sobre exibir nome/e-mail do autor continua pendente e é independente da exigência de acesso restrito.
+Identidade aprovada: CPF e senha próprios, sem gov.br e sem e-mail. Nome/foto só aparecem quando o autor mantém “Quero mostrar minha cara” marcado. Desmarcado, os DTOs omitem identidade e identificadores inclusive ao gestor; o backend ainda conhece o autor para permissões. Swagger fica indisponível em produção até haver acesso administrativo próprio.
 
 ## Gate após cada fase
 

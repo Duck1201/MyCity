@@ -19,8 +19,8 @@ Hospedar web, API e PostgreSQL no servidor do responsável com Docker Compose. O
 
 ## Funcional e persistido
 
-- Login real com duas contas de cidadão e uma de gestor previamente cadastradas.
-- Criação com uma a três fotos reais, categoria, descrição e localização obrigatórias.
+- Login planejado por CPF e senha próprios do MyCity, sem e-mail ou gov.br, com duas contas de cidadão e uma de gestor fictícias previamente cadastradas. A fundação legada por e-mail ainda precisa de migração.
+- Criação com uma a três fotos reais, categoria, descrição e localização obrigatórias. Checkbox “Quero mostrar minha cara” marcado por padrão exibe nome/foto de perfil; desmarcado oculta a identidade inclusive do gestor.
 - GPS com seleção manual alternativa; compressão JPEG no celular, maior lado até 1.600 px e qualidade inicial de 80%.
 - Feed, mapa, detalhes, minhas denúncias e histórico de resolvidas.
 - Confirmações únicas por cidadão, sem confirmar a própria denúncia, com retirada e prioridade por quantidade/antiguidade.
