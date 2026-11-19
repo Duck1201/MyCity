@@ -106,3 +106,7 @@ O edge tem um healthcheck HTTPS limitado para aguardar a emissão inicial do cer
 - Secret scanning e push protection habilitados. Nenhuma chave privada, senha local ou token foi versionado.
 
 As execuções acima são evidência do commit identificado. Para releases posteriores, consultar os workflows; não presumir que um resultado antigo valida código novo.
+
+## Diagnósticos de build
+
+O upload automático de arquivos `.dockerbuild` fica desativado por `DOCKER_BUILD_RECORD_UPLOAD=false`. Esses diagnósticos podem incluir metadados temporários de downloads de terceiros; imagens e logs normais continuam disponíveis. A política é verificada por teste e foi motivada pela [auditoria de segredos](evidence/secret-audit.md).
