@@ -1,6 +1,6 @@
 # Contrato HTTP proposto
 
-Status: proposta dos endpoints de negócio. O servidor já implementa apenas as rotas de saúde descritas ao final. Operações refletem o escopo aprovado; nomes de rotas, schemas, limites e políticas C03/C04/C06–C08 precisam de revisão antes de congelar a interface. A política de sessão C05 foi aprovada. Este arquivo é a fonte da proposta HTTP nesta etapa; não há coleção Postman publicada nem OpenAPI executável.
+Status: proposta dos endpoints de negócio. O servidor já implementa apenas as rotas de saúde descritas ao final. Operações refletem o escopo aprovado; nomes de rotas, schemas, limites e políticas C03/C04/C06–C08 precisam de revisão antes de congelar a interface. A política de sessão C05 foi aprovada. Este arquivo é a fonte da proposta HTTP nesta etapa; não há coleção Postman publicada. As rotas implementadas possuem OpenAPI gerado por swagger-autogen em `apps/api/src/openapi.json`; as operações de negócio abaixo continuam planejadas.
 
 ## Convenções
 
@@ -18,13 +18,13 @@ Sessões opacas revogáveis com validade de 24 horas a partir do login, sem reno
 
 Propor web e API na mesma origem via proxy. Em operações autenticadas por cookie, verificar origem e proteção CSRF, incluindo login/logout; definir mecanismo exato na implementação de Identidade. CORS não substitui autorização nem defesa CSRF. Configurar limite de tentativas de login e resposta genérica para credenciais inválidas; parâmetros ainda devem ser definidos.
 
-| Método e caminho           | Entrada                                         | Sucesso                                                            | Efeito                                                            |
-| -------------------------- | ----------------------------------------------- | ------------------------------------------------------------------ | ----------------------------------------------------------------- |
-| POST `/sessions`           | `{email,password,transport:"cookie"\|"bearer"}` | 201: usuário, expiresAt; token apenas para bearer; cookie para web | Cria sessão após validar credenciais. Transport não altera papel. |
-| GET `/me`                  | Sessão                                          | 200: `{id,role}`                                                   | Consulta identidade mínima.                                       |
-| DELETE `/sessions/current` | Sessão                                          | 204                                                                | Revoga sessão e limpa cookie quando aplicável.                    |
+| Método e caminho           | Entrada                                       | Sucesso                                                            | Efeito                                                            |
+| -------------------------- | --------------------------------------------- | ------------------------------------------------------------------ | ----------------------------------------------------------------- |
+| POST `/sessions`           | `{cpf,password,transport:"cookie"\|"bearer"}` | 201: usuário, expiresAt; token apenas para bearer; cookie para web | Cria sessão após validar credenciais. Transport não altera papel. |
+| GET `/me`                  | Sessão                                        | 200: `{id,role}`                                                   | Consulta identidade mínima.                                       |
+| DELETE `/sessions/current` | Sessão                                        | 204                                                                | Revoga sessão e limpa cookie quando aplicável.                    |
 
-Email e senha nunca entram em URL. Papel vem do banco, não do corpo. Sessão ausente/expirada/revogada retorna 401. Sessão válida sem permissão retorna 403. Login não cria usuários.
+CPF e senha nunca entram em URL, logs ou dados públicos de denúncias. A autenticação será própria do MyCity, com CPF fictício normalizado em 11 dígitos na demonstração, sem integração gov.br e sem campo de e-mail. O código atual de Identidade ainda usa e-mail e precisa ser migrado antes do login HTTP. Papel vem do banco, não do corpo. Sessão ausente/expirada/revogada retorna 401. Sessão válida sem permissão retorna 403. Login não cria usuários.
 
 ## Operações de denúncia
 
@@ -52,7 +52,7 @@ Para o mapa, proposta de `bbox=west,south,east,north`, com coordenadas válidas 
 
 ### Criação multipart
 
-- Parte `metadata`: JSON UTF-8 com `clientRequestId`, `category`, `description` e `location`.
+- Parte `metadata`: JSON UTF-8 com `clientRequestId`, `category`, `description`, `location` e `showIdentity` (booleano obrigatório).
 - De uma a três partes `photos`, em ordem de exibição, com conteúdo JPEG já comprimido.
 - `location`: `{latitude,longitude,source:"GPS"|"MANUAL"}`. `addressLabel` e `regionId` vêm da política de geocodificação a definir; o cliente não ganha permissão por declarar uma região.
 - Identidade do autor vem da sessão. Status inicial é SENT. Ignorar ou rejeitar campos de privilégio não previstos, nunca aceitar authorId/status arbitrários.
@@ -67,21 +67,28 @@ Exemplo da parte `metadata` (coordenadas ilustrativas, não destino fixo do app)
     "clientRequestId": "demo-create-001",
     "category": "POTHOLE",
     "description": "Buraco na via próximo à esquina.",
+    "showIdentity": true,
     "location": { "latitude": -20.75, "longitude": -42.88, "source": "GPS" }
 }
 ```
 
+### Identificação opcional da denúncia — decisão aprovada
+
+No formulário, “Quero mostrar minha cara” começa marcado (`showIdentity: true`). Marcado: leitores autorizados veem nome e foto de perfil. Desmarcado: veem “Anônimo”, sem nome, foto, CPF, e-mail, ID de usuário ou URL de perfil, inclusive no painel do gestor. `showIdentity` ausente é inválido; a API não presume consentimento a partir de campo omitido.
+
+`authorId` permanece interno para propriedade, cancelamento e notificações. A anonimização deve ser aplicada pelo backend em todos os DTOs e eventos, não apenas escondida pela interface. Nome/foto do perfil serão fictícios e pré-provisionados junto das contas; não existe edição/cadastro público de perfil neste recorte. Alterar essa opção após publicar ainda precisa de decisão; não criar endpoint de alteração automaticamente.
+
 ### DTOs
 
-| DTO           | Campos públicos propostos                                                                                                         |
-| ------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| ReportSummary | id, category, description, status, location, region?, createdAt, updatedAt, confirmationCount, confirmedByMe, isMine, coverPhoto? |
-| ReportDetail  | Campos do resumo + version, photos[], allowedActions[]; histórico paginado em rota própria                                        |
-| Photo         | id, position, width, height, byteSize, contentPath; nenhum storageKey                                                             |
-| ReportMarker  | id, latitude, longitude, category, status, confirmationCount                                                                      |
-| ReportEvent   | id, type, actorRole, fromStatus?, toStatus?, text?, createdAt; identidade pública depende de C04                                  |
-| Notification  | id, reportId, reportEventId, type, createdAt, readAt; sem dados de outros destinatários                                           |
-| WeatherAlert  | id, level, title, message, regionLabel, issuedAt, expiresAt, simulated:true                                                       |
+| DTO           | Campos públicos propostos                                                                                                                                |
+| ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ReportSummary | id, category, description, status, location, region?, createdAt, updatedAt, confirmationCount, confirmedByMe, isMine, coverPhoto?, showIdentity, author? |
+| ReportDetail  | Campos do resumo + version, photos[], allowedActions[]; histórico paginado em rota própria                                                               |
+| Photo         | id, position, width, height, byteSize, contentPath; nenhum storageKey                                                                                    |
+| ReportMarker  | id, latitude, longitude, category, status, confirmationCount                                                                                             |
+| ReportEvent   | id, type, actorRole, fromStatus?, toStatus?, text?, createdAt; identidade pública respeita showIdentity; CPF e autor interno nunca são expostos          |
+| Notification  | id, reportId, reportEventId, type, createdAt, readAt; sem dados de outros destinatários                                                                  |
+| WeatherAlert  | id, level, title, message, regionLabel, issuedAt, expiresAt, simulated:true                                                                              |
 
 `allowedActions` ajuda a interface; não concede autorização. Uma ação pode tornar-se inválida entre leitura e escrita. IDs de fotos sempre precisam pertencer à denúncia informada.
 
@@ -145,3 +152,9 @@ Rotas concretas `/reports/map` e `/reports/summary` não devem ser capturadas co
 - Rotas ausentes: 404 JSON com `NOT_FOUND`. Não há rotas de negócio públicas implementadas nesta etapa.
 
 As rotas de saúde não exigem sessão nem retornam configurações, credenciais ou estado detalhado do banco. A configuração do proxy público poderá restringir seu acesso. Validação local adicional pode usar `postman request http://localhost:8090/api/v1/health/ready --script-post-request @scripts/health-check.cjs --no-report-events`.
+
+## Swagger gerado
+
+`npm run docs:generate -w @mycity/api` usa `swagger-autogen` nas rotas implementadas e os refinamentos de schemas/respostas. `npm run docs:check -w @mycity/api`, incluído em `npm run check`, detecta drift. Não editar o JSON gerado manualmente.
+
+A UI usa `swagger-ui-express` em `/api/docs/`, com schema em `/api/openapi.json`, somente com `NODE_ENV=development` e `API_DOCS_ENABLED=true`. Nesse modo o listener fica em `127.0.0.1`. Em produção, schema, UI e assets retornam 404 mesmo se a flag for true, até existir uma política administrativa explícita. Validador remoto e persistência de credenciais ficam desativados. A documentação atual contém somente saúde da API; não anuncia login/denúncias como implementados.

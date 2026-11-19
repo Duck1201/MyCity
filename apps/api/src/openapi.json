@@ -1,0 +1,126 @@
+{
+    "openapi": "3.0.3",
+    "info": {
+        "title": "MyCity API",
+        "version": "0.1.0",
+        "description": "Contrato gerado das rotas implementadas. CPF/senha, denúncias e gestão ainda estão em especificação. Esta interface só é habilitada no desenvolvimento local."
+    },
+    "servers": [
+        {
+            "url": "/",
+            "description": "Mesma origem da documentação"
+        }
+    ],
+    "tags": [
+        {
+            "name": "Saúde",
+            "description": "Verificações operacionais públicas sem dados pessoais."
+        }
+    ],
+    "paths": {
+        "/api/v1/health/live": {
+            "get": {
+                "tags": ["Saúde"],
+                "summary": "Verificar se o processo está ativo",
+                "description": "",
+                "responses": {
+                    "200": {
+                        "description": "Processo ativo; não consulta o banco.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Liveness"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/health/ready": {
+            "get": {
+                "tags": ["Saúde"],
+                "summary": "Verificar disponibilidade do banco e da migração",
+                "description": "",
+                "responses": {
+                    "200": {
+                        "description": "API pronta.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Readiness"
+                                }
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "Dependência indisponível; sem detalhes internos.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Unavailable"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "Liveness": {
+                "type": "object",
+                "required": ["data"],
+                "properties": {
+                    "data": {
+                        "type": "object",
+                        "required": ["status"],
+                        "properties": {
+                            "status": {
+                                "type": "string",
+                                "enum": ["alive"]
+                            }
+                        }
+                    }
+                }
+            },
+            "Readiness": {
+                "type": "object",
+                "required": ["data"],
+                "properties": {
+                    "data": {
+                        "type": "object",
+                        "required": ["status"],
+                        "properties": {
+                            "status": {
+                                "type": "string",
+                                "enum": ["ready"]
+                            }
+                        }
+                    }
+                }
+            },
+            "Unavailable": {
+                "type": "object",
+                "required": ["error"],
+                "properties": {
+                    "error": {
+                        "type": "object",
+                        "required": ["code", "message"],
+                        "properties": {
+                            "code": {
+                                "type": "string",
+                                "enum": ["UNAVAILABLE"]
+                            },
+                            "message": {
+                                "type": "string",
+                                "example": "Serviço temporariamente indisponível."
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

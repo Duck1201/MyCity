@@ -88,3 +88,12 @@ Antes da entrega, executar lint, typecheck, builds aplicáveis e a suíte comple
 O gate definido em [agents/readme.md](../agents/readme.md) é obrigatório. Sol revisa segurança; Luna valida cenários funcionais baseados nas personas; QA de interface aplica Nielsen e QA de integração verifica o fluxo real conforme a fase. Relatórios indicam a revisão e o ambiente, distinguem achados de hipóteses e registram o que não foi executado.
 
 Comandos automáticos: `npm run security:check`, além da suíte funcional. Esses comandos não executam os modelos nem substituem seus relatórios. O principal aciona os agentes, aguarda os resultados e bloqueia avanço quando necessário.
+
+## Cenários aprovados para CPF e identificação por denúncia (a implementar)
+
+- **T33:** autenticar por CPF normalizado e senha própria, sem e-mail, com contas fictícias e credenciais distintas; não consultar gov.br.
+- **T34:** formulário inicia “Quero mostrar minha cara” marcado; envio explícito true exibe nome e foto de perfil a leitores autorizados.
+- **T35:** envio false oculta nome, foto, CPF, identificadores e URLs de perfil em feed, mapa, detalhes, histórico e painel do gestor. Vínculo interno continua garantindo propriedade e notificações.
+- **T36:** omissão de showIdentity é rejeitada; anonimato não dispensa login nem permite que outro cidadão cancele a denúncia.
+
+Esses casos são requisitos planejados, não testes executados nesta alteração. Os testes adicionados agora cobrem Swagger local, bloqueio em produção, bind, validade/drift do OpenAPI e configuração Dependabot.

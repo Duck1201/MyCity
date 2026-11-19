@@ -38,7 +38,7 @@ Os cinco documentos originais foram movidos, sem alteração de conteúdo, para 
 
 ## Escopo desta edição
 
-A documentação acompanha agora a fundação executável. Consulte o [guia de execução](../README.md) e a [evidência da fundação](evidence/foundation.md) para distinguir o que já funciona do que permanece planejado. Não há OpenAPI executável. O repositório público e a operação de deploy são descritos em [CI/CD](ci-cd.md). O contrato HTTP em Markdown é a fonte da proposta atual; uma futura especificação executável deve ser derivada dele após fechar C03–C08, sem manter contratos conflitantes.
+A documentação acompanha agora a fundação executável. Consulte o [guia de execução](../README.md) e a [evidência da fundação](evidence/foundation.md) para distinguir o que já funciona do que permanece planejado. As rotas de saúde já têm OpenAPI gerado por swagger-autogen; endpoints de negócio continuam em especificação. O repositório público e a operação de deploy são descritos em [CI/CD](ci-cd.md). O contrato HTTP em Markdown é a fonte da proposta atual; novas rotas devem gerar seu OpenAPI a partir do código e dos refinamentos aprovados, sem manter contratos conflitantes.
 
 ## Agentes de QA e segurança
 
