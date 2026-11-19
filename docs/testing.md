@@ -1,6 +1,6 @@
 # Estratégia de testes e evidências
 
-Status: estratégia definida e 30 testes da fundação executados. Os IDs T01–T29 abaixo continuam sendo cenários do MVP; não devem ser marcados como concluídos pela existência de testes parciais. Resultados concretos em [evidência da fundação](evidence/foundation.md).
+Status: estratégia definida e 40 testes executados (fundação e Conventional Commits). Os IDs T01–T29 abaixo continuam sendo cenários do MVP; não devem ser marcados como concluídos pela existência de testes parciais. Resultados concretos em [evidência da fundação](evidence/foundation.md).
 
 ## Interfaces aprovadas
 
@@ -64,13 +64,13 @@ Runners configurados: Vitest para contratos/API/web e Jest com jest-expo para mo
 
 ## Evidências e pendências manuais
 
-| Verificação                           | Estado atual                   | Evidência exigida                                                                      |
-| ------------------------------------- | ------------------------------ | -------------------------------------------------------------------------------------- |
-| Suítes unitárias/integração/interface | Parcial: 30 testes da fundação | Comando, versão/alteração, resultado e falhas sem ocultação                            |
-| Cenário integrado                     | Não executado                  | Registro das ações e IDs da denúncia/eventos sem segredos                              |
-| Android real                          | Pendente                       | Modelo/versão, APK usado, GPS negado/aceito, câmera, galeria, mapa e retorno do gestor |
-| Qualidade das fotos                   | Pendente                       | Dimensões/tamanho antes/depois e inspeção das fotos no painel                          |
-| Servidor/HTTPS/volumes                | Pendente                       | URL, configuração revisada e persistência após recriação                               |
-| Visual e acessibilidade               | Aguardando referências         | Telas e estados relevantes revisados, incluindo vazio/erro/foco                        |
+| Verificação                           | Estado atual                           | Evidência exigida                                                                      |
+| ------------------------------------- | -------------------------------------- | -------------------------------------------------------------------------------------- |
+| Suítes unitárias/integração/interface | Parcial: 40 testes de fundação/tooling | Comando, versão/alteração, resultado e falhas sem ocultação                            |
+| Cenário integrado                     | Não executado                          | Registro das ações e IDs da denúncia/eventos sem segredos                              |
+| Android real                          | Pendente                               | Modelo/versão, APK usado, GPS negado/aceito, câmera, galeria, mapa e retorno do gestor |
+| Qualidade das fotos                   | Pendente                               | Dimensões/tamanho antes/depois e inspeção das fotos no painel                          |
+| Servidor/HTTPS/volumes                | Pendente                               | URL, configuração revisada e persistência após recriação                               |
+| Visual e acessibilidade               | Aguardando referências                 | Telas e estados relevantes revisados, incluindo vazio/erro/foco                        |
 
 Antes da entrega, executar lint, typecheck, builds aplicáveis e a suíte completa disponível. Uma falha pendente ou verificação manual ausente deve aparecer no relatório como limitação, não como sucesso presumido.

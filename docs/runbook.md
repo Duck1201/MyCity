@@ -15,7 +15,7 @@ docker compose --profile test up -d --wait test-db
 npm run check
 ```
 
-A web local usa `http://localhost:8090`; API operacional em `/api/v1/health/live` e `/api/v1/health/ready`. O servidor público/HTTPS ainda depende de C09. Testes usam `mycity_test` na porta 55433, separado de `mycity` na porta 55432. Os comandos não configuram uma publicação pública nem login com sessão.
+A web local usa `http://localhost:8090`; API operacional em `/api/v1/health/live` e `/api/v1/health/ready`. Servidor, domínio e porta foram configurados conforme [CI/CD](ci-cd.md); a homologação do fluxo completo continua pendente. Testes usam `mycity_test` na porta 55433, separado de `mycity` na porta 55432. Os comandos não configuram uma publicação pública nem login com sessão.
 
 ## Informações necessárias
 
