@@ -99,7 +99,7 @@ O edge tem um healthcheck HTTPS limitado para aguardar a emissão inicial do cer
 ## Primeira implantação verificada
 
 - [CI da main aprovada](https://github.com/Duck1201/MyCity/actions/runs/44442729128), com 40 testes, builds e publicação de API/tools/web para o commit `b8e5758e84d8ac0128d58123e4923bb440a63188`.
-- [Deploy aprovado](https://github.com/Duck1201/MyCity/actions/runs/44443203779): conexão SSH, imagens privadas do GHCR, migração, seed inicial e verificação HTTPS externa concluídos.
+- [Deploy aprovado](https://github.com/Duck1201/MyCity/actions/runs/44443203779): conexão SSH, imagens do GHCR, migração, seed inicial e verificação HTTPS externa concluídos.
 - `https://mycity.private-gateway.site:8080/api/v1/health/ready` respondeu HTTP 200 com `{ "data": { "status": "ready" } }`, validado novamente por curl com verificação TLS habilitada.
 - [Tela inicial na EC2](evidence/ec2-foundation.png) aberta e inspecionada no navegador. A entrega hospedada é a fundação; login, painel e denúncias ainda serão implementados.
 - Containers de banco/API/edge saudáveis, web em loopback 8090 e edge público 8080. Serviços anteriores da EC2 permaneceram ativos.
