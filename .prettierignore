@@ -1,0 +1,11 @@
+package-lock.json
+node_modules
+**/dist
+**/src/generated
+**/.expo
+**/coverage
+docs/references
+refs
+*.png
+
+.playwright-mcp/

@@ -1,0 +1,84 @@
+name: mycity
+services:
+    db:
+        image: postgres:17.7-alpine
+        environment:
+            POSTGRES_DB: mycity
+            POSTGRES_USER: mycity
+            POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Configure POSTGRES_PASSWORD no .env}
+        ports:
+            - '127.0.0.1:${DATABASE_PORT:-55432}:5432'
+        volumes:
+            - database:/var/lib/postgresql/data
+        healthcheck:
+            test: ['CMD-SHELL', 'pg_isready -U mycity -d mycity']
+            interval: 5s
+            timeout: 3s
+            retries: 10
+        restart: unless-stopped
+    test-db:
+        image: postgres:17.7-alpine
+        profiles: [test]
+        environment:
+            POSTGRES_DB: mycity_test
+            POSTGRES_USER: mycity_test
+            POSTGRES_PASSWORD: local_test_only
+        ports:
+            - '127.0.0.1:55433:5432'
+        tmpfs:
+            - /var/lib/postgresql/data
+        healthcheck:
+            test: ['CMD-SHELL', 'pg_isready -U mycity_test -d mycity_test']
+            interval: 2s
+            timeout: 3s
+            retries: 15
+    migrate:
+        build:
+            context: .
+            dockerfile: apps/api/Dockerfile
+            target: build
+        profiles: [tools]
+        environment:
+            DATABASE_URL: postgresql://mycity:${POSTGRES_PASSWORD}@db:5432/mycity
+        command: ['npm', 'run', 'db:migrate']
+        depends_on:
+            db:
+                condition: service_healthy
+    seed:
+        extends: migrate
+        environment:
+            DEMO_PASSWORD: ${DEMO_PASSWORD:?Configure DEMO_PASSWORD no .env}
+        command: ['npm', 'run', 'db:seed']
+    api:
+        build:
+            context: .
+            dockerfile: apps/api/Dockerfile
+        environment:
+            NODE_ENV: production
+            PORT: 3000
+            DATABASE_URL: postgresql://mycity:${POSTGRES_PASSWORD}@db:5432/mycity
+            UPLOAD_DIR: /app/uploads
+        volumes:
+            - photos:/app/uploads
+        depends_on:
+            db:
+                condition: service_healthy
+        healthcheck:
+            test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:3000/api/v1/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+            interval: 10s
+            timeout: 5s
+            retries: 5
+        restart: unless-stopped
+    web:
+        build:
+            context: .
+            dockerfile: apps/web/Dockerfile
+        ports:
+            - '127.0.0.1:${WEB_PORT:-8090}:80'
+        depends_on:
+            api:
+                condition: service_healthy
+        restart: unless-stopped
+volumes:
+    database:
+    photos:

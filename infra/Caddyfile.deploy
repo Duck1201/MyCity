@@ -1,0 +1,9 @@
+https://mycity.private-gateway.site:3443 {
+    tls {
+        issuer acme {
+            disable_tlsalpn_challenge
+        }
+    }
+    encode gzip zstd
+    reverse_proxy web:80
+}

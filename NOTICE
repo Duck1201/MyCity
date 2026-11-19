@@ -1,0 +1,10 @@
+MyCity
+Copyright 2026 MyCity contributors
+
+This project is licensed under the Apache License, Version 2.0.
+
+The web Button component was generated from shadcn/ui and adapted for this
+project. shadcn/ui is Copyright (c) 2023 shadcn, licensed under the MIT License.
+The original notice is preserved in docs/licenses/shadcn-ui.txt.
+
+Third-party dependencies retain their respective licenses and notices.

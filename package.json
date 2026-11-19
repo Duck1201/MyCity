@@ -1,0 +1,48 @@
+{
+    "name": "mycity",
+    "version": "0.1.0",
+    "private": true,
+    "type": "module",
+    "workspaces": [
+        "apps/*",
+        "packages/*"
+    ],
+    "engines": {
+        "node": ">=24.11 <25",
+        "npm": ">=11 <12"
+    },
+    "packageManager": "npm@11.19.1",
+    "scripts": {
+        "dev:api": "npm run dev -w @mycity/api",
+        "dev:web": "npm run dev -w @mycity/web",
+        "dev:mobile": "npm run start -w @mycity/mobile",
+        "build": "npm run build -w @mycity/contracts && npm run build -w @mycity/api && npm run build -w @mycity/web",
+        "build:contracts": "npm run build -w @mycity/contracts",
+        "typecheck": "npm run build:contracts && npm run typecheck --workspaces --if-present",
+        "lint": "eslint . --max-warnings 0",
+        "format": "prettier --write .",
+        "format:check": "prettier --check .",
+        "test": "npm run test:local && npm run test:integration",
+        "test:integration": "node scripts/integration.mjs",
+        "db:generate": "npm run db:generate -w @mycity/api",
+        "db:migrate": "npm run db:migrate -w @mycity/api",
+        "db:seed": "npm run db:seed -w @mycity/api",
+        "check": "npm run lint && npm run typecheck && npm test && npm run build",
+        "test:local": "npm run build:contracts && npm run test -w @mycity/contracts && npm run test -w @mycity/api && npm run test -w @mycity/web && npm run test -w @mycity/mobile && npm run test:tooling",
+        "setup": "node scripts/setup-env.mjs && npm run db:generate && npm run build:contracts",
+        "test:tooling": "vitest run scripts/tests"
+    },
+    "devDependencies": {
+        "@eslint/js": "10.0.1",
+        "@types/node": "24.19.2",
+        "@types/react": "19.3.0",
+        "eslint": "10.15.0",
+        "globals": "17.14.0",
+        "prettier": "3.10.1",
+        "tsx": "4.23.15",
+        "typescript": "6.0.3",
+        "typescript-eslint": "8.73.0",
+        "vitest": "5.1.1"
+    },
+    "license": "Apache-2.0"
+}

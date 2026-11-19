@@ -1,0 +1,13 @@
+node_modules
+**/node_modules
+**/dist
+**/.expo
+.env
+.env.*
+.git
+*.png
+refs
+docs
+**/coverage
+
+.playwright-mcp/

@@ -1,0 +1,29 @@
+{
+    "name": "@mycity/mobile",
+    "version": "0.1.0",
+    "private": true,
+    "main": "index.ts",
+    "scripts": {
+        "start": "expo start",
+        "android": "expo run:android",
+        "typecheck": "tsc --noEmit",
+        "test": "jest --runInBand",
+        "export:android": "expo export --platform android"
+    },
+    "dependencies": {
+        "@mycity/contracts": "*",
+        "expo": "58.0.26",
+        "expo-status-bar": "58.0.5",
+        "react": "19.3.0",
+        "react-native": "0.88.1"
+    },
+    "devDependencies": {
+        "@react-native/jest-preset": "0.88.1",
+        "@testing-library/react-native": "14.1.0",
+        "@types/jest": "30.0.0",
+        "jest": "30.5.2",
+        "jest-expo": "58.0.15",
+        "react-test-renderer": "19.3.0"
+    },
+    "license": "Apache-2.0"
+}

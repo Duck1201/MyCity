@@ -1,0 +1,67 @@
+name: Deploy
+
+on:
+    workflow_run:
+        workflows: [CI]
+        types: [completed]
+        branches: [main]
+
+permissions:
+    contents: read
+
+concurrency:
+    group: deploy-demonstration
+    cancel-in-progress: false
+
+jobs:
+    deploy:
+        name: Deploy to EC2
+        if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_repository.full_name == github.repository
+        runs-on: ubuntu-latest
+        environment:
+            name: demonstration
+            url: https://mycity.private-gateway.site:3443
+        permissions:
+            contents: read
+            packages: read
+        env:
+            RELEASE_SHA: ${{ github.event.workflow_run.head_sha }}
+            DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
+            DEPLOY_USER: ${{ vars.DEPLOY_USER }}
+            DEPLOY_DIR: ${{ vars.DEPLOY_DIR }}
+        steps:
+            - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+              with:
+                  ref: ${{ github.event.workflow_run.head_sha }}
+                  persist-credentials: false
+            - name: Prepare SSH
+              env:
+                  SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+                  SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+              run: |
+                  set -euo pipefail
+                  [[ "$RELEASE_SHA" =~ ^[a-f0-9]{40}$ ]]
+                  [[ "$DEPLOY_HOST" =~ ^[a-zA-Z0-9.-]+$ ]]
+                  [[ "$DEPLOY_USER" =~ ^[a-z_][a-z0-9_-]*$ ]]
+                  [[ "$DEPLOY_DIR" =~ ^/[a-zA-Z0-9/_-]+$ ]]
+                  install -m 700 -d ~/.ssh
+                  printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+                  printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+                  chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
+            - name: Transfer release configuration
+              run: |
+                  set -euo pipefail
+                  ssh -o BatchMode=yes -o StrictHostKeyChecking=yes "$DEPLOY_USER@$DEPLOY_HOST" "mkdir -p '$DEPLOY_DIR/releases/$RELEASE_SHA'"
+                  scp -o BatchMode=yes -o StrictHostKeyChecking=yes infra/compose.deploy.yaml infra/Caddyfile.deploy scripts/deploy.sh "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_DIR/releases/$RELEASE_SHA/"
+            - name: Deploy tested images
+              env:
+                  GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  GHCR_USER: ${{ github.actor }}
+              run: |
+                  set -euo pipefail
+                  printf '%s' "$GHCR_TOKEN" | ssh -o BatchMode=yes -o StrictHostKeyChecking=yes "$DEPLOY_USER@$DEPLOY_HOST" "bash '$DEPLOY_DIR/releases/$RELEASE_SHA/deploy.sh' '$DEPLOY_DIR' '$RELEASE_SHA' '$GHCR_USER'"
+            - name: Verify public HTTPS
+              run: curl --fail --silent --show-error https://mycity.private-gateway.site:3443/api/v1/health/ready
+            - name: Remove runner SSH key
+              if: always()
+              run: rm -f ~/.ssh/id_ed25519

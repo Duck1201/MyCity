@@ -1,0 +1,16 @@
+node_modules/
+**/dist/
+**/.expo/
+**/coverage/
+.env
+.env.*
+!.env.example
+!.env.test.example
+apps/api/src/generated/
+*.log
+*.apk
+*.aab
+*.keystore
+.DS_Store
+
+.playwright-mcp/
