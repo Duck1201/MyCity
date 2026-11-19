@@ -367,8 +367,10 @@ Detalhes rotineiros e reversíveis podem ser resolvidos durante a especificaçã
 
 - Documentação SDD complementar em [docs/readme.md](docs/readme.md), com propostas e pendências em [concerns.md](concerns.md).
 - Fundação implementada: npm workspaces, contratos, quatro módulos do backend, clientes React/Expo, Prisma/PostgreSQL, Compose, seed de contas e runners.
-- Verificado: lint, typecheck, 30 testes, build web/API, compatibilidade Expo e exportação do bundle Android. Evidência: [fundação](docs/evidence/foundation.md).
+- Verificado: lint, typecheck, 40 testes, build web/API, compatibilidade Expo e exportação do bundle Android. Evidência: [fundação](docs/evidence/foundation.md).
 - Regras puras de transição e localização implementadas; isso ainda não significa atendimento persistido por API.
-- Ainda pendentes: sessão/login HTTP, denúncias/fotos/mapas, atendimento, notificações, frontend do gestor, APK em dispositivo e deploy público.
+- Ainda pendentes: sessão/login HTTP, denúncias/fotos/mapas, atendimento, notificações, frontend do gestor e APK em dispositivo. A fundação possui pipeline de publicação/deploy; consultar [CI/CD](docs/ci-cd.md) para configuração e evidências.
 - O seed atual cria somente as três contas; dados fictícios de denúncias acompanham as próximas fatias.
 - Próximo passo: fechar o contrato de sessão e implementar login/permissões de ponta a ponta, mantendo as demais pendências rastreadas.
+
+- Repositório público: https://github.com/Duck1201/MyCity; Apache 2.0, Conventional Commits e proteção de `main` por PR/checks.

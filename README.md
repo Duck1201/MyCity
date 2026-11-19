@@ -7,7 +7,7 @@ Aplicativo de participação cidadã para registrar problemas urbanos e acompanh
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![CI](https://github.com/Duck1201/MyCity/actions/workflows/ci.yml/badge.svg)](https://github.com/Duck1201/MyCity/actions/workflows/ci.yml)
 
-[Documentação](docs/readme.md) · [Plano](plan.md) · [Pendências](concerns.md) · [Como contribuir](#contribuição)
+[Demonstração da fundação](https://mycity.private-gateway.site:8080) · [Documentação](docs/readme.md) · [Plano](plan.md) · [Pendências](concerns.md) · [Como contribuir](#contribuição)
 
 ## Visão do produto
 
@@ -23,6 +23,7 @@ O cidadão registra uma denúncia com fotos e localização; o gestor analisa, r
 - [x] Express, Prisma, PostgreSQL e Docker Compose.
 - [x] Seed idempotente com dois cidadãos e um gestor.
 - [x] Testes unitários, integração com banco real e componentes.
+- [x] CI/CD com publicação no GHCR e deploy HTTPS na EC2.
 - [ ] Login com sessão e permissões HTTP.
 - [ ] Denúncias com fotos, GPS e seleção manual no mapa.
 - [ ] Painel de atendimento, histórico e notificações.
