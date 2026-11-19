@@ -71,4 +71,4 @@ Ao resolver um item, registrar decisão, documento alterado e evidência de veri
 
 **C30 — Firewall aplicado:** UFW e DOCKER-USER restringem novas entradas à lista autorizada pelo responsável; SSH/HTTPS/serviços existentes e reload foram verificados. UDP sem handshake, IPv6 externo e reboot não foram ensaiados. Evidência em [firewall.md](docs/evidence/firewall.md).
 
-**C31 — Migração de identidade pendente:** aprovado CPF/senha próprios do MyCity, sem e-mail e sem gov.br. A implementação legada ainda usa e-mail e senha comum no seed; migrar sem perda de autoria e separar/rotacionar credenciais antes de liberar login HTTP.
+**C31 — Modelo migrado; autenticação HTTP pendente:** User agora usa CPF, password (hash), modifiedAt e snake_case no banco. A migração preserva IDs/hashes das contas conhecidas e rejeita contas sem mapeamento. A senha comum do seed (SEC-01) ainda deve ser separada/rotacionada antes de liberar login HTTP.

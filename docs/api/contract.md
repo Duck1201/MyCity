@@ -24,7 +24,7 @@ Propor web e API na mesma origem via proxy. Em operações autenticadas por cook
 | GET `/me`                  | Sessão                                        | 200: `{id,role}`                                                   | Consulta identidade mínima.                                       |
 | DELETE `/sessions/current` | Sessão                                        | 204                                                                | Revoga sessão e limpa cookie quando aplicável.                    |
 
-CPF e senha nunca entram em URL, logs ou dados públicos de denúncias. A autenticação será própria do MyCity, com CPF fictício normalizado em 11 dígitos na demonstração, sem integração gov.br e sem campo de e-mail. O código atual de Identidade ainda usa e-mail e precisa ser migrado antes do login HTTP. Papel vem do banco, não do corpo. Sessão ausente/expirada/revogada retorna 401. Sessão válida sem permissão retorna 403. Login não cria usuários.
+CPF e senha nunca entram em URL, logs ou dados públicos de denúncias. A autenticação será própria do MyCity, com CPF fictício normalizado em 11 dígitos na demonstração, sem integração gov.br e sem campo de e-mail. O módulo interno de Identidade já verifica CPF e senha; ainda não existem endpoints de sessão/login HTTP. Papel vem do banco, não do corpo. Sessão ausente/expirada/revogada retorna 401. Sessão válida sem permissão retorna 403. Login não cria usuários.
 
 ## Operações de denúncia
 
