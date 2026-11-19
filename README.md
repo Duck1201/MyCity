@@ -75,7 +75,7 @@ docker compose up -d --build --wait api web
 
 Acesse **http://localhost:8090**. A API está no mesmo host em `/api/v1/health/live` e `/api/v1/health/ready`.
 
-`setup` cria `.env` com credenciais aleatórias somente se ele não existir. As contas são `cidadao.a@mycity.example`, `cidadao.b@mycity.example` e `gestor@mycity.example`; a senha local está em `DEMO_PASSWORD`. Seed repetido preserva IDs e senhas existentes. Nunca versionar `.env`.
+`setup` cria `.env` com credenciais aleatórias somente se ele não existir. As contas são `00000000001` (cidadão A), `00000000002` (cidadão B) e `00000000003` (gestor), todos identificadores sintéticos de demonstração; a senha local está em `DEMO_PASSWORD`. Seed repetido preserva IDs e senhas existentes. Nunca versionar `.env`.
 
 Migrações e seed também podem rodar em containers:
 
@@ -152,4 +152,4 @@ Abra `http://127.0.0.1:3000/api/docs/`. Com Swagger habilitado, a API de desenvo
 
 Dependabot está configurado para npm (lockfile único), Docker e GitHub Actions, com PRs semanais e commits `build(deps)`. Atualizações de segurança também abrem PRs. Não há merge automático; os checks e a revisão continuam obrigatórios, especialmente em atualizações de Expo/React Native e Prisma.
 
-A decisão atual de identidade é **CPF e senha próprios, sem e-mail/gov.br**, com dados fictícios. O seed e o módulo de Identidade existentes ainda usam e-mails legados; sua migração, credenciais distintas e o checkbox de anonimato serão implementados na fase funcional correspondente.
+A decisão atual de identidade é **CPF e senha próprios, sem e-mail/gov.br**, com dados fictícios. O seed e o módulo interno de Identidade já usam CPF. Login HTTP, credenciais distintas e o checkbox de anonimato continuam pendentes da fase funcional correspondente.

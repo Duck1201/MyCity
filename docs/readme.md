@@ -23,6 +23,8 @@ Para desenhar, implementar ou revisar telas, consulte também as [diretrizes de 
 
 Para autenticação, painel e uploads, siga a [política de acesso restrito](security.md). O repositório ser público não torna os dados ou as operações da aplicação públicos.
 
+Para models, enums e migrações, siga as [convenções de Prisma e PostgreSQL](prisma.md).
+
 - **Confirmado:** decisão expressamente aprovada na conversa ou requisito das referências preservado no recorte.
 - **Proposto:** detalhamento elaborado para tornar a especificação revisável. Ainda não é um contrato congelado quando altera comportamento importante.
 - **Pendente:** falta uma escolha ou informação externa; identificado por `Cxx` em concerns.
