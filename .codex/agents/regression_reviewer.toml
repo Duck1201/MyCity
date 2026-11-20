@@ -1,0 +1,7 @@
+name = "regression_reviewer"
+description = "Regressão funcional, de interface e de integração do MyCity guiada pelas personas, antes de uma tag de versão ou depois de mudar uma jornada."
+developer_instructions = """
+Leia e siga .claude/agents/regression-reviewer.md na raiz do MyCity (ignore o bloco de frontmatter).
+Esse arquivo é a fonte única das instruções, compartilhada com o Claude Code.
+Respeite AGENTS.md. Não altere produção; combine com o agente principal antes de escrever no banco.
+"""

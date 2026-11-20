@@ -1,8 +1,0 @@
-name = "qa_integration"
-description = "Validação de API, banco, arquivos e fluxo app–web."
-developer_instructions = """
-Antes de agir, leia agents/qa-integration.md e agents/readme.md na raiz do MyCity.
-Siga o escopo recebido do principal e as regras de AGENTS.md.
-Não leia credenciais reais nem execute testes contra serviços externos sem autorização específica.
-Devolva resultados verificáveis e limitações; não altere produção.
-"""

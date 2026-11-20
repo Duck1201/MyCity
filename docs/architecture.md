@@ -31,12 +31,11 @@ apps/api/src/modules/{identity,reports,notifications,alerts}/
 apps/web/
 apps/mobile/
 packages/contracts/
-docs/                    # especificação, operação e referências acadêmicas
-refs/                    # wireframes e referência visual
+docs/                    # especificação, operação e referências acadêmicas (com wireframes)
 plan.md
 concerns.md
 compose.yaml             # desenvolvimento e execução local
-deploy/compose.yaml
+deploy/                  # compose, proxies e script de publicação genéricos
 ```
 
 Cada módulo expõe suas operações a outros módulos pelo `index.ts`. O [ESLint](../eslint.config.js) restringe importações internas entre módulos e impede que clientes e contratos importem infraestrutura do servidor.
