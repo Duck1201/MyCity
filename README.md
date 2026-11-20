@@ -2,7 +2,7 @@
 
 O MyCity ajuda cidadãos a registrar problemas urbanos com fotos e localização. Quem registra acompanha o atendimento pelo app Android. No painel web, a equipe de gestão organiza a fila, responde aos relatos e atualiza a situação de cada denúncia.
 
-[Executar localmente](#executar-localmente) · [Usar no Android](#usar-o-app-android) · [Hospedar e manter](docs/runbook.md#hospedar-uma-instância-própria) · [Contribuir](#contribuir)
+[Executar localmente](#executar-localmente) · [Usar no Android](#usar-o-app-android) · [Hospedar e manter](docs/deploy.md#preparar-um-servidor) · [Contribuir](#contribuir)
 
 ## Veja como funciona
 
@@ -61,14 +61,14 @@ O guia de Android explica como testar com o ambiente local, baixar o artefato da
 | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
 | Explorar a demonstração hospedada           | [Painel da demonstração](https://mycity.private-gateway.site:8080), com conta de gestor fornecida pelo responsável |
 | Registrar ou atender uma denúncia           | [Primeiros passos por perfil](docs/flows.md#primeiros-passos)                                                      |
-| Instalar e operar minha própria instância   | [Hospedagem própria](docs/runbook.md#hospedar-uma-instância-própria)                                               |
-| Atualizar uma instalação ou recuperar dados | [Operação e recuperação](docs/runbook.md#persistência-backup-e-recuperação)                                        |
+| Instalar e operar minha própria instância   | [Hospedagem própria](docs/deploy.md#preparar-um-servidor)                                                          |
+| Atualizar uma instalação ou recuperar dados | [Operação e recuperação](docs/deploy.md#backup)                                                                    |
 | Integrar ou entender o código               | [Contrato HTTP](docs/api/contract.md) e [arquitetura](docs/architecture.md)                                        |
 | Entender o recorte do MVP                   | [Escopo](docs/scope.md) e [decisões pendentes](concerns.md)                                                        |
 
 ## Contribuir
 
-Em um fork, crie uma branch curta e abra um PR para `main`. Use Conventional Commits nos commits e no título do PR. O [AGENTS.md](AGENTS.md) indica onde ficam as regras, o código e os testes de cada área. As [regras de colaboração](docs/ci-cd.md#colaboração) detalham o fluxo do GitHub.
+Em um fork, crie uma branch curta e abra um PR para `main`. Use Conventional Commits nos commits e no título do PR. O [AGENTS.md](AGENTS.md) indica onde ficam as regras, o código e os testes de cada área. As [regras de colaboração](docs/deploy.md#configuração-no-github) detalham o fluxo do GitHub.
 
 Encontrou uma vulnerabilidade? Use o [canal privado de segurança](SECURITY.md).
 

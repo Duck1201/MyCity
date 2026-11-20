@@ -36,7 +36,7 @@ refs/                    # wireframes e referência visual
 plan.md
 concerns.md
 compose.yaml             # desenvolvimento e execução local
-infra/compose.deploy.yaml
+deploy/compose.yaml
 ```
 
 Cada módulo expõe suas operações a outros módulos pelo `index.ts`. O [ESLint](../eslint.config.js) restringe importações internas entre módulos e impede que clientes e contratos importem infraestrutura do servidor.
@@ -81,7 +81,7 @@ Denúncias registra o aviso pela interface de Notificações. A criação do avi
 5. Servir fotos somente quando os metadados estiverem vinculados a uma denúncia visível ao solicitante.
 6. Reconciliar offline os diretórios órfãos remanescentes de interrupções, respeitando a idade mínima dos arquivos.
 
-Banco e arquivos não compartilham transação. O [runbook](runbook.md#reconciliação-offline-das-fotos) descreve a manutenção offline e a idade mínima de 24 horas para os diretórios. A [matriz de aceite](testing.md#aceite-por-critério) registra o ensaio de orientação e reconhecimento do objeto fotografado.
+Banco e arquivos não compartilham transação. O [runbook](deploy.md#reconciliar-fotos-órfãs) descreve a manutenção offline e a idade mínima de 24 horas para os diretórios. A [matriz de aceite](testing.md#aceite-por-critério) registra o ensaio de orientação e reconhecimento do objeto fotografado.
 
 ## Integrações e ciclo de vida
 
@@ -91,7 +91,7 @@ As telas com polling consultam a cada cinco segundos, com uma requisição ativa
 
 ## Implantação
 
-O Compose local oferece PostgreSQL e também pode executar os builds de web e API. O Compose de implantação mantém PostgreSQL e API na rede de containers. O HTTPS passa pelo Caddy e chega ao Nginx do painel, que encaminha `/api` ao Express. Banco e fotos usam volumes distintos. Consulte [hospedagem própria](runbook.md#hospedar-uma-instância-própria) e [CI/CD da demonstração](ci-cd.md).
+O Compose local oferece PostgreSQL e também pode executar os builds de web e API. O Compose de implantação mantém PostgreSQL e API na rede de containers. O HTTPS passa pelo Caddy e chega ao Nginx do painel, que encaminha `/api` ao Express. Banco e fotos usam volumes distintos. Consulte [hospedagem própria](deploy.md#preparar-um-servidor) e [CI/CD da demonstração](deploy.md).
 
 Migrações e seed são passos explícitos. O runtime hospedado usa um papel PostgreSQL restrito. A prontidão consulta a tabela de usuários do banco e a liveness verifica o processo. O backup precisa preservar os vínculos entre banco e arquivos. O APK de distribuição usa uma origem HTTPS acessível ao aparelho com o sufixo `/api/v1`.
 

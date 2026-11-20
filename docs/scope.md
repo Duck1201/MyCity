@@ -6,7 +6,7 @@ Status: recorte funcional confirmado. Detalhes ainda propostos estão identifica
 
 Um APK Android para cidadãos e uma aplicação web para o gestor demonstram o ciclo completo de uma denúncia urbana. React Native/Expo e React acessam Express/Prisma com PostgreSQL compartilhado. TypeScript é usado nas três partes; web utiliza Tailwind CSS e shadcn/ui, app utiliza componentes nativos com StyleSheet.
 
-O [guia de hospedagem](runbook.md#hospedar-uma-instância-própria) descreve web, API e PostgreSQL em Docker Compose. Volumes mantêm banco e fotos após a recriação dos containers. O APK é instalado no celular.
+O [guia de hospedagem](deploy.md#preparar-um-servidor) descreve web, API e PostgreSQL em Docker Compose. Volumes mantêm banco e fotos após a recriação dos containers. O APK é instalado no celular.
 
 ## Atores e responsabilidades
 
@@ -30,7 +30,7 @@ O [guia de hospedagem](runbook.md#hospedar-uma-instância-própria) descreve web
 
 ## Simulado
 
-O seed cria contas e denúncias fictícias no mesmo backend usado pelo APK e pelo painel. A [prévia web do app](../README.md#explorar-o-app-no-navegador) usa dados próprios de protótipo. Alertas climáticos têm conteúdo de demonstração com três níveis, sem integração meteorológica, segmentação operacional ou envio emergencial.
+O seed cria contas e denúncias fictícias no mesmo backend usado pelo APK e pelo painel. Alertas climáticos têm conteúdo de demonstração com três níveis, sem integração meteorológica, segmentação operacional ou envio emergencial.
 
 ## Fora desta entrega
 

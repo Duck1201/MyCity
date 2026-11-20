@@ -3,7 +3,7 @@ import { parse } from 'yaml';
 import { expect, it } from 'vitest';
 
 it('uses separate database credentials for migrations and the hosted API', () => {
-    const { services } = parse(readFileSync('infra/compose.deploy.yaml', 'utf8'));
+    const { services } = parse(readFileSync('deploy/compose.yaml', 'utf8'));
     expect(services.api.environment.DATABASE_URL).toContain('postgresql://mycity_api:');
     expect(services.api.environment.DATABASE_URL).toContain('API_DATABASE_PASSWORD');
     expect(JSON.stringify(services.api.environment)).not.toContain('POSTGRES_PASSWORD');

@@ -10,7 +10,7 @@
     }
 }
 
-https://mycity.private-gateway.site:8080 {
+{$WEB_ORIGIN} {
     tls {
         issuer acme {
             disable_tlsalpn_challenge

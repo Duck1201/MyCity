@@ -47,12 +47,14 @@ it('rejeita ferramenta cujo conteúdo não corresponde ao checksum fixado', () =
 });
 
 it('impede publicar imagens sem os checks de segurança', () => {
-    const workflow = parse(readFileSync('.github/workflows/ci.yml', 'utf8'));
-    expect(workflow.jobs.security?.name).toBe('Security checks');
-    expect(workflow.jobs.publish.needs).toContain('security');
-    const commands = workflow.jobs.security.steps.map((step: { run?: string }) => step.run ?? '').join('\n');
+    const workflow = parse(readFileSync('.github/workflows/release.yml', 'utf8'));
+    expect(workflow.jobs.images.needs).toBe('verify');
+    const commands = workflow.jobs.verify.steps.map((step: { run?: string }) => step.run ?? '').join('\n');
     expect(commands).toContain('npm run security:secrets');
     expect(commands).toContain('npm run security:dependencies');
+    const ci = parse(readFileSync('.github/workflows/ci.yml', 'utf8'));
+    expect(ci.jobs.publish).toBeUndefined();
+    expect(ci.jobs.security?.name).toBe('Security checks');
 });
 
 it.each(['api', 'web'])('limita os arquivos do build de %s aos insumos da imagem', (workspace) => {

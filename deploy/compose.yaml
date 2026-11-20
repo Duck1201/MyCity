@@ -54,7 +54,7 @@ services:
     api:
         image: ghcr.io/duck1201/mycity-api@${API_DIGEST:?Digest obrigatório}
         environment:
-            WEB_ORIGIN: ${WEB_ORIGIN:-https://mycity.private-gateway.site:8080}
+            WEB_ORIGIN: ${WEB_ORIGIN:?Configure WEB_ORIGIN no .env do servidor}
             PROXY_HOPS: '2'
             NODE_ENV: production
             NODE_OPTIONS: --max-old-space-size=256
@@ -83,31 +83,24 @@ services:
     edge:
         init: true
         image: caddy:2.10-alpine
+        environment:
+            WEB_ORIGIN: ${WEB_ORIGIN:?Configure WEB_ORIGIN no .env do servidor}
         ports:
-            - 8080:8080
+            - ${EDGE_PORT:-443}:${EDGE_PORT:-443}
         volumes:
-            - ./Caddyfile.deploy:/etc/caddy/Caddyfile:ro
+            - ./Caddyfile:/etc/caddy/Caddyfile:ro
             - certificates:/data
             - edge-config:/config
-        networks:
-            default:
-            existing-proxy:
-                aliases: [mycity-edge]
         depends_on: [web]
         extra_hosts:
-            - mycity.private-gateway.site:127.0.0.1
+            - ${PUBLIC_HOST:?Configure PUBLIC_HOST no .env do servidor}:127.0.0.1
         healthcheck:
-            test: [CMD, wget, -q, -O, /dev/null, 'https://mycity.private-gateway.site:8080/api/v1/health/ready']
+            test: [CMD-SHELL, 'wget -q -O /dev/null "$$WEB_ORIGIN/api/v1/health/ready"']
             interval: 5s
             timeout: 5s
             start_period: 30s
             retries: 18
         restart: unless-stopped
-
-networks:
-    existing-proxy:
-        external: true
-        name: kim-activity_stream-net
 
 volumes:
     database:

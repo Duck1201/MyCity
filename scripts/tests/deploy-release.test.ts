@@ -1,139 +1,93 @@
 import { spawnSync } from 'node:child_process';
-import { appendFileSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parse } from 'yaml';
 import { afterEach, beforeEach, expect, it } from 'vitest';
 
-const sha = 'a'.repeat(40);
 const digest = 'sha256:' + 'b'.repeat(64);
 let root: string;
-const runtime = {
-    POSTGRES_PASSWORD: 'test-db-password',
-    API_DATABASE_PASSWORD: 'test-api-password',
-    DEMO_CITIZEN_A_PASSWORD: 'test-first-password',
-    DEMO_CITIZEN_B_PASSWORD: 'test-second-password',
-    DEMO_MANAGER_PASSWORD: 'test-manager-password',
-    WEB_ORIGIN: 'https://demo.example.test',
-};
 
 beforeEach(() => {
     root = mkdtempSync('/tmp/mycity-release-');
-    writeFileSync(join(root, '.env'), 'POSTGRES_PASSWORD=test-db-password\nLOCAL_OPTION=preserved\n', { mode: 0o600 });
-    mkdirSync(join(root, 'releases', sha), { recursive: true });
-    writeFileSync(join(root, 'releases', sha, 'compose.deploy.yaml'), '');
-    writeFileSync(join(root, 'commands.sh'), 'docker() { printf "%s\\n" "$*" >> "$TRACE"; }\ncurl() { printf "%s\\n" "$*" >> "$TRACE"; }\n');
+    writeFileSync(join(root, '.env'), 'POSTGRES_PASSWORD=test-db-password\n', { mode: 0o600 });
+    writeFileSync(join(root, 'commands.sh'), 'docker() { printf "%s\\n" "$*" >> "$TRACE"; }\ncurl() { printf "curl %s\\n" "$*" >> "$TRACE"; }\n');
 });
 afterEach(() => rmSync(root, { recursive: true, force: true }));
 
-function deploy(sequence: number, imageDigest = digest, manifestSha = sha, attempt = 1, settings: Record<string, string> = runtime) {
-    const directory = join(root, 'releases', sha + '-' + sequence + '-' + attempt);
+function release(name: string, manifest = ['API', 'TOOLS', 'WEB'].map((image) => image + '_DIGEST=' + digest)) {
+    const directory = join(root, 'releases', name);
     mkdirSync(directory, { recursive: true });
-    writeFileSync(join(directory, 'compose.deploy.yaml'), '');
-    copyFileSync('scripts/deployment-env.py', join(directory, 'deployment-env.py'));
-    const images = ['api', 'tools', 'web'].map((image) => image.toUpperCase() + '_DIGEST=' + imageDigest);
-    writeFileSync(join(directory, 'images.env'), ['RELEASE_SHA=' + manifestSha, 'CI_NUMBER=' + sequence, 'CI_ATTEMPT=' + attempt, ...images].join('\n') + '\n');
-    const run = spawnSync('/bin/bash', ['-c', 'source "$COMMANDS"; source scripts/deploy.sh', 'deploy.sh', root, sha, 'tester', String(sequence), String(attempt)], { input: 'fake-registry-token\n' + JSON.stringify(settings), env: { PATH: '/usr/bin:/bin', COMMANDS: join(root, 'commands.sh'), TRACE: join(root, 'trace') } });
-    return run.status;
+    for (const file of ['compose.yaml', 'Caddyfile', 'provision-api.sql']) copyFileSync(join('deploy', file), join(directory, file));
+    writeFileSync(join(directory, 'images.env'), manifest.join('\n') + '\n');
 }
 
-it('aplica os digests da CI e permite repetir a mesma release', () => {
-    expect(deploy(10)).toBe(0);
-    expect(deploy(10)).toBe(0);
-    expect(readFileSync(join(root, 'current-release'), 'utf8').trim()).toBe(sha);
-});
-
-it('aplica somente o ambiente da implantação aceita, preservando configurações do servidor', () => {
-    const file = join(root, '.env');
-    expect(deploy(11)).toBe(0);
-    const active = readFileSync(file, 'utf8');
-    expect(active).toContain('LOCAL_OPTION=preserved');
-    expect(active).toContain('test-manager-password');
-    expect(deploy(10, digest, sha, 1, { ...runtime, DEMO_MANAGER_PASSWORD: 'different-secret' })).not.toBe(0);
-    expect(readFileSync(file, 'utf8')).toBe(active);
-});
-
-it.each([{ GOOGLE_MAPS_ANDROID_API_KEY: 'build-only' }, { POSTGRES_PASSWORD: 'wrong-volume-password' }])('preserva o ambiente diante de configuração extra ou senha de volume divergente', (override) => {
-    const before = readFileSync(join(root, '.env'), 'utf8');
-    expect(deploy(12, digest, sha, 1, { ...runtime, ...override })).not.toBe(0);
-    expect(readFileSync(join(root, '.env'), 'utf8')).toBe(before);
-});
-
-it('preserva o papel em uso pela API quando diverge a senha de banco no deploy', () => {
-    expect(deploy(11)).toBe(0);
-    const file = join(root, '.env');
-    const before = readFileSync(file, 'utf8');
-    expect(deploy(12, digest, sha, 1, { ...runtime, API_DATABASE_PASSWORD: 'different-runtime-db-password' })).not.toBe(0);
-    expect(readFileSync(file, 'utf8')).toBe(before);
-});
-
-it('recusa a configuração de build antes de enviar dados pelo SSH', () => {
-    const input = { ...runtime, GOOGLE_MAPS_ANDROID_API_KEY: 'build-only' };
-    const result = spawnSync('python3', ['scripts/deployment-env.py', 'send'], {
-        env: { PATH: '/usr/bin:/bin', EC2_RUNTIME_ENV: JSON.stringify(input), GHCR_TOKEN: 'registry-fixture' },
+function deploy(name: string) {
+    const run = spawnSync('/bin/bash', ['-c', 'source "$COMMANDS"; source deploy/deploy.sh', 'deploy.sh', root, name, 'tester'], {
+        input: 'fake-registry-token\n',
+        env: { PATH: '/usr/bin:/bin', COMMANDS: join(root, 'commands.sh'), TRACE: join(root, 'trace') },
         encoding: 'utf8',
     });
-    expect(result.status).not.toBe(0);
-    expect(result.stdout).toBe('');
-    expect(result.stderr).not.toContain(input.GOOGLE_MAPS_ANDROID_API_KEY);
+    return run.status;
+}
+const trace = () => (existsSync(join(root, 'trace')) ? readFileSync(join(root, 'trace'), 'utf8') : '');
+
+it('aplica os digests da release, registra a anterior e aponta current para a nova', () => {
+    release('v1.0.0-1');
+    release('v1.1.0-1');
+    expect(deploy('v1.0.0-1')).toBe(0);
+    expect(deploy('v1.1.0-1')).toBe(0);
+    expect(readFileSync(join(root, 'current-release'), 'utf8').trim()).toBe('v1.1.0-1');
+    expect(readFileSync(join(root, 'previous-release'), 'utf8').trim()).toBe('v1.0.0-1');
+    expect(readFileSync(join(root, 'current', 'images.env'), 'utf8')).toContain('API_DIGEST=' + digest);
+    expect(trace()).toMatch(/login ghcr\.io --username tester --password-stdin[\s\S]*pull[\s\S]*up -d --wait db[\s\S]*run --rm migrate[\s\S]*run --rm -T provision[\s\S]*up -d --wait api web edge/);
 });
 
-it('impede exibição da carga da EC2 quando o envio é iniciado diretamente no terminal', () => {
-    const result = spawnSync('script', ['-q', '-e', '-c', 'python3 scripts/deployment-env.py send', '/dev/null'], {
-        env: { PATH: '/usr/bin:/bin', EC2_RUNTIME_ENV: JSON.stringify(runtime), GHCR_TOKEN: 'synthetic-registry-token' },
-        encoding: 'utf8',
-    });
-    expect(result.status).not.toBe(0);
-    expect(result.stdout).not.toContain(runtime.POSTGRES_PASSWORD);
-    expect(result.stdout).not.toContain('synthetic-registry-token');
+it('semeia somente na primeira implantação e depois sincroniza as senhas das contas', () => {
+    release('v1.0.0-1');
+    expect(deploy('v1.0.0-1')).toBe(0);
+    expect(deploy('v1.0.0-1')).toBe(0);
+    const runs = trace()
+        .split('\n')
+        .filter((line) => line.includes(' seed'));
+    expect(runs[0]).toMatch(/run --rm seed$/);
+    expect(runs[1]).toContain('db:sync-deployment-passwords');
+    expect(runs).toHaveLength(2);
 });
 
-it('fecha o acesso antes da migração legada e retoma a rotação antes de ativar a API', () => {
-    const marker = join(root, '.rotate-before-activation');
-    writeFileSync(marker, '');
-    writeFileSync(join(root, '.seeded'), '');
-    appendFileSync(join(root, 'commands.sh'), 'docker() { printf "%s\\n" "$*" >> "$TRACE"; if [[ "$*" == *db:rotate-demo-passwords* && ! -f "$TRACE.failed" ]]; then touch "$TRACE.failed"; return 1; fi; }\n');
-    expect(deploy(10)).not.toBe(0);
-    const interrupted = readFileSync(join(root, 'trace'), 'utf8');
-    expect(interrupted).toMatch(/stop edge api[\s\S]*run --rm migrate[\s\S]*db:rotate-demo-passwords/);
-    expect(interrupted).not.toContain('up -d --wait api web edge');
-    expect(existsSync(marker)).toBe(true);
-    expect(deploy(10)).toBe(0);
-    const resumed = readFileSync(join(root, 'trace'), 'utf8').slice(interrupted.length);
-    expect(resumed).toMatch(/db:rotate-demo-passwords[\s\S]*up -d --wait api web edge/);
-    expect(existsSync(marker)).toBe(false);
-    expect(deploy(10)).toBe(0);
-    expect(readFileSync(join(root, 'trace'), 'utf8').slice(interrupted.length + resumed.length)).not.toContain('db:rotate-demo-passwords');
-});
-
-it('rejeita execução anterior antes de usar Docker', () => {
-    expect(deploy(11)).toBe(0);
-    const trace = readFileSync(join(root, 'trace'), 'utf8');
-    expect(deploy(10)).not.toBe(0);
-    expect(readFileSync(join(root, 'trace'), 'utf8')).toBe(trace);
+it('acrescenta o compose.override.yaml do servidor somente quando ele existe', () => {
+    release('v1.0.0-1');
+    expect(deploy('v1.0.0-1')).toBe(0);
+    expect(trace()).not.toContain('compose.override.yaml');
+    writeFileSync(join(root, 'compose.override.yaml'), 'services: {}\n');
+    expect(deploy('v1.0.0-1')).toBe(0);
+    expect(trace()).toContain('-f ' + join(root, 'compose.override.yaml'));
 });
 
 it.each([
-    ['', sha],
-    [digest, 'c'.repeat(40)],
-])('rejeita manifesto incompleto ou incompatível', (value, commit) => {
-    expect(deploy(10, value, commit)).not.toBe(0);
+    ['manifesto incompleto', ['API_DIGEST=' + digest, 'WEB_DIGEST=' + digest]],
+    ['digest inválido', ['API_DIGEST=latest', 'TOOLS_DIGEST=' + digest, 'WEB_DIGEST=' + digest]],
+    ['ordem trocada', ['TOOLS_DIGEST=' + digest, 'API_DIGEST=' + digest, 'WEB_DIGEST=' + digest]],
+])('recusa %s antes de usar o Docker', (_case, manifest) => {
+    release('v1.0.0-1', manifest);
+    expect(deploy('v1.0.0-1')).not.toBe(0);
+    expect(trace()).toBe('');
 });
 
-it('recusa uma tentativa anterior e digests diferentes para a mesma tentativa', () => {
-    expect(deploy(10, digest, sha, 2)).toBe(0);
-    const trace = readFileSync(join(root, 'trace'), 'utf8');
-    expect(deploy(10)).not.toBe(0);
-    expect(deploy(10, 'sha256:' + 'c'.repeat(64), sha, 2)).not.toBe(0);
-    expect(readFileSync(join(root, 'trace'), 'utf8')).toBe(trace);
+it.each(['../v1.0.0-1', 'latest', 'v1.0-1', 'v1.0.0'])('recusa o nome de release %s', (name) => {
+    release('v1.0.0-1');
+    expect(deploy(name)).not.toBe(0);
+    expect(trace()).toBe('');
 });
 
-it('coleta os processos filhos da sonda HTTPS do edge', () => {
-    const { services } = parse(readFileSync('infra/compose.deploy.yaml', 'utf8'));
-    expect(services.edge.init).toBe(true);
+it('recusa implantar sem o .env do servidor', () => {
+    release('v1.0.0-1');
+    rmSync(join(root, '.env'));
+    expect(deploy('v1.0.0-1')).not.toBe(0);
+    expect(trace()).toBe('');
 });
 
-it('vincula cada serviço publicado ao digest correspondente', () => {
-    const { services } = parse(readFileSync('infra/compose.deploy.yaml', 'utf8'));
+it('vincula cada serviço publicado ao digest correspondente e coleta os processos da sonda do edge', () => {
+    const { services } = parse(readFileSync('deploy/compose.yaml', 'utf8'));
     for (const [service, image] of [
         ['api', 'api'],
         ['web', 'web'],
@@ -142,19 +96,43 @@ it('vincula cada serviço publicado ao digest correspondente', () => {
         expect(services[service].image).toBe('ghcr.io/duck1201/mycity-' + image + '@${' + image.toUpperCase() + '_DIGEST:?Digest obrigatório}');
     }
     expect(services.seed.extends).toBe('migrate');
+    expect(services.edge.init).toBe(true);
 });
 
-it.each([true, false])('monta o manifesto somente com três artefatos da execução aprovada (correspondência: %s)', (matches) => {
-    const workflow = parse(readFileSync('.github/workflows/deploy.yml', 'utf8'));
-    const step = workflow.jobs.deploy.steps.find((item: { name?: string }) => item.name === 'Retrieve release digests from the successful CI run');
-    const fakeGh = ['gh() {', '  if [[ "$1" == api ]]; then printf "%s\\n" "$RELEASE_SHA"; return; fi', '  [[ "$1 $2 $3 $4 $6" == "run download 123 -n -D" ]] || return 1', '  local image=${5#digest-1-} number=10', '  if [[ "$image" == tools && "$MATCHES" == false ]]; then number=9; fi', '  mkdir -p "$7"', '  printf "%s %s 1 %s %s\\n" "$RELEASE_SHA" "$number" "$image" "$DIGEST" > "$7/$image.digest"', '}'];
-    writeFileSync(join(root, 'fake-gh.sh'), fakeGh.join('\n'));
-    const run = spawnSync('/bin/bash', ['-c', 'source ./fake-gh.sh\n' + step.run], {
-        cwd: root,
-        env: { PATH: '/usr/bin:/bin', RELEASE_SHA: sha, CI_NUMBER: '10', CI_ATTEMPT: '1', CI_RUN: '123', GITHUB_REPOSITORY: 'demo/repo', RUNNER_TEMP: root, MATCHES: String(matches), DIGEST: digest },
-    });
-    expect(run.status, run.stderr.toString()).toBe(matches ? 0 : 1);
-    if (matches) {
-        expect(readFileSync(join(root, 'images.env'), 'utf8').trim().split('\n')).toEqual(['RELEASE_SHA=' + sha, 'CI_NUMBER=10', 'CI_ATTEMPT=1', 'API_DIGEST=' + digest, 'TOOLS_DIGEST=' + digest, 'WEB_DIGEST=' + digest]);
-    }
+it('mantém o compose e o Caddyfile genéricos: endereço público e rede do servidor vêm de fora do repositório', () => {
+    const compose = parse(readFileSync('deploy/compose.yaml', 'utf8'));
+    expect(Object.values(compose.networks ?? {}).some((network) => (network as { external?: boolean }).external)).toBe(false);
+    expect(compose.services.api.environment.WEB_ORIGIN).toMatch(/^\$\{WEB_ORIGIN:\?/);
+    expect(compose.services.edge.environment.WEB_ORIGIN).toMatch(/^\$\{WEB_ORIGIN:\?/);
+    const text = readFileSync('deploy/compose.yaml', 'utf8') + readFileSync('deploy/Caddyfile', 'utf8');
+    expect(text).not.toMatch(/https?:\/\/(?!127\.0\.0\.1|localhost|\$|\{)[a-z0-9.-]+/i);
+    expect(readFileSync('deploy/Caddyfile', 'utf8')).toMatch(/^\{\$WEB_ORIGIN\} \{$/m);
+    expect(existsSync('infra')).toBe(false);
+});
+
+const workflow = () => parse(readFileSync('.github/workflows/release.yml', 'utf8'));
+
+it('publica e implanta somente a partir de tags de versão em commits da main com CI aprovada', () => {
+    const { on, jobs } = workflow();
+    expect(on).toEqual({ push: { tags: ['v*.*.*'] } });
+    const verify = jobs.verify.steps.map((step: { run?: string }) => step.run ?? '').join('\n');
+    expect(verify).toContain('merge-base --is-ancestor');
+    expect(verify).toContain('actions/workflows/ci.yml/runs');
+    expect(verify).toContain('npm run security:secrets');
+    expect(verify).toContain('npm run security:dependencies');
+    expect(jobs.images.needs).toBe('verify');
+    expect(jobs.deploy.needs).toEqual(['verify', 'images']);
+    expect(jobs.deploy.environment.name).toBe('demonstration');
+    expect(workflow().concurrency).toEqual({ group: 'release', 'cancel-in-progress': false });
+});
+
+it('entrega à VM os digests produzidos pelo mesmo workflow, sem artefatos intermediários', () => {
+    const { images, deploy } = workflow().jobs;
+    const builds = images.steps.filter((step: { uses?: string }) => step.uses?.startsWith('docker/build-push-action@'));
+    expect(builds.map((step: { id: string }) => step.id)).toEqual(['api', 'tools', 'web']);
+    for (const image of ['api', 'tools', 'web']) expect(images.outputs[image]).toBe('${{ steps.' + image + '.outputs.digest }}');
+    const commands = deploy.steps.map((step: { run?: string }) => step.run ?? '').join('\n');
+    expect(commands).not.toContain('${{');
+    for (const image of ['api', 'tools', 'web']) expect(JSON.stringify(deploy)).toContain('needs.images.outputs.' + image);
+    expect(JSON.stringify(deploy)).not.toMatch(/download-artifact|EC2_RUNTIME_ENV/);
 });

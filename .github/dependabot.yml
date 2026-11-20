@@ -15,6 +15,10 @@ updates:
               patterns: ['expo', 'expo-*', '@expo/*', 'react', 'react-dom', 'react-native', 'react-test-renderer', '@react-native/*', 'jest-expo', '@types/react', '@types/react-dom']
           prisma:
               patterns: ['prisma', '@prisma/*']
+      # Node is pinned to 24 by engines and .nvmrc; a major upgrade is a deliberate change.
+      ignore:
+          - dependency-name: '@types/node'
+            update-types: ['version-update:semver-major']
     - package-ecosystem: github-actions
       directory: /
       schedule:
@@ -24,9 +28,12 @@ updates:
           prefix: build
           include: scope
     - package-ecosystem: docker
-      directories: ['/', '/apps/api', '/apps/web', '/infra']
+      directories: ['/', '/apps/api', '/apps/web', '/deploy']
       schedule:
           interval: monthly
+      ignore:
+          - dependency-name: node
+            update-types: ['version-update:semver-major']
       open-pull-requests-limit: 5
       commit-message:
           prefix: build

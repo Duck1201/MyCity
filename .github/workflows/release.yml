@@ -1,0 +1,277 @@
+name: Release
+
+# A version tag on a commit of main publishes the images, deploys them to the
+# demonstration server and attaches the signed APK to the GitHub release.
+# Roll back by re-running the "Deploy" job of an earlier release run: it reuses
+# that run's image digests.
+on:
+    push:
+        tags: ['v*.*.*']
+
+permissions:
+    contents: read
+
+env:
+    DOCKER_BUILD_RECORD_UPLOAD: 'false'
+    PUBLIC_ORIGIN: https://mycity.private-gateway.site:8080
+
+concurrency:
+    group: release
+    cancel-in-progress: false
+
+jobs:
+    verify:
+        name: Verify tag
+        runs-on: ubuntu-latest
+        permissions:
+            contents: read
+            actions: read
+        steps:
+            - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+              with:
+                  fetch-depth: 0
+                  persist-credentials: false
+            - name: Require a commit of main with a successful CI run
+              env:
+                  GH_TOKEN: ${{ github.token }}
+                  TAG: ${{ github.ref_name }}
+              run: |
+                  set -euo pipefail
+                  [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+                  git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+                  runs=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$GITHUB_SHA&branch=main&event=push&status=success" --jq .total_count)
+                  [[ "$runs" -ge 1 ]] || { echo "A CI da main não aprovou $GITHUB_SHA." >&2; exit 1; }
+            - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+              with:
+                  node-version-file: .nvmrc
+            - run: npm run security:secrets
+            - run: npm run security:dependencies
+
+    images:
+        name: Publish images
+        needs: verify
+        runs-on: ubuntu-latest
+        permissions:
+            contents: read
+            packages: write
+        outputs:
+            api: ${{ steps.api.outputs.digest }}
+            tools: ${{ steps.tools.outputs.digest }}
+            web: ${{ steps.web.outputs.digest }}
+        steps:
+            - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+              with:
+                  persist-credentials: false
+            - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+            - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+              with:
+                  registry: ghcr.io
+                  username: ${{ github.actor }}
+                  password: ${{ secrets.GITHUB_TOKEN }}
+            - uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+              id: api
+              with:
+                  context: .
+                  file: apps/api/Dockerfile
+                  target: runtime
+                  push: true
+                  tags: ghcr.io/duck1201/mycity-api:${{ github.ref_name }}
+                  labels: org.opencontainers.image.source=https://github.com/Duck1201/MyCity
+                  cache-from: type=gha,scope=api
+            - uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+              id: tools
+              with:
+                  context: .
+                  file: apps/api/Dockerfile
+                  target: build
+                  push: true
+                  tags: ghcr.io/duck1201/mycity-tools:${{ github.ref_name }}
+                  labels: org.opencontainers.image.source=https://github.com/Duck1201/MyCity
+                  cache-from: type=gha,scope=tools
+            - uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+              id: web
+              with:
+                  context: .
+                  file: apps/web/Dockerfile
+                  push: true
+                  tags: ghcr.io/duck1201/mycity-web:${{ github.ref_name }}
+                  labels: org.opencontainers.image.source=https://github.com/Duck1201/MyCity
+                  cache-from: type=gha,scope=web
+
+    deploy:
+        name: Deploy
+        needs: [verify, images]
+        runs-on: ubuntu-latest
+        timeout-minutes: 15
+        environment:
+            name: demonstration
+            url: ${{ env.PUBLIC_ORIGIN }}
+        permissions:
+            contents: read
+            packages: read
+        env:
+            DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
+            DEPLOY_USER: ${{ vars.DEPLOY_USER }}
+            DEPLOY_DIR: ${{ vars.DEPLOY_DIR }}
+            RELEASE: ${{ github.ref_name }}-${{ github.run_attempt }}
+            API_DIGEST: ${{ needs.images.outputs.api }}
+            TOOLS_DIGEST: ${{ needs.images.outputs.tools }}
+            WEB_DIGEST: ${{ needs.images.outputs.web }}
+        steps:
+            - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+              with:
+                  persist-credentials: false
+            - name: Prepare release files and SSH
+              env:
+                  SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+                  SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+              run: |
+                  set -euo pipefail
+                  [[ "$DEPLOY_HOST" =~ ^[a-zA-Z0-9.-]+$ && "$DEPLOY_USER" =~ ^[a-z_][a-z0-9_-]*$ && "$DEPLOY_DIR" =~ ^/[a-zA-Z0-9/_-]+$ ]]
+                  for digest in "$API_DIGEST" "$TOOLS_DIGEST" "$WEB_DIGEST"; do [[ "$digest" =~ ^sha256:[a-f0-9]{64}$ ]]; done
+                  printf 'API_DIGEST=%s\nTOOLS_DIGEST=%s\nWEB_DIGEST=%s\n' "$API_DIGEST" "$TOOLS_DIGEST" "$WEB_DIGEST" > deploy/images.env
+                  install -m 700 -d ~/.ssh
+                  printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+                  printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+                  chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
+            - name: Transfer release files
+              run: |
+                  set -euo pipefail
+                  ssh_opts=(-o BatchMode=yes -o StrictHostKeyChecking=yes)
+                  target="$DEPLOY_DIR/releases/$RELEASE"
+                  ssh "${ssh_opts[@]}" "$DEPLOY_USER@$DEPLOY_HOST" "rm -rf -- '$target' && mkdir -p '$target'"
+                  scp "${ssh_opts[@]}" deploy/compose.yaml deploy/Caddyfile deploy/provision-api.sql deploy/deploy.sh deploy/images.env "$DEPLOY_USER@$DEPLOY_HOST:$target/"
+            - name: Apply release
+              env:
+                  GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  GHCR_USER: ${{ github.actor }}
+              run: printf '%s\n' "$GHCR_TOKEN" | ssh -o BatchMode=yes -o StrictHostKeyChecking=yes "$DEPLOY_USER@$DEPLOY_HOST" "bash '$DEPLOY_DIR/releases/$RELEASE/deploy.sh' '$DEPLOY_DIR' '$RELEASE' '$GHCR_USER'"
+            - name: Verify public HTTPS
+              run: curl --fail --silent --show-error --connect-timeout 10 --max-time 30 "$PUBLIC_ORIGIN/api/v1/health/ready"
+            - name: Remove runner SSH key
+              if: always()
+              run: rm -f ~/.ssh/id_ed25519
+
+    android-build:
+        name: Build Android APK
+        needs: verify
+        runs-on: ubuntu-latest
+        timeout-minutes: 45
+        environment: demonstration
+        outputs:
+            artifact_id: ${{ steps.transfer.outputs.artifact-id }}
+        steps:
+            - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+              with:
+                  persist-credentials: false
+            - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+              with:
+                  node-version-file: .nvmrc
+            - name: Install build dependencies
+              run: |
+                  set -euo pipefail
+                  export JAVA_HOME="$JAVA_HOME_21_X64"
+                  echo "JAVA_HOME=$JAVA_HOME" >> "$GITHUB_ENV"
+                  "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" 'platforms;android-37.0' 'build-tools;37.0.0' 'ndk;27.1.12297006' 'cmake;3.22.1'
+                  npm ci --ignore-scripts --no-audit --no-fund
+                  npm run build:contracts
+            - name: Generate native Android project
+              working-directory: apps/mobile
+              env:
+                  GOOGLE_MAPS_ANDROID_API_KEY: ${{ secrets.GOOGLE_MAPS_ANDROID_API_KEY }}
+                  EXPO_NO_DOTENV: '1'
+                  EXPO_NO_TELEMETRY: '1'
+                  EXPO_OFFLINE: '1'
+              run: |
+                  set -euo pipefail
+                  test -n "$GOOGLE_MAPS_ANDROID_API_KEY"
+                  ../../node_modules/.bin/expo prebuild --platform android --no-install --template ../../node_modules/expo/template.tgz >/dev/null 2>&1
+                  node -e "const fs=require('node:fs'); const xml=fs.readFileSync('android/app/src/main/AndroidManifest.xml','utf8'); process.exit(xml.includes(process.env.GOOGLE_MAPS_ANDROID_API_KEY) ? 0 : 1)"
+            - name: Assemble release variant
+              working-directory: apps/mobile/android
+              env:
+                  NODE_ENV: production
+                  EXPO_NO_DOTENV: '1'
+                  EXPO_NO_TELEMETRY: '1'
+                  EXPO_PUBLIC_API_URL: ${{ env.PUBLIC_ORIGIN }}/api/v1
+              run: ./gradlew --no-daemon --max-workers 2 --console=plain :app:assembleRelease
+            - name: Transfer APK to signing runner
+              uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+              id: transfer
+              with:
+                  name: android-intermediate-${{ github.run_attempt }}
+                  path: apps/mobile/android/app/build/outputs/apk/release/app-release.apk
+                  retention-days: 1
+                  if-no-files-found: error
+                  compression-level: 0
+
+    android-sign:
+        name: Sign and publish Android APK
+        needs: android-build
+        runs-on: ubuntu-latest
+        timeout-minutes: 10
+        environment: demonstration
+        permissions:
+            contents: write
+        steps:
+            - name: Prepare signing tools
+              run: |
+                  set -euo pipefail
+                  "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" 'build-tools;37.0.0'
+            - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+              with:
+                  artifact-ids: ${{ needs.android-build.outputs.artifact_id }}
+                  path: input
+                  merge-multiple: true
+                  digest-mismatch: error
+            - name: Sign and verify APK
+              env:
+                  KEYSTORE_BASE64: ${{ secrets.ANDROID_RELEASE_KEYSTORE_BASE64 }}
+                  KEYSTORE_PASSWORD: ${{ secrets.ANDROID_RELEASE_STORE_PASSWORD }}
+              run: |
+                  set -euo pipefail
+                  umask 077
+                  test -n "$KEYSTORE_BASE64" && test -n "$KEYSTORE_PASSWORD"
+                  store=$(mktemp "$RUNNER_TEMP/mycity-signing.XXXXXXXX")
+                  trap 'rm -- "$store"' EXIT
+                  printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$store"
+                  unset KEYSTORE_BASE64
+                  tools="$ANDROID_HOME/build-tools/37.0.0"
+                  mkdir release
+                  "$tools/apksigner" sign --ks "$store" --ks-key-alias mycity-release --ks-pass env:KEYSTORE_PASSWORD --v4-signing-enabled false --out release/mycity.apk input/app-release.apk
+                  unset KEYSTORE_PASSWORD
+                  "$tools/zipalign" -c -P 16 4 release/mycity.apk
+                  "$tools/aapt" dump badging release/mycity.apk | sed -n '1p' | grep -F "package: name='br.edu.mycity.app'"
+                  cert=$("$tools/apksigner" verify --print-certs release/mycity.apk | sed -n 's/^.*certificate SHA-256 digest: //p' | sort -u)
+                  test "$cert" = '74d59f2563cba608e433a7fd8be9817774161a89a672c61766ad89cc535f8ff4'
+                  cd release
+                  sha256sum mycity.apk > mycity.apk.sha256
+                  sha256sum --check mycity.apk.sha256
+            - name: Attach APK to the GitHub release
+              env:
+                  GH_TOKEN: ${{ github.token }}
+                  TAG: ${{ github.ref_name }}
+              run: |
+                  set -euo pipefail
+                  if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+                    gh release upload "$TAG" release/mycity.apk release/mycity.apk.sha256 --clobber --repo "$GITHUB_REPOSITORY"
+                  else
+                    gh release create "$TAG" release/mycity.apk release/mycity.apk.sha256 --verify-tag --generate-notes --repo "$GITHUB_REPOSITORY"
+                  fi
+
+    android-cleanup:
+        name: Remove intermediate APK
+        needs: [android-build, android-sign]
+        if: always() && needs.android-build.outputs.artifact_id != ''
+        runs-on: ubuntu-latest
+        permissions:
+            actions: write
+        steps:
+            - name: Remove transferred artifact
+              env:
+                  GH_TOKEN: ${{ github.token }}
+                  ARTIFACT_ID: ${{ needs.android-build.outputs.artifact_id }}
+              run: |
+                  set -euo pipefail
+                  [[ "$ARTIFACT_ID" =~ ^[0-9]+$ ]]
+                  gh api --method DELETE "repos/$GITHUB_REPOSITORY/actions/artifacts/$ARTIFACT_ID"

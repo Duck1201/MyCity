@@ -22,7 +22,7 @@ Antes de alterar comportamento, localize a fase em [plan.md](plan.md), as decis�
 | Fronteiras entre módulos                  | [Arquitetura e decisões](docs/architecture.md). Use interfaces públicas em memória. Cada módulo controla seus dados.                                                                             |
 | Painel ou app                             | `apps/web` (React/Tailwind/shadcn) ou `apps/mobile` (Expo/StyleSheet). Aplique as [heurísticas de usabilidade](docs/usability.md). Valide as mudanças no painel e no app integrados à API local. |
 | Ambiente local                            | [Execução local](README.md#executar-localmente), `.env.example` e scripts do workspace envolvido. Use npm workspaces e o lockfile da raiz.                                                       |
-| Deploy, migração hospedada ou recuperação | [CI/CD](docs/ci-cd.md) e [runbook](docs/runbook.md). Preserve serviços, volumes e segredos. Migrações e seed são explícitos.                                                                     |
+| Deploy, migração hospedada ou recuperação | [Publicação e operação](docs/deploy.md) e [runbook](docs/runbook.md). Preserve serviços, volumes e segredos. Migrações e seed são explícitos.                                                    |
 
 ## Implementar e verificar
 
