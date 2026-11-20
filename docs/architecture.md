@@ -90,7 +90,7 @@ As telas com polling consultam a cada cinco segundos, com uma requisição ativa
 
 ## Implantação
 
-O Compose local oferece PostgreSQL e também pode executar os builds de web e API. O Compose de implantação mantém PostgreSQL e API na rede de containers. O HTTPS passa pelo Caddy e chega ao Nginx do painel, que encaminha `/api` ao Express. Banco e fotos usam volumes distintos. Consulte [hospedagem própria](deploy.md#preparar-um-servidor) e [CI/CD da demonstração](deploy.md).
+O Compose local oferece PostgreSQL e também pode executar os builds de web e API. O Compose de implantação mantém PostgreSQL e API na rede de containers. O HTTPS passa pelo Caddy e chega ao Nginx do painel, que encaminha `/api` ao Express. O Caddy comprime as respostas; o Nginx marca como imutáveis os arquivos com hash de `/assets/` e faz o navegador revalidar o `index.html` a cada visita, para um deploy novo valer na hora. Banco e fotos usam volumes distintos. Consulte [hospedagem própria](deploy.md#preparar-um-servidor) e [CI/CD da demonstração](deploy.md).
 
 Migrações e seed são passos explícitos. O runtime hospedado usa um papel PostgreSQL restrito. A prontidão consulta a tabela de usuários do banco e a liveness verifica o processo. O backup precisa preservar os vínculos entre banco e arquivos. O APK de distribuição usa uma origem HTTPS acessível ao aparelho com o sufixo `/api/v1`.
 

@@ -24,10 +24,10 @@ apps/api/src/generated
 !apps/web/src/**/*.tsx
 !apps/web/src/**/*.css
 !apps/web/public/favicon.svg
-!apps/web/public/fonts/nunito-latin-wght-normal.woff2
+!apps/web/src/assets/fonts/nunito-latin-wght-normal.woff2
 !apps/web/public/images/urban-neighborhood.svg
 !apps/web/public/images/urban-grid.svg
-!apps/web/public/fonts/*.txt
+!apps/web/public/licenses/nunito-license.txt
 !apps/web/public/images/*.webp
 !apps/web/public/images/*.txt
 !deploy/nginx.conf
