@@ -55,6 +55,8 @@ def install(path, values):
     # Updating POSTGRES_PASSWORD in the container does not change the password in a populated volume.
     if current.get("POSTGRES_PASSWORD", "").strip("'\x22") != values["POSTGRES_PASSWORD"]:
         raise ValueError
+    if "API_DATABASE_PASSWORD" in current and current["API_DATABASE_PASSWORD"].strip("'\"") != values["API_DATABASE_PASSWORD"]:
+        raise ValueError
     original = "".join(lines)
     remaining = "".join(kept)
     if remaining and not remaining.endswith("\n"):

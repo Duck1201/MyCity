@@ -58,6 +58,14 @@ it.each([{ GOOGLE_MAPS_ANDROID_API_KEY: 'build-only' }, { POSTGRES_PASSWORD: 'wr
     expect(readFileSync(join(root, '.env'), 'utf8')).toBe(before);
 });
 
+it('preserva o papel em uso pela API quando diverge a senha de banco no deploy', () => {
+    expect(deploy(11)).toBe(0);
+    const file = join(root, '.env');
+    const before = readFileSync(file, 'utf8');
+    expect(deploy(12, digest, sha, 1, { ...runtime, API_DATABASE_PASSWORD: 'different-runtime-db-password' })).not.toBe(0);
+    expect(readFileSync(file, 'utf8')).toBe(before);
+});
+
 it('recusa a configuração de build antes de enviar dados pelo SSH', () => {
     const input = { ...runtime, GOOGLE_MAPS_ANDROID_API_KEY: 'build-only' };
     const result = spawnSync('python3', ['scripts/deployment-env.py', 'send'], {

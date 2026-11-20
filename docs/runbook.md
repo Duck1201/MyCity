@@ -71,6 +71,12 @@ sha256sum "$SIGNED_APK"
 
 Confira o pacote `br.edu.mycity.app` e o SHA-1 do signatário contra a restrição do Maps. Instale o arquivo referenciado por `SIGNED_APK` no Android físico desbloqueado. Na raiz, execute `bash apps/mobile/tests/launch-release.sh` para verificar a abertura do app instalado e percorra a jornada com o Metro desligado. Guarde com o resultado o commit, o SHA-256 do APK e o modelo do aparelho.
 
+### Baixar o APK da CI
+
+No GitHub do projeto, abra **Actions → Android release** e escolha a execução do SHA desejado. Após a CI aprovar um push na `main`, o workflow gera o APK da revisão testada e o assina em um runner separado. Em **Artifacts**, baixe `mycity-android-<sha>-<tentativa>`, extraia os arquivos e rode `sha256sum --check mycity.apk.sha256` antes de instalar `mycity.apk`. O download de artefatos no GitHub exige login.
+
+O environment `demonstration` permite a branch `main` e guarda `GOOGLE_MAPS_ANDROID_API_KEY`, `ANDROID_RELEASE_KEYSTORE_BASE64` e `ANDROID_RELEASE_STORE_PASSWORD`. O build recebe a chave restrita de Maps no prebuild. A etapa de assinatura lê o keystore PKCS12 com alias `mycity-release` e verifica o pacote e o SHA-256 do certificado. O APK de transferência é removido no fim da execução. Se precisar repetir após a limpeza, use **Re-run all jobs** para gerar um novo APK de transferência.
+
 ## Publicação no servidor
 
 1. Conferir o alvo e preservar aplicações/proxy já existentes.
