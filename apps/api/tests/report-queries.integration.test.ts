@@ -99,8 +99,11 @@ it('prioriza confirmações nos pendentes, desempata pela mais antiga e conta to
     await request(app(other)).get('/reports/summary').expect(403);
     await request(app(manager)).get('/reports/summary?limit=1').expect(400);
 });
-it('ordena o histórico de resolvidas pela resolução mesmo quando a criação mais antiga terminou depois', async () => {
+it('ordena o histórico de resolvidas pela resolução mesmo quando a criação mais antiga terminou depois', async ({ onTestFinished }) => {
     const additional = await db.report.create({ data: { authorId: author.id, category: 'DEBRIS', latitude: 0, longitude: 0, status: 'RESOLVED', locationSource: 'GPS', description: 'Entulho antigo', showIdentity: false, requestHash: 'a'.repeat(64), createdAt: day(1), clientRequestId: randomUUID() } });
+    onTestFinished(async () => {
+        await db.report.delete({ where: { id: additional.id } });
+    });
     await db.reportEvent.createMany({
         data: [
             { reportId: ids.RESOLVED, createdAt: day(7) },
