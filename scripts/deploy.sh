@@ -48,9 +48,18 @@ docker login ghcr.io --username "$registry_user" --password-stdin
 
 compose=(docker compose --env-file "$deploy_root/.env" -f "$release_dir/compose.deploy.yaml")
 "${compose[@]}" --profile tools pull
+rotation_request="$deploy_root/.rotate-before-activation"
+if [[ -f "$rotation_request" ]]; then
+    [[ -f "$deploy_root/.seeded" ]] || { echo 'Rotação exige uma instalação previamente provisionada.' >&2; exit 2; }
+    "${compose[@]}" stop edge api
+fi
 "${compose[@]}" up -d --wait db
 "${compose[@]}" --profile tools run --rm migrate
 "${compose[@]}" --profile tools run --rm -T provision
+if [[ -f "$rotation_request" ]]; then
+    "${compose[@]}" --profile tools run --rm -T seed npm run db:rotate-demo-passwords -w @mycity/api
+    mv -f "$rotation_request" "$rotation_request.done"
+fi
 if [[ ! -f "$deploy_root/.seeded" ]]; then
     "${compose[@]}" --profile tools run --rm seed
     touch "$deploy_root/.seeded"

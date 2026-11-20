@@ -28,6 +28,8 @@ Confira o banco de destino e execute **uma** das opções abaixo, conforme o amb
 - Compose local: `docker compose --profile tools run --rm --build seed npm run db:rotate-demo-passwords -w @mycity/api`.
 - Compose de implantação, a partir do diretório da release com a imagem atualizada e o ambiente carregado: `docker compose --env-file /opt/mycity/.env --env-file /opt/mycity/current/images.env -f /opt/mycity/current/compose.deploy.yaml --profile tools run --rm seed npm run db:rotate-demo-passwords -w @mycity/api`.
 
+Para atualizar a demonstração hospedada que ainda usa as contas legadas, prepare as três novas senhas no ambiente protegido e execute `touch /opt/mycity/.rotate-before-activation` antes do merge. Durante o deploy, após baixar as imagens, o script fecha o acesso à API, aplica as migrações e executa a rotação. O marcador recebe o sufixo `.done` após o sucesso, antes de a API voltar ao ar. Uma falha durante a rotação mantém o acesso fechado e o pedido pendente. Corrija a causa e repita a implantação com as mesmas senhas.
+
 Para uma instalação vazia, use o seed normal. Se faltar uma conta em uma instalação anterior, o seed cria a conta ausente e preserva as demais. Depois execute a rotação para substituir as credenciais antigas.
 
 ## Configuração do Android

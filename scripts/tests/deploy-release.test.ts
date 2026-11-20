@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parse } from 'yaml';
 import { afterEach, beforeEach, expect, it } from 'vitest';
@@ -31,6 +31,24 @@ it('aplica os digests da CI e permite repetir a mesma release', () => {
     expect(deploy(10)).toBe(0);
     expect(deploy(10)).toBe(0);
     expect(readFileSync(join(root, 'current-release'), 'utf8').trim()).toBe(sha);
+});
+
+it('fecha o acesso antes da migração legada e retoma a rotação antes de ativar a API', () => {
+    const marker = join(root, '.rotate-before-activation');
+    writeFileSync(marker, '');
+    writeFileSync(join(root, '.seeded'), '');
+    appendFileSync(join(root, 'commands.sh'), 'docker() { printf "%s\\n" "$*" >> "$TRACE"; if [[ "$*" == *db:rotate-demo-passwords* && ! -f "$TRACE.failed" ]]; then touch "$TRACE.failed"; return 1; fi; }\n');
+    expect(deploy(10)).not.toBe(0);
+    const interrupted = readFileSync(join(root, 'trace'), 'utf8');
+    expect(interrupted).toMatch(/stop edge api[\s\S]*run --rm migrate[\s\S]*db:rotate-demo-passwords/);
+    expect(interrupted).not.toContain('up -d --wait api web edge');
+    expect(existsSync(marker)).toBe(true);
+    expect(deploy(10)).toBe(0);
+    const resumed = readFileSync(join(root, 'trace'), 'utf8').slice(interrupted.length);
+    expect(resumed).toMatch(/db:rotate-demo-passwords[\s\S]*up -d --wait api web edge/);
+    expect(existsSync(marker)).toBe(false);
+    expect(deploy(10)).toBe(0);
+    expect(readFileSync(join(root, 'trace'), 'utf8').slice(interrupted.length + resumed.length)).not.toContain('db:rotate-demo-passwords');
 });
 
 it('rejeita execução anterior antes de usar Docker', () => {
