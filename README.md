@@ -4,6 +4,16 @@ O cidadão registra problemas urbanos pelo app Android e acompanha o histórico.
 
 [Demonstração hospedada](https://mycity.private-gateway.site:8080)
 
+![Visão geral do painel web do gestor](docs/images/manager-dashboard.png)
+
+<img src="docs/images/citizen-app.png" alt="App do cidadão no Galaxy M32" width="320">
+
+## Usar o app Android
+
+Para usar um APK já configurado, instale-o em Android 7.0 (API 24) ou superior, conecte o aparelho à internet e entre com uma conta de cidadão fornecida pelo responsável pela instalação. Autorize a câmera e a localização ao usar esses recursos. O APK já contém a configuração do mapa e funciona com o Metro desligado.
+
+Para distribuir seu próprio APK, prepare uma API acessível pelo celular, uma chave de assinatura e um projeto Google Cloud com faturamento habilitado. O [guia do Android](docs/runbook.md#configuração-do-android) explica como entrar no console, obter a chave do Maps, restringi-la ao seu app e testar a instalação.
+
 ## Executar localmente
 
 Use Node 24 e npm 11. Na raiz do repositório, prepare a instalação:
