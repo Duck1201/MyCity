@@ -4,6 +4,7 @@
     "private": true,
     "type": "module",
     "scripts": {
+        "predev": "node --env-file-if-exists=../../.env scripts/check-development.mjs --api-only && tsx --env-file-if-exists=../../.env prisma/seed.ts --sync-development-passwords",
         "dev": "NODE_ENV=development tsx watch --env-file=../../.env src/server.ts",
         "build": "tsc -p tsconfig.build.json",
         "start": "node dist/server.js",
@@ -12,21 +13,26 @@
         "test:integration": "vitest run tests/*.integration.test.ts",
         "db:generate": "prisma generate",
         "db:migrate": "prisma migrate deploy",
+        "db:reset": "tsx prisma/reset.ts",
         "db:seed": "prisma db seed",
         "docs:generate": "node scripts/generate-openapi.mjs",
-        "docs:check": "node scripts/generate-openapi.mjs --check"
+        "docs:check": "node scripts/generate-openapi.mjs --check",
+        "db:rotate-demo-passwords": "tsx prisma/seed.ts --rotate-passwords"
     },
     "dependencies": {
         "@mycity/contracts": "*",
         "@prisma/adapter-pg": "7.10.1",
         "@prisma/client": "7.10.1",
+        "busboy": "1.6.0",
         "dotenv": "17.2.3",
         "express": "5.3.0",
         "pg": "8.16.3",
+        "sharp": "0.35.5",
         "swagger-ui-express": "5.0.1"
     },
     "devDependencies": {
         "@apidevtools/swagger-parser": "13.1.0",
+        "@types/busboy": "1.5.5",
         "@types/express": "5.0.6",
         "@types/pg": "8.23.1",
         "@types/supertest": "7.2.1",

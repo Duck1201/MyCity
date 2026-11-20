@@ -6,7 +6,7 @@ const database = createDatabase(process.env.DATABASE_URL ?? '');
 const port = Number(process.env.PORT ?? 3000);
 if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('PORT inválida.');
 const documentationOptions = { environment: process.env.NODE_ENV ?? 'production', enableDocs: process.env.API_DOCS_ENABLED === 'true' };
-const server = createApp(database, documentationOptions).listen(port, apiListenHost(documentationOptions), () => {
+const server = createApp(database, { ...documentationOptions, webOrigin: process.env.WEB_ORIGIN ?? `http://localhost:${process.env.WEB_PORT ?? 8090}`, proxyHops: Number(process.env.PROXY_HOPS ?? 0), uploadDir: process.env.UPLOAD_DIR ?? './uploads' }).listen(port, apiListenHost(documentationOptions), () => {
     console.info(`MyCity API disponível na porta ${port}.`);
 });
 

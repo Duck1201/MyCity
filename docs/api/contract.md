@@ -1,6 +1,6 @@
 # Contrato HTTP proposto
 
-Status: proposta dos endpoints de negócio. O servidor já implementa apenas as rotas de saúde descritas ao final. Operações refletem o escopo aprovado; nomes de rotas, schemas, limites e políticas C03/C04/C06–C08 precisam de revisão antes de congelar a interface. A política de sessão C05 foi aprovada. Este arquivo é a fonte da proposta HTTP nesta etapa; não há coleção Postman publicada. As rotas implementadas possuem OpenAPI gerado por swagger-autogen em `apps/api/src/openapi.json`; as operações de negócio abaixo continuam planejadas.
+Implementados na etapa 2: saúde, sessão, publicação multipart, detalhes, leitura de fotos e lista paginada com `scope=management`. Na etapa 3 foram acrescentados `scope=mine`, histórico paginado, transições, respostas e consulta e leitura de avisos. A etapa 4 implementa feed, histórico de resolvidas, marcadores, contadores, confirmações e cancelamento. Na etapa 5, o módulo de alertas disponibiliza um catálogo autenticado de cenários climáticos fictícios. A classificação regional das denúncias segue adiada. O contrato executável local consta do OpenAPI.
 
 ## Convenções
 
@@ -16,7 +16,9 @@ Status: proposta dos endpoints de negócio. O servidor já implementa apenas as 
 
 Sessões opacas revogáveis com validade de 24 horas a partir do login, sem renovação automática nesta entrega. Após expiração, exigir novo login; logout invalida imediatamente a sessão atual. Guardar apenas hash do segredo no servidor. Web usa cookie HttpOnly, Secure, SameSite=Lax; app usa Bearer com armazenamento seguro do sistema operacional. Não persistir segredo em armazenamento web acessível por JavaScript.
 
-Propor web e API na mesma origem via proxy. Em operações autenticadas por cookie, verificar origem e proteção CSRF, incluindo login/logout; definir mecanismo exato na implementação de Identidade. CORS não substitui autorização nem defesa CSRF. Configurar limite de tentativas de login e resposta genérica para credenciais inválidas; parâmetros ainda devem ser definidos.
+Web e API usam a mesma origem. Para login web e mutações por cookie, envie a origem configurada e `X-MyCity-Client: web`. O processo limita login a cinco falhas por origem de rede e CPF e 60 tentativas por origem em janela de 15 minutos. A origem IPv6 é agrupada por /64, com até quatro verificações simultâneas no processo. Uma recusa por limite responde 429 e Retry-After.
+
+A instância da API mantém cotas independentes por origem de rede (IPv4 ou /64 IPv6) em janelas de um minuto. O login permite 30 requisições, inclusive com JSON inválido. Liveness permite 60 e readiness permite 30, antes da consulta ao banco. Quando habilitados, Swagger, seus assets e OpenAPI compartilham 120 requisições. Cada grupo admite 4.096 origens ativas. Ao esgotar a capacidade do grupo, novas origens aguardam a primeira expiração. O IP vem do Express conforme os proxies confiáveis configurados. O excesso retorna 429 com `TOO_MANY_REQUESTS` e `Retry-After` em segundos.
 
 | Método e caminho           | Entrada                                       | Sucesso                                                            | Efeito                                                            |
 | -------------------------- | --------------------------------------------- | ------------------------------------------------------------------ | ----------------------------------------------------------------- |
@@ -24,31 +26,56 @@ Propor web e API na mesma origem via proxy. Em operações autenticadas por cook
 | GET `/me`                  | Sessão                                        | 200: `{id,role}`                                                   | Consulta identidade mínima.                                       |
 | DELETE `/sessions/current` | Sessão                                        | 204                                                                | Revoga sessão e limpa cookie quando aplicável.                    |
 
-CPF e senha nunca entram em URL, logs ou dados públicos de denúncias. A autenticação será própria do MyCity, com CPF fictício normalizado em 11 dígitos na demonstração, sem integração gov.br e sem campo de e-mail. O módulo interno de Identidade já verifica CPF e senha; ainda não existem endpoints de sessão/login HTTP. Papel vem do banco, não do corpo. Sessão ausente/expirada/revogada retorna 401. Sessão válida sem permissão retorna 403. Login não cria usuários.
+A consulta `GET /me` comunica a expiração original no cabeçalho `X-Session-Expires-At` (ISO 8601 UTC). O painel usa esse prazo para encerrar a exibição local após recarregar a página, inclusive se perder a conexão.
+
+CPF e senha nunca entram em URL, logs ou dados públicos de denúncias. A autenticação será própria do MyCity, com CPF fictício normalizado em 11 dígitos na demonstração, sem integração gov.br e sem campo de e-mail. O servidor valida o CPF normalizado e a senha da conta habilitada. Papel vem do banco, não do corpo. Sessão ausente/expirada/revogada retorna 401. Sessão válida sem permissão retorna 403. Login não cria usuários.
+
+Ao reiniciar a API pelos comandos locais de desenvolvimento, uma alteração de senha de demonstração revoga as sessões daquela conta. O próximo login exige a senha atualizada. Sessões das demais contas habilitadas conservam sua expiração original.
+
+## Catálogo de categorias
+
+| Operação                 | Quem pode usar | Contrato                                                                                                                                                                                                                                                                    |
+| ------------------------ | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET `/categories`        | Sessão válida  | 200, `{data:[{id,name,archived}]}`. Inclui as seis iniciais e as adicionadas pelo gestor, inclusive arquivadas e sem ocorrências.                                                                                                                                           |
+| POST `/categories`       | Gestor         | Recebe `{name}` e retorna 201 com `{data:{id,name,archived}}`. Categorias novas começam ativas. O nome aceita de 1 a 80 caracteres após normalizar espaços. Nome equivalente sem distinção de caixa ou acentos retorna 409 `CATEGORY_EXISTS`. Entrada inválida retorna 422. |
+| PATCH `/categories/{id}` | Gestor         | Recebe `{name}` com as regras do cadastro ou `{archived:boolean}`. Preserva o ID e retorna 200 com `{data:{id,name,archived}}`. Nome duplicado retorna 409, ID inexistente 404 e entrada inválida 422.                                                                      |
+
+O cadastro e a edição aceitam também `icon`, escolhido entre os símbolos do catálogo. O GET inclui o símbolo persistido quando definido e fornece `reportCount` somente ao gestor. O painel usa o ID para manter os vínculos, o símbolo original das categorias iniciais e o acesso à fila filtrada.
+
+O campo de CPF nos clientes aplica pontuação durante a edição e envia os 11 dígitos como string, preservando zeros iniciais. A API continua aceitando o CPF completo pontuado ou sem separadores.
 
 ## Operações de denúncia
 
-| Método e caminho                     | Ator                       | Entrada                                                | Sucesso / efeito                                                                                              |
-| ------------------------------------ | -------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------- |
-| POST `/reports`                      | Cidadão                    | Multipart descrito abaixo                              | 201: ReportDetail; cria denúncia, fotos e evento inicial. Replay idempotente retorna 200 com o mesmo recurso. |
-| GET `/reports`                       | Autenticado                | scope, status, category, regionId, sort, limit, cursor | 200: ReportSummary[]; visibilidade filtrada no servidor.                                                      |
-| GET `/reports/map`                   | Autenticado                | bbox?, status, category, regionId, limit, cursor       | 200: ReportMarker[]; mesma política de visibilidade. Paginar até completar a área consultada.                 |
-| GET `/reports/summary`               | Gestor                     | category?, regionId?                                   | 200: contagens por status no universo filtrado; não limitar à página atual.                                   |
-| GET `/reports/{id}`                  | Leitor autorizado          | ID                                                     | 200: ReportDetail, incluindo versão e ações permitidas.                                                       |
-| GET `/reports/{id}/history`          | Leitor autorizado          | limit, cursor                                          | 200: ReportEvent[] em createdAt asc, id asc.                                                                  |
-| GET `/reports/{id}/photos/{photoId}` | Leitor autorizado          | IDs                                                    | 200 image/jpeg; sem caminho do disco no contrato.                                                             |
-| PUT `/reports/{id}/confirmation`     | Cidadão diferente do autor | Sem corpo                                              | 200: `{confirmed:true,confirmationCount}`; repetição não duplica.                                             |
-| DELETE `/reports/{id}/confirmation`  | Cidadão da confirmação     | Sem corpo                                              | 200: `{confirmed:false,confirmationCount}`; ausência já retirada é sucesso enquanto ação permitida.           |
-| POST `/reports/{id}/transitions`     | Gestor                     | `{targetStatus,expectedVersion,reason?}`               | 200: ReportDetail; atualiza estado+histórico+notificação atomicamente.                                        |
-| POST `/reports/{id}/cancellation`    | Autor                      | `{expectedVersion}`                                    | 200: ReportDetail; cancela+registra histórico+notifica.                                                       |
-| POST `/reports/{id}/replies`         | Gestor                     | `{text,clientRequestId}`                               | 201: ReportEvent; resposta pública sem mudança de estado. Replay igual retorna 200.                           |
-| GET `/regions`                       | Autenticado                | limit, cursor                                          | 200: `{id,name,city?}[]` para filtros; origem/classificação depende de C03.                                   |
+| Método e caminho                     | Ator                       | Entrada                                                    | Sucesso / efeito                                                                                              |
+| ------------------------------------ | -------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| POST `/reports`                      | Cidadão                    | Multipart descrito abaixo                                  | 201: ReportDetail; cria denúncia, fotos e evento inicial. Replay idempotente retorna 200 com o mesmo recurso. |
+| GET `/reports`                       | Autenticado                | scope, status, category, sort, limit, cursor               | 200: ReportSummary[]; visibilidade filtrada no servidor.                                                      |
+| GET `/reports/map`                   | Autenticado                | bbox?, status, category, limit, cursor                     | 200: ReportMarker[]; mesma política de visibilidade. Paginar até completar a área consultada.                 |
+| GET `/reports/overview`              | Gestor                     | Sem parâmetros                                             | 200: contagens por situação, categorias com totais pendentes, pendência mais antiga e até três prioridades.   |
+| GET `/reports/queue`                 | Gestor                     | q?, category?, status?, de?, ate?, ordem?, pagina?, limit? | 200: data, total filtrado, counts por situação e page efetiva.                                                |
+| GET `/reports/queue.csv`             | Gestor                     | mesmos filtros e ordenação, sem paginação                  | 200: CSV UTF-8 com todas as linhas correspondentes.                                                           |
+| GET `/reports/summary`               | Gestor                     | category?                                                  | 200: objeto com os seis estados e suas contagens no universo filtrado por categoria, sem paginação.           |
+| GET `/reports/{id}`                  | Leitor autorizado          | ID                                                         | 200: ReportDetail, incluindo versão e ações permitidas.                                                       |
+| GET `/reports/{id}/history`          | Leitor autorizado          | limit, cursor, order                                       | 200: ReportEvent[] por createdAt e id, crescentes (oldest, padrão) ou decrescentes (newest).                  |
+| GET `/reports/{id}/photos/{photoId}` | Leitor autorizado          | IDs                                                        | 200 image/jpeg; sem caminho do disco no contrato.                                                             |
+| PUT `/reports/{id}/confirmation`     | Cidadão diferente do autor | Sem corpo                                                  | 200: `{confirmed:true,confirmationCount}`; repetição não duplica.                                             |
+| DELETE `/reports/{id}/confirmation`  | Cidadão da confirmação     | Sem corpo                                                  | 200: `{confirmed:false,confirmationCount}`; ausência já retirada é sucesso enquanto ação permitida.           |
+| POST `/reports/{id}/transitions`     | Gestor                     | `{targetStatus,expectedVersion,reason?}`                   | 200: ReportDetail; atualiza estado+histórico+notificação atomicamente.                                        |
+| POST `/reports/{id}/cancellation`    | Autor                      | `{expectedVersion}`                                        | 200: ReportDetail; cancela+registra histórico+notifica.                                                       |
+| POST `/reports/{id}/replies`         | Gestor                     | `{text,clientRequestId}`                                   | 201: ReportEvent; resposta pública sem mudança de estado. Replay igual retorna 200.                           |
+| GET `/regions`                       | Autenticado                | limit, cursor                                              | Adiado em C03. Nesta fase o backend aceita filtros de categoria e status.                                     |
 
-`scope`: `feed`, `mine`, `resolved` ou `management`. `mine` é do usuário autenticado, sem aceitar authorId arbitrário; `management` é exclusivo de gestor. Proposta de ordenações: `priority` para pendentes da gestão e `newest` para feed; histórico de resolvidas por data de resolução desc, ID desc. Aplicar filtro de status antes da ordenação. A ordenação por prioridade em estados finais não possui significado de atendimento.
+`scope`: `feed`, `mine`, `resolved` ou `management`. `mine` é do usuário autenticado, sem aceitar authorId arbitrário; `management` é exclusivo de gestor. A gestão prioriza ativos por confirmações decrescentes, criação crescente e ID, seguidos dos encerrados. O feed ativo usa criação decrescente; histórico de resolvidas por data de resolução desc, ID desc. Aplicar filtro de status antes da ordenação. A ordenação por prioridade em estados finais não possui significado de atendimento.
 
-Categorias são o catálogo fechado de seis valores compartilhados em contratos, conforme [modelo de dados](../data-model.md). As respostas textuais propõem limite de 2.000 caracteres após trim (C07), com chave de repetição vinculada à denúncia e ao ator. Mesma chave com texto diferente retorna 409, sem criar outro evento.
+Uma publicação nova em categoria arquivada retorna 409 `CATEGORY_ARCHIVED`, inclusive se o arquivamento ocorrer durante o preenchimento. O reenvio idêntico de uma publicação já concluída retorna 200 com o registro existente. Reativar o grupo permite novas publicações.
 
-Para o mapa, proposta de `bbox=west,south,east,north`, com coordenadas válidas e west < east, south < north; cruzamento do antimeridiano fora da consulta proposta. Se a área exigir várias páginas, não mostrar a primeira como se fosse o total. Comportamento de região depende de C03.
+A Visão geral lê os dados em uma única transação com snapshot consistente. `counts` contém as seis situações, incluindo zeros. `oldest` traz ID e data de criação da pendência mais antiga ou nulo. `categories` inclui ID, nome, ícone, arquivamento e contagem de pendências de cada grupo, inclusive os vazios. `priorities` contém as três primeiras pendências pela ordenação da fila, com ID, categoria, descrição, situação, contagem de confirmações e caminho autenticado da capa quando disponível.
+
+Na fila, `q` aceita até 160 caracteres e localiza termos no protocolo, relato e coordenadas. `de` e `ate` são dias inclusivos em America/Sao_Paulo. `status=pending` reúne Enviado, Em análise e Em andamento. `ordem` aceita prioridade (padrão), antigas e recentes. A primeira página é 1 e cada página contém por padrão até 5 ocorrências (máximo 100). As contagens por situação aplicam a busca, categoria e período antes do filtro de situação. Uma página além do resultado retorna a última. O CSV usa os mesmos critérios e inclui protocolo, categoria, relato, latitude, longitude, situação, data e confirmações. Textos com risco de fórmula recebem proteção.
+
+Categorias vêm do catálogo persistido (incluindo grupos sem denúncias). Os seis identificadores originais continuam válidos. Uma categoria cadastrada pelo gestor recebe um UUID e pode ser usada imediatamente nos mesmos endpoints. Listas, detalhes e marcadores incluem `category` e `categoryName`. As respostas e justificativas têm limite de 2.000 caracteres após trim (C07). A resposta pública usa uma chave de repetição vinculada à denúncia e ao ator. Mesma chave com texto diferente retorna 409, sem criar outro evento.
+
+Para o mapa, use `bbox=west,south,east,north`, com coordenadas válidas e west < east, south < north; cruzamento do antimeridiano requer duas consultas, uma de cada lado. Se a área exigir várias páginas, não mostrar a primeira como se fosse o total. O filtro regional segue adiado.
 
 ### Criação multipart
 
@@ -57,7 +84,7 @@ Para o mapa, proposta de `bbox=west,south,east,north`, com coordenadas válidas 
 - `location`: `{latitude,longitude,source:"GPS"|"MANUAL"}`. `addressLabel` e `regionId` vêm da política de geocodificação a definir; o cliente não ganha permissão por declarar uma região.
 - Identidade do autor vem da sessão. Status inicial é SENT. Ignorar ou rejeitar campos de privilégio não previstos, nunca aceitar authorId/status arbitrários.
 - Unicidade de `(authorId,clientRequestId)`, com comparação do payload normalizado e conteúdo das fotos. Reenvio idêntico retorna o mesmo recurso; chave reutilizada com conteúdo diferente retorna 409 `IDEMPOTENCY_CONFLICT`.
-- Propostas de limites: 5 MiB por foto, 16 MiB por requisição incluindo multipart, descrição até 1.000 caracteres (C06/C07). Orientação/dimensões devem ser verificadas após decodificação.
+- Limites aprovados da criação: 5 MiB por foto, 16 MiB por requisição incluindo multipart, descrição até 1.000 caracteres (C06/C07). O maior lado tem até 1.600 px. A API normaliza a orientação e remove metadados. Se faltar reserva de espaço para a gravação, retorna 507.
 - Resposta somente após persistência confirmada. Falha não publica denúncia sem todas as fotos válidas. Arquivos órfãos não são servidos por URL.
 
 Exemplo da parte `metadata` (coordenadas ilustrativas, não destino fixo do app):
@@ -87,7 +114,7 @@ No formulário, “Quero mostrar minha cara” começa marcado (`showIdentity: t
 | Photo         | id, position, width, height, byteSize, contentPath; nenhum storageKey                                                                                    |
 | ReportMarker  | id, latitude, longitude, category, status, confirmationCount                                                                                             |
 | ReportEvent   | id, type, actorRole, fromStatus?, toStatus?, text?, createdAt; identidade pública respeita showIdentity; CPF e autor interno nunca são expostos          |
-| Notification  | id, reportId, reportEventId, type, createdAt, readAt; sem dados de outros destinatários                                                                  |
+| Notification  | id, reportId, reportEventId, type, status, fromStatus?, createdAt, readAt; sem dados de outros destinatários                                             |
 | WeatherAlert  | id, level, title, message, regionLabel, issuedAt, expiresAt, simulated:true                                                                              |
 
 `allowedActions` ajuda a interface; não concede autorização. Uma ação pode tornar-se inválida entre leitura e escrita. IDs de fotos sempre precisam pertencer à denúncia informada.
@@ -104,7 +131,9 @@ Exemplo de requisição após leitura da versão 1 em SENT:
 
 Após sucesso, versão 2 e histórico/notificação correspondentes devem ser observáveis. Se a resposta se perder, o cliente consulta a denúncia e o histórico. Repetir a versão antiga não cria um novo evento.
 
-Proposta C08: confirmações e respostas ficam fechadas em estados finais, inclusive retirada de confirmação. Não implementar essa parte como confirmada sem alinhar o contrato.
+O gestor pode corrigir `UNDER_REVIEW → SENT` ou `IN_PROGRESS → UNDER_REVIEW` apenas quando desfaz exatamente o último avanço registrado. Respostas intermediárias não alteram essa decisão. Sem avanço comprovado, após um recuo ou após uma reabertura, a ação inversa não é oferecida e uma tentativa de gravação retorna 409. Reabrir `RESOLVED`, `REJECTED` ou `CANCELED` define `targetStatus: "UNDER_REVIEW"`. A operação usa `expectedVersion`, conserva o histórico e gera aviso ao autor. A denúncia volta às consultas e permissões de Em análise, inclusive confirmação por outros cidadãos.
+
+C08: o gestor pode publicar respostas em qualquer estado. Responder após encerramento preserva o status final e acrescenta um evento ao histórico. O limite é de 2.000 caracteres após trim, inclusive para a justificativa de rejeição. Confirmações só podem ser adicionadas ou retiradas em Enviado, Em análise ou Em andamento. Ao encerrar, o total fica congelado. As respostas da gestão continuam permitidas.
 
 ## Notificações e alertas
 
@@ -115,7 +144,9 @@ Proposta C08: confirmações e respostas ficam fechadas em estados finais, inclu
 | GET `/weather-alerts`          | Autenticado  | limit, cursor              | 200: alertas fictícios com simulated:true.                                |
 | GET `/weather-alerts/{id}`     | Autenticado  | ID                         | 200: detalhes do cenário simulado.                                        |
 
-Não existe rota de envio real de alerta nem cadastro de Defesa Civil. Não há endpoint de avaliação, reabertura ou exclusão física de denúncia.
+O catálogo da demonstração usa como referência 25 de novembro de 2026 às 12h de Brasília. Cada cenário tem uma janela ilustrativa nessa data. A lista apresenta Emergência (alagamento), Alerta (vento forte) e Atenção (chuva moderada), nessa ordem, com áreas fictícias. As duas rotas exigem sessão e retornam `simulated: true` em cada item. O app identifica a simulação na lista e nos detalhes. As datas se referem ao cenário, independentemente do relógio do aparelho. O catálogo é somente leitura, compartilhado entre contas, sem consulta meteorológica, localização do leitor ou criação de notificação.
+
+Não existe rota de envio real de alerta nem cadastro de Defesa Civil. Não há endpoint de avaliação ou exclusão física de denúncia. A reabertura usa a rota de transições existente.
 
 ## Erros e repetição
 
@@ -129,7 +160,7 @@ Não existe rota de envio real de alerta nem cadastro de Defesa Civil. Não há 
 | 413     | PAYLOAD_TOO_LARGE                                            | Reduzir anexos; preservar formulário.                                                              |
 | 415     | UNSUPPORTED_MEDIA_TYPE                                       | Selecionar/converter imagem válida.                                                                |
 | 422     | VALIDATION_ERROR                                             | Apresentar campos inválidos; nenhuma gravação parcial.                                             |
-| 429     | TOO_MANY_REQUESTS                                            | Respeitar Retry-After, se enviado. Limites operacionais ainda a definir.                           |
+| 429     | TOO_MANY_REQUESTS                                            | Respeitar Retry-After, em segundos.                                                                |
 | 500/503 | INTERNAL_ERROR / UNAVAILABLE                                 | Informar falha sem detalhes internos; repetir leitura ou operação idempotente de forma controlada. |
 
 ```json
@@ -149,7 +180,7 @@ Rotas concretas `/reports/map` e `/reports/summary` não devem ser capturadas co
 
 - `GET /api/v1/health/live`: 200 `{ "data": { "status": "alive" } }`, independente do banco.
 - `GET /api/v1/health/ready`: 200 `{ "data": { "status": "ready" } }` quando PostgreSQL e tabela de usuários estão disponíveis; caso contrário, 503 com `UNAVAILABLE` e mensagem genérica.
-- Rotas ausentes: 404 JSON com `NOT_FOUND`. Não há rotas de negócio públicas implementadas nesta etapa.
+- Rotas ausentes: 404 JSON com `NOT_FOUND`. A criação de sessão aceita credenciais de contas provisionadas.
 
 As rotas de saúde não exigem sessão nem retornam configurações, credenciais ou estado detalhado do banco. A configuração do proxy público poderá restringir seu acesso. Validação local adicional pode usar `postman request http://localhost:8090/api/v1/health/ready --script-post-request @scripts/health-check.cjs --no-report-events`.
 
@@ -157,4 +188,4 @@ As rotas de saúde não exigem sessão nem retornam configurações, credenciais
 
 `npm run docs:generate -w @mycity/api` usa `swagger-autogen` nas rotas implementadas e os refinamentos de schemas/respostas. `npm run docs:check -w @mycity/api`, incluído em `npm run check`, detecta drift. Não editar o JSON gerado manualmente.
 
-A UI usa `swagger-ui-express` em `/api/docs/`, com schema em `/api/openapi.json`, somente com `NODE_ENV=development` e `API_DOCS_ENABLED=true`. Nesse modo o listener fica em `127.0.0.1`. Em produção, schema, UI e assets retornam 404 mesmo se a flag for true, até existir uma política administrativa explícita. Validador remoto e persistência de credenciais ficam desativados. A documentação atual contém somente saúde da API; não anuncia login/denúncias como implementados.
+A UI usa `swagger-ui-express` em `/api/docs/`, com schema em `/api/openapi.json`, somente com `NODE_ENV=development` e `API_DOCS_ENABLED=true`. Nesse modo o listener fica em `127.0.0.1`. Em produção, schema, UI e assets retornam 404 mesmo se a flag for true, até existir uma política administrativa explícita. Validador remoto e persistência de credenciais ficam desativados. O documento inclui as rotas implementadas de saúde, identidade e denúncias.

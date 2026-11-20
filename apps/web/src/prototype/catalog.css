@@ -1,0 +1,254 @@
+.catalog-workspace {
+    --catalog-line: #d6e1e9;
+    container-type: inline-size;
+    min-width: 0;
+}
+.console .catalog-heading {
+    margin-bottom: 22px;
+}
+.catalog-heading .primary {
+    gap: 7px;
+    min-height: 42px;
+}
+.catalog-group {
+    border: 1px solid var(--catalog-line);
+    border-radius: 12px;
+    background: #fff;
+}
+.catalog-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    padding: 16px 20px;
+    background: #f6f9fc;
+    border-radius: 12px 12px 0 0;
+    border-bottom: 1px solid var(--catalog-line);
+}
+.console .catalog-toolbar h2 {
+    font-size: 18px;
+    margin: 0;
+    color: #1c3e59;
+}
+.catalog-search {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 10px;
+    color: #476881;
+    border: 1px solid #aabfce;
+    border-radius: 6px;
+    background: white;
+}
+.console .catalog-search input {
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    padding: 7px 0;
+    width: 12rem;
+    min-width: 0;
+    min-height: 34px;
+    font-size: 14px;
+    outline: none;
+}
+.catalog-search:focus-within {
+    outline: 3px solid #397db5;
+    outline-offset: 1px;
+}
+.catalog-group-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+.catalog-group-list li {
+    display: grid;
+    grid-template-columns: minmax(150px, 1.7fr) minmax(110px, 0.8fr) auto;
+    align-items: center;
+    column-gap: clamp(12px, 3cqi, 44px);
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--catalog-line);
+}
+.catalog-group-list li:last-child {
+    border-bottom: 0;
+}
+.catalog-identity {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 13px;
+}
+.catalog-identity strong {
+    font-size: 16px;
+    font-weight: 720;
+    color: #16364d;
+    overflow-wrap: anywhere;
+    line-height: 1.25;
+}
+.catalog-mark {
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    color: #435c73;
+    background: #e8eef3;
+    flex-shrink: 0;
+}
+.catalog-mark[data-icon='lighting'] {
+    background: #faeac8;
+    color: #88621c;
+}
+.catalog-mark[data-icon='waste'] {
+    background: #e6efe1;
+    color: #4a6942;
+}
+.catalog-mark[data-icon='trees'] {
+    background: #deeee5;
+    color: #36654c;
+}
+.catalog-mark[data-icon='water'] {
+    background: #deedf7;
+    color: #2c6793;
+}
+.catalog-mark[data-icon='debris'] {
+    background: #f4e5dc;
+    color: #7c5140;
+}
+.console .catalog-volume {
+    display: grid;
+    align-content: center;
+    gap: 5px;
+    padding: 5px 0;
+    width: max-content;
+    max-width: 100%;
+    min-height: 38px;
+    color: #255f8c;
+    font-size: 14px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+.catalog-volume span {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+}
+.catalog-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 5px;
+}
+.console .catalog-actions button {
+    gap: 6px;
+    min-height: 38px;
+    border: 1px solid transparent;
+    background: transparent;
+    font-size: 13px;
+    color: #475e70;
+    padding: 6px 9px;
+}
+.console .catalog-actions button:first-child {
+    border-color: #c9d9e5;
+    background: #f5f9fc;
+    color: #245d89;
+}
+.console .catalog-actions button:hover {
+    background: #eaf2f8;
+    color: #143e5b;
+}
+.catalog-archive {
+    margin-top: 16px;
+    border: 1px solid #c7d6e1;
+    background: #f7f9fb;
+    border-radius: 8px;
+    overflow: clip;
+}
+.console .catalog-archive > button {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    width: 100%;
+    gap: 10px;
+    padding: 13px 16px;
+    border: 0;
+    background: #eaf0f5;
+    color: #2b4f69;
+    min-height: 48px;
+    text-align: left;
+    font-size: 14px;
+}
+.console .catalog-archive > button:focus-visible {
+    outline-offset: -3px;
+}
+.catalog-archive > button[aria-expanded='true'] svg:last-child {
+    transform: rotate(180deg);
+}
+.catalog-archive .catalog-mark {
+    color: #657382;
+    background: #e7ecf0;
+}
+.catalog-archive p,
+.catalog-group > p {
+    margin: 0;
+    padding: 16px 20px;
+    color: #496173;
+}
+.catalog-confirmation h2 {
+    overflow-wrap: anywhere;
+}
+@media (prefers-reduced-motion: no-preference) {
+    .catalog-archive > button svg:last-child {
+        transition: transform 140ms ease-out;
+    }
+}
+@container (max-width:650px) {
+    .catalog-group-list li {
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 0 12px;
+        padding: 12px 15px;
+    }
+    .catalog-identity {
+        grid-column: 1/-1;
+    }
+    .catalog-volume {
+        margin-left: 53px;
+    }
+    .catalog-actions {
+        grid-column: 2;
+        grid-row: 2;
+    }
+    .console .catalog-actions button {
+        min-height: 44px;
+    }
+}
+@container (max-width:400px) {
+    .catalog-toolbar {
+        padding: 14px;
+        gap: 12px;
+    }
+    .catalog-search {
+        width: 100%;
+    }
+    .console .catalog-search input {
+        width: 100%;
+    }
+    .catalog-group-list li {
+        padding: 12px 10px;
+        column-gap: 4px;
+    }
+    .catalog-identity {
+        gap: 10px;
+    }
+    .catalog-volume {
+        margin-left: 0;
+    }
+    .console .catalog-actions button {
+        padding: 6px;
+        gap: 4px;
+    }
+}
+
+.category-ranking li a > span {
+    overflow-wrap: anywhere;
+}

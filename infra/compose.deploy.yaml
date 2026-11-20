@@ -15,8 +15,25 @@ services:
             timeout: 3s
             retries: 10
         restart: unless-stopped
+    provision:
+        image: postgres:17.7-alpine
+        profiles: [tools]
+        environment:
+            PGHOST: db
+            PGDATABASE: mycity
+            PGUSER: mycity
+            PGPASSWORD: ${POSTGRES_PASSWORD:?Configure a senha no servidor}
+            API_DATABASE_PASSWORD: ${API_DATABASE_PASSWORD:?Configure a senha exclusiva da API}
+        volumes:
+            - ./provision-api.sql:/provision-api.sql:ro
+        entrypoint: [sh, -ec]
+        command:
+            - |
+                case "$${API_DATABASE_PASSWORD}" in *[!a-zA-Z0-9_-]*) exit 2 ;; esac
+                test "$${API_DATABASE_PASSWORD}" != "$${PGPASSWORD}"
+                printf '%s\n' "$${API_DATABASE_PASSWORD}" "$${API_DATABASE_PASSWORD}" | psql -Xw -v ON_ERROR_STOP=1 -f /provision-api.sql
     migrate:
-        image: ghcr.io/duck1201/mycity-tools:sha-${RELEASE_SHA:?Release obrigatória}
+        image: ghcr.io/duck1201/mycity-tools@${TOOLS_DIGEST:?Digest obrigatório}
         profiles: [tools]
         environment:
             DATABASE_URL: postgresql://mycity:${POSTGRES_PASSWORD}@db:5432/mycity
@@ -26,16 +43,23 @@ services:
                 condition: service_healthy
     seed:
         extends: migrate
+        volumes:
+            - photos:/app/uploads
         environment:
-            DEMO_PASSWORD: ${DEMO_PASSWORD:?Configure a senha de demonstração no servidor}
+            UPLOAD_DIR: /app/uploads
+            DEMO_CITIZEN_A_PASSWORD: ${DEMO_CITIZEN_A_PASSWORD:-}
+            DEMO_CITIZEN_B_PASSWORD: ${DEMO_CITIZEN_B_PASSWORD:-}
+            DEMO_MANAGER_PASSWORD: ${DEMO_MANAGER_PASSWORD:-}
         command: [npm, run, db:seed]
     api:
-        image: ghcr.io/duck1201/mycity-api:sha-${RELEASE_SHA:?Release obrigatória}
+        image: ghcr.io/duck1201/mycity-api@${API_DIGEST:?Digest obrigatório}
         environment:
+            WEB_ORIGIN: ${WEB_ORIGIN:-https://mycity.private-gateway.site:8080}
+            PROXY_HOPS: '2'
             NODE_ENV: production
             NODE_OPTIONS: --max-old-space-size=256
             PORT: 3000
-            DATABASE_URL: postgresql://mycity:${POSTGRES_PASSWORD}@db:5432/mycity
+            DATABASE_URL: postgresql://mycity_api:${API_DATABASE_PASSWORD:?Configure a senha exclusiva da API}@db:5432/mycity
             UPLOAD_DIR: /app/uploads
         volumes:
             - photos:/app/uploads
@@ -49,7 +73,7 @@ services:
             retries: 10
         restart: unless-stopped
     web:
-        image: ghcr.io/duck1201/mycity-web:sha-${RELEASE_SHA:?Release obrigatória}
+        image: ghcr.io/duck1201/mycity-web@${WEB_DIGEST:?Digest obrigatório}
         ports:
             - 127.0.0.1:8090:80
         depends_on:

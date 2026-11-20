@@ -3,8 +3,7 @@ updates:
     - package-ecosystem: npm
       directory: /
       schedule:
-          interval: weekly
-          day: monday
+          interval: monthly
           time: '09:00'
           timezone: America/Sao_Paulo
       open-pull-requests-limit: 5
@@ -19,8 +18,7 @@ updates:
     - package-ecosystem: github-actions
       directory: /
       schedule:
-          interval: weekly
-          day: monday
+          interval: monthly
       open-pull-requests-limit: 5
       commit-message:
           prefix: build
@@ -28,8 +26,7 @@ updates:
     - package-ecosystem: docker
       directories: ['/', '/apps/api', '/apps/web', '/infra']
       schedule:
-          interval: weekly
-          day: monday
+          interval: monthly
       open-pull-requests-limit: 5
       commit-message:
           prefix: build

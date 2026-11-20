@@ -4,10 +4,11 @@
     "private": true,
     "type": "module",
     "scripts": {
-        "dev": "vite --host 0.0.0.0",
+        "dev": "node ../../scripts/dev-client.mjs web",
         "build": "tsc --noEmit && vite build",
         "typecheck": "tsc --noEmit",
-        "test": "vitest run"
+        "test": "vitest run",
+        "prototype": "vite --mode prototype --host 127.0.0.1 --port 8091 --strictPort"
     },
     "dependencies": {
         "@mycity/contracts": "*",

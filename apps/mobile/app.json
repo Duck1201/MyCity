@@ -2,11 +2,20 @@
     "expo": {
         "name": "MyCity",
         "slug": "mycity",
+        "scheme": "mycity",
         "version": "0.1.0",
         "orientation": "portrait",
         "userInterfaceStyle": "light",
         "android": {
-            "package": "br.edu.mycity.app"
+            "package": "br.edu.mycity.app",
+            "adaptiveIcon": {
+                "foregroundImage": "./assets/adaptive-foreground.png",
+                "backgroundColor": "#316ba9"
+            }
+        },
+        "icon": "./assets/icon.png",
+        "web": {
+            "favicon": "./assets/icon.png"
         }
     }
 }

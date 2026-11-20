@@ -19,14 +19,14 @@ Hospedar web, API e PostgreSQL no servidor do responsável com Docker Compose. O
 
 ## Funcional e persistido
 
-- Login planejado por CPF e senha próprios do MyCity, sem e-mail ou gov.br, com duas contas de cidadão e uma de gestor fictícias previamente cadastradas. A fundação interna já usa CPF; o login HTTP ainda não foi implementado.
+- Login por CPF e senha próprios do MyCity com duas contas de cidadão e uma de gestor provisionadas para demonstração.
 - Criação com uma a três fotos reais, categoria, descrição e localização obrigatórias. Checkbox “Quero mostrar minha cara” marcado por padrão exibe nome/foto de perfil; desmarcado oculta a identidade inclusive do gestor.
 - GPS com seleção manual alternativa; compressão JPEG no celular, maior lado até 1.600 px e qualidade inicial de 80%.
 - Feed, mapa, detalhes, minhas denúncias e histórico de resolvidas.
 - Confirmações únicas por cidadão, sem confirmar a própria denúncia, com retirada e prioridade por quantidade/antiguidade.
 - Atendimento sequencial, respostas públicas, rejeição justificada e cancelamento pelo autor antes de Em andamento.
 - Histórico e notificações internas persistidos; polling a cada cinco segundos nas telas ativas.
-- Web com lista, filtros de status/categoria/região, contadores e detalhes de atendimento.
+- Painel autenticado com Visão geral, fila e Categorias. Permite abrir um indicador na fila, filtrar por situação, categoria, protocolo, relato, coordenadas ou período, exportar o resultado completo e atender no detalhe.
 
 ## Simulado
 
@@ -40,7 +40,7 @@ Não prometer SLA de emergência ou disponibilidade 24/7. Preservar preenchiment
 
 ## Roteiro principal
 
-O cidadão A cria uma denúncia. O cidadão B a confirma. O gestor vê a ocorrência na lista e move Enviado → Em análise → Em andamento → Resolvido, podendo publicar resposta. O cidadão A vê cada mudança e seus avisos. Usar outras denúncias para demonstrar cancelamento e rejeição sem tentar reabrir a principal.
+O cidadão A cria uma denúncia. O cidadão B a confirma. O gestor vê a ocorrência na lista e move Enviado → Em análise → Em andamento → Resolvido, podendo publicar resposta. O cidadão A vê cada mudança e seus avisos. Usar outras denúncias para demonstrar cancelamento e rejeição. A reabertura pelo gestor retorna a Em análise.
 
 ## Condição de sucesso
 

@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="720" viewBox="0 0 960 720" fill="none">
+  <defs>
+    <pattern id="blocks" width="106" height="72" patternUnits="userSpaceOnUse" patternTransform="rotate(-22)">
+      <rect width="106" height="72" fill="#284a63"/>
+      <g fill="#365b73" stroke="#56768a" stroke-width="1.5">
+        <rect x="5" y="5" width="33" height="25" rx="3"/><rect x="44" y="5" width="55" height="25" rx="3"/>
+        <rect x="5" y="37" width="61" height="29" rx="3"/><rect x="73" y="37" width="26" height="29" rx="3"/>
+      </g>
+    </pattern>
+    <pattern id="courts" width="92" height="68" patternUnits="userSpaceOnUse" patternTransform="rotate(26)">
+      <rect width="92" height="68" fill="#38586e"/>
+      <path d="M7 7h78v25H46v29H7z" fill="#4b6c7f" stroke="#73909e" stroke-width="1.5"/>
+      <path d="M53 39h32v22H53z" fill="#4b6c7f" stroke="#73909e" stroke-width="1.5"/>
+    </pattern>
+    <pattern id="trees" width="11" height="11" patternUnits="userSpaceOnUse">
+      <rect width="11" height="11" fill="#456d70"/><circle cx="3" cy="3" r="1.6" fill="#8aa9a0"/>
+    </pattern>
+    <path id="river" d="M337-70c-35 105-9 170 76 211 85 41 89 94 58 175-49 126-36 170 51 211 93 44 143 112 111 239"/>
+    <path id="avenue" d="m-63 557 292-118 190-42c71-16 128-26 177-71l173-161L992 60"/>
+    <path id="boulevard" d="m658-24-43 149c-27 90-22 128 33 193l77 91 124 330"/>
+  </defs>
+  <path fill="url(#blocks)" d="M0 0h960v720H0z"/>
+  <path d="M318-60c-36 100-17 182 79 225 67 30 80 81 48 146-52 115-48 186 63 239 83 40 114 93 95 180H980V-60z" fill="url(#courts)"/>
+  <path d="M267-8l61-23c-24 89-13 144 57 182l-29 44-89-56-28-72zM519 200l40 28-4 48-57 68-13-11c21-50 43-80 34-133zM468 465c4 40 37 64 79 82l31 22-12 31-60-19-54-58z" fill="url(#trees)" stroke="#759591" stroke-width="3"/>
+  <use href="#river" stroke="#94abad" stroke-width="37"/>
+  <use href="#river" stroke="#6392aa" stroke-width="31"/>
+  <use href="#river" stroke="#88aec0" stroke-width="2"/>
+  <g stroke="#1c4158" stroke-width="14"><use href="#avenue"/><use href="#boulevard"/></g>
+  <g stroke="#99afba" stroke-width="7"><use href="#avenue"/><use href="#boulevard"/></g>
+  <path d="m30 19 150 118 138 121 53 131 19 162 55 187m198-275 148-71 189-35M56 701l223-168 98-45" stroke="#738f9f" stroke-width="5"/>
+  <g transform="rotate(25 759 438)">
+    <rect x="709" y="404" width="102" height="66" rx="5" fill="url(#trees)" stroke="#b3c3ba" stroke-width="2"/>
+    <path d="m714 409 92 56m0-56-92 56" stroke="#a8b9ac" stroke-width="2"/><circle cx="760" cy="437" r="9" fill="#719490" stroke="#becac0" stroke-width="2"/>
+  </g>
+  <g fill="#365970" stroke="#c3d1d4" stroke-width="3"><circle cx="638" cy="306" r="10"/><circle cx="370" cy="408" r="9"/></g>
+</svg>

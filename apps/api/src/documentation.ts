@@ -1,3 +1,4 @@
+import { publicRateLimit } from './public-limits.js';
 import type { Express } from 'express';
 import swaggerUi from 'swagger-ui-express';
 import document from './openapi.json' with { type: 'json' };
@@ -12,6 +13,7 @@ export function mountDocumentation(app: Express) {
         });
         next();
     });
+    app.use(['/api/docs', '/api/openapi.json'], publicRateLimit(120));
     app.get('/api/openapi.json', (_req, res) => res.json(document));
     const options = {
         customSiteTitle: 'MyCity — API',

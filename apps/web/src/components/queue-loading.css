@@ -1,0 +1,111 @@
+.management-reports .desk-placeholder[role='status'] {
+    margin: 0;
+    padding: 1.2rem clamp(1rem, 2.3vw, 1.8rem);
+    background: transparent;
+    color: #395474;
+}
+.desk-placeholder--detail {
+    min-height: 18rem;
+}
+.desk-load-caption {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+.desk-load-caption i {
+    width: 0.9rem;
+    height: 0.9rem;
+    border-radius: 100%;
+    border: 2px solid #d2deea;
+    border-top-color: #356fae;
+    animation: desk-spin 0.85s linear infinite;
+}
+.desk-placeholder-lines {
+    padding-top: 0.9rem;
+}
+.desk-placeholder-lines > div {
+    display: grid;
+    grid-template-columns: 2.8rem minmax(1rem, 1fr);
+    grid-template-rows: auto auto;
+    gap: 0.35rem 0.9rem;
+    align-content: center;
+    min-height: 4rem;
+    border-top: 1px solid #dde5ed;
+}
+.desk-placeholder-lines i,
+.desk-placeholder-lines span {
+    background: #dfe7f1;
+    border-radius: 0.25rem;
+}
+.desk-placeholder-lines i {
+    grid-row: span 2;
+    min-height: 2.3rem;
+}
+.desk-placeholder-lines span {
+    height: 0.5rem;
+    align-self: end;
+    width: min(13rem, 72%);
+}
+.desk-placeholder-lines span:last-child {
+    width: min(20rem, 92%);
+    align-self: start;
+    background: #ebf0f6;
+}
+.desk-placeholder--history .desk-placeholder-lines > div {
+    min-height: 2.6rem;
+    grid-template-columns: 0.5rem 1fr;
+}
+.report-queue {
+    position: relative;
+}
+.management-reports .desk-queue-progress[role='status'] {
+    margin: 0;
+    padding: 0.25rem 0;
+    background: none;
+    color: #2b537e;
+    font-size: 0.8rem;
+}
+.queue-results[data-pending='true'] {
+    opacity: 0.64;
+    pointer-events: none;
+}
+@keyframes desk-spin {
+    to {
+        transform: rotate(1turn);
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    .desk-load-caption i {
+        animation: none;
+    }
+}
+
+.queue-data {
+    position: relative;
+}
+.management-reports .queue-data .desk-queue-progress {
+    position: absolute;
+    z-index: 1;
+    inset-block-start: 0.5rem;
+    inset-inline-end: 0.65rem;
+    padding: 0.25rem 0.55rem;
+    border-radius: 0.3rem;
+    background: #ffffff;
+    box-shadow: 0 1px 4px #1a37561c;
+    pointer-events: none;
+}
+@media (prefers-reduced-motion: no-preference) {
+    .desk-queue-progress {
+        animation: desk-load-reveal 130ms ease-out 140ms both;
+    }
+    @keyframes desk-load-reveal {
+        from {
+            opacity: 0;
+        }
+        to {
+            opacity: 1;
+        }
+    }
+}

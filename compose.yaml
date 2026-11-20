@@ -46,14 +46,21 @@ services:
                 condition: service_healthy
     seed:
         extends: migrate
+        volumes:
+            - photos:/app/uploads
         environment:
-            DEMO_PASSWORD: ${DEMO_PASSWORD:?Configure DEMO_PASSWORD no .env}
+            UPLOAD_DIR: /app/uploads
+            DEMO_CITIZEN_A_PASSWORD: ${DEMO_CITIZEN_A_PASSWORD:-}
+            DEMO_CITIZEN_B_PASSWORD: ${DEMO_CITIZEN_B_PASSWORD:-}
+            DEMO_MANAGER_PASSWORD: ${DEMO_MANAGER_PASSWORD:-}
         command: ['npm', 'run', 'db:seed']
     api:
         build:
             context: .
             dockerfile: apps/api/Dockerfile
         environment:
+            WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:${WEB_PORT:-8090}}
+            PROXY_HOPS: '1'
             NODE_ENV: production
             PORT: 3000
             DATABASE_URL: postgresql://mycity:${POSTGRES_PASSWORD}@db:5432/mycity
