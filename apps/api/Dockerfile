@@ -1,4 +1,4 @@
-FROM node:24.22.0-bookworm-slim AS build
+FROM node:26.13.1-bookworm-slim AS build
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends openssl && rm -rf /var/lib/apt/lists/*
 COPY package*.json ./
@@ -23,7 +23,7 @@ FROM build AS production-dependencies
 USER root
 RUN npm prune --omit=dev --workspace @mycity/api --workspace @mycity/contracts --include-workspace-root
 
-FROM node:24.22.0-bookworm-slim AS runtime
+FROM node:26.13.1-bookworm-slim AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 COPY --from=production-dependencies /app/node_modules ./node_modules
