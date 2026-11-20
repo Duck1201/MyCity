@@ -12,6 +12,11 @@
         "npm": ">=11 <12"
     },
     "packageManager": "npm@11.19.1",
+    "overrides": {
+        "@prisma/config@7.10.1": {
+            "effect": "3.22.1"
+        }
+    },
     "scripts": {
         "predev": "node --env-file=.env apps/api/scripts/check-development.mjs && npm run build:contracts",
         "dev": "node scripts/dev.mjs",
