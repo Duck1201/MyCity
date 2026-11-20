@@ -51,6 +51,13 @@ services:
             DEMO_CITIZEN_B_PASSWORD: ${DEMO_CITIZEN_B_PASSWORD:-}
             DEMO_MANAGER_PASSWORD: ${DEMO_MANAGER_PASSWORD:-}
         command: [npm, run, db:seed]
+    thumbnails:
+        extends: migrate
+        volumes:
+            - photos:/app/uploads
+        environment:
+            UPLOAD_DIR: /app/uploads
+        command: [npm, run, photos:backfill-thumbnails, -w, '@mycity/api']
     api:
         image: ghcr.io/duck1201/mycity-api@${API_DIGEST:?Digest obrigatório}
         environment:

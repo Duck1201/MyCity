@@ -1,6 +1,6 @@
 import filesystem from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
-import { mkdtemp, readdir, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import sharp from 'sharp';
@@ -177,4 +177,56 @@ it('protege detalhe e foto cancelados contra acesso de outro cidadão', async ()
         await request(appFor(citizen)).get(path).expect(200);
         await request(appFor(manager)).get(path).expect(200);
     }
+});
+
+const immutablePrivate = 'private, max-age=31536000, immutable';
+const binary = (res: request.Response, callback: (error: Error | null, body: Buffer) => void) => {
+    const chunks: Buffer[] = [];
+    res.on('data', (chunk: Buffer) => chunks.push(chunk));
+    res.on('end', () => callback(null, Buffer.concat(chunks)));
+};
+
+it('gera no envio uma miniatura de até 320 px servida com cache privado e imutável', async () => {
+    const large = await sharp({ create: { width: 1200, height: 900, channels: 3, background: 'blue' } })
+        .jpeg()
+        .toBuffer();
+    const report = (await upload({ ...meta, clientRequestId: randomUUID() }, [large, jpeg]).expect(201)).body.data;
+    const [wide, tiny] = report.photos;
+    expect(wide.thumbnailPath).toBe(wide.contentPath + '/thumb');
+    const thumb = await request(appFor(manager))
+        .get(wide.thumbnailPath)
+        .buffer(true)
+        .parse(binary)
+        .expect('Content-Type', /image\/jpeg/)
+        .expect(200);
+    expect(thumb.headers['cache-control']).toBe(immutablePrivate);
+    expect(await sharp(thumb.body).metadata()).toMatchObject({ format: 'jpeg', width: 320, height: 240 });
+    const original = await request(appFor(manager)).get(wide.contentPath).buffer(true).parse(binary).expect(200);
+    expect(original.headers['cache-control']).toBe(immutablePrivate);
+    expect(await sharp(original.body).metadata()).toMatchObject({ width: 1200, height: 900 });
+    expect(thumb.body.length).toBeLessThan(original.body.length);
+    // Small photos are never enlarged.
+    const small = await request(appFor(manager)).get(tiny.thumbnailPath).buffer(true).parse(binary).expect(200);
+    expect(await sharp(small.body).metadata()).toMatchObject({ width: 2, height: 3 });
+});
+
+it('aplica à miniatura a mesma autorização da foto original', async () => {
+    const first = (await upload({ ...meta, clientRequestId: randomUUID() }).expect(201)).body.data;
+    const second = (await upload({ ...meta, clientRequestId: randomUUID() }).expect(201)).body.data;
+    await request(appFor(manager))
+        .get('/api/v1/reports/' + first.id + '/photos/' + second.photos[0].id + '/thumb')
+        .expect(404);
+    await db.report.update({ where: { id: first.id }, data: { status: 'CANCELED' } });
+    const other = await request(appFor({ id: randomUUID(), role: 'CITIZEN' }))
+        .get(first.photos[0].thumbnailPath)
+        .expect(404);
+    expect(other.headers['cache-control']).not.toBe(immutablePrivate);
+    await request(appFor(citizen)).get(first.photos[0].thumbnailPath).expect(200);
+});
+
+it('serve a original no lugar de uma miniatura ainda não gerada', async () => {
+    const report = (await upload({ ...meta, clientRequestId: randomUUID() }).expect(201)).body.data;
+    await rm(join(dir, report.id, report.photos[0].id + '.thumb.jpg'));
+    const response = await request(appFor(manager)).get(report.photos[0].thumbnailPath).buffer(true).parse(binary).expect(200);
+    expect(response.body.equals(await readFile(join(dir, report.id, report.photos[0].id + '.jpg')))).toBe(true);
 });

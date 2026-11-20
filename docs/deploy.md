@@ -160,6 +160,10 @@ curl --fail --silent --show-error http://localhost:18090/api/v1/health/ready
 
 Entre como gestor e abra uma denúncia conhecida com foto e histórico. Depois, `r down` encerra o ensaio sem tocar na instância original.
 
+## Miniaturas das fotos
+
+A API grava no envio uma miniatura de até 320 px (`<photoId>.thumb.jpg`) ao lado de cada foto, e as listas do painel usam a rota `/thumb`. O `deploy.sh` roda o serviço `thumbnails` a cada implantação, depois das migrações e antes de subir a API: ele gera só as miniaturas que faltam e informa `{"created":N,"missingOriginals":M}`. Enquanto uma miniatura não existe, a rota serve a original. No ambiente local, gere as que faltam com `npm run photos:backfill-thumbnails -w @mycity/api`; ele lê o `.env` da raiz e usa a mesma pasta de uploads da API.
+
 ## Reconciliar fotos órfãs
 
 Uma interrupção entre gravar as fotos e confirmar a denúncia pode deixar um diretório sem registro no banco. Com backup feito e a API parada:

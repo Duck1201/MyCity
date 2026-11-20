@@ -1,11 +1,13 @@
 import { randomUUID } from 'node:crypto';
 import { resolve } from 'node:path';
-import express, { type ErrorRequestHandler, type RequestHandler, type Request } from 'express';
+import { stat } from 'node:fs/promises';
+import express, { type ErrorRequestHandler, type RequestHandler, type Request, type Response } from 'express';
 import type { Database } from '../../database.js';
 import { transitionSchema, replySchema, cancellationSchema } from '@mycity/contracts';
 import { createReportQueryRouter } from './query-router.js';
 import { createService } from './service.js';
 import { createReportStore, reportNotFound } from './store.js';
+import { thumbnailFile } from './thumbnail.js';
 import { ReportError, parseUpload } from './upload.js';
 
 function pagination(req: Request, allowedParams: string[]) {
@@ -108,14 +110,20 @@ export function createReportsRouter(database: Database, uploadDir: string) {
     router.get('/:id', async (req, res) => {
         res.json({ data: await store.get(req.params.id, res.locals.user) });
     });
-    router.get('/:id/photos/:photoId', async (req, res) => {
+    const sendPhoto = async (req: Request<{ id: string; photoId: string }>, res: Response, thumbnail: boolean) => {
         const report = await store.get(req.params.id, res.locals.user);
         const photo = report.photos.find((p) => p.id === req.params.photoId);
         if (!photo) throw reportNotFound();
+        const root = resolve(uploadDir, report.id);
+        // Photos predating thumbnails fall back to the original until the backfill runs.
+        const file = thumbnail && (await stat(resolve(root, thumbnailFile(photo.id))).catch(() => undefined))?.isFile() ? thumbnailFile(photo.id) : photo.id + '.jpg';
+        // A photo ID never changes content; access is checked before the first download.
         res.type('jpeg')
             .set('X-Content-Type-Options', 'nosniff')
-            .sendFile(photo.id + '.jpg', { root: resolve(uploadDir, report.id), cacheControl: false });
-    });
+            .sendFile(file, { root, cacheControl: false, headers: { 'Cache-Control': 'private, max-age=31536000, immutable' } });
+    };
+    router.get('/:id/photos/:photoId', (req, res) => sendPhoto(req, res, false));
+    router.get('/:id/photos/:photoId/thumb', (req, res) => sendPhoto(req, res, true));
     const errors: ErrorRequestHandler = (error, _req, res, next) => {
         res.locals.releaseUpload?.();
         if (res.headersSent) {

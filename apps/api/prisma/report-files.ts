@@ -1,10 +1,11 @@
-import { readdir, lstat, rm, rmdir, unlink, realpath } from 'node:fs/promises';
+import { readdir, lstat, readFile, rm, rmdir, unlink, realpath, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import type { Database } from '../src/database.js';
+import { thumbnailFile, thumbnailOf } from '../src/modules/reports/thumbnail.js';
 
 const uuid = '[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}';
 const reportFolder = new RegExp('^' + uuid + '$');
-const photoName = new RegExp('^' + uuid + '\\.jpg$');
+const photoName = new RegExp('^' + uuid + '(\\.thumb)?\\.jpg$');
 
 // Run offline, using the database and photo volume from the same deployment.
 export async function reconcileReportFiles(db: Database, root: string, removeId?: string) {
@@ -39,15 +40,40 @@ export async function removeResetPhotos(root: string, photos: readonly { id: str
     for (const photo of photos) {
         if (!reportFolder.test(photo.reportId) || !photoName.test(photo.id + '.jpg')) continue;
         const folder = join(root, photo.reportId);
-        const path = join(folder, photo.id + '.jpg');
-        if (!(await lstat(folder).catch(absent))?.isDirectory() || !(await lstat(path).catch(absent))?.isFile()) continue;
-        await unlink(path);
-        folders.add(folder);
+        if (!(await lstat(folder).catch(absent))?.isDirectory()) continue;
+        for (const name of [photo.id + '.jpg', thumbnailFile(photo.id)]) {
+            const path = join(folder, name);
+            if (!(await lstat(path).catch(absent))?.isFile()) continue;
+            await unlink(path);
+            folders.add(folder);
+        }
     }
     for (const folder of folders) {
         // A directory containing unrelated files belongs to its owner.
         if (!(await readdir(folder)).length) await rmdir(folder);
     }
+}
+
+// Photos published before thumbnails existed get one; rerunning only fills gaps.
+// Walk the report folders on this volume, so photos stored elsewhere are not counted.
+export async function backfillThumbnails(db: Pick<Database, 'reportPhoto'>, root: string) {
+    let created = 0,
+        missingOriginals = 0;
+    for (const entry of await readdir(root, { withFileTypes: true })) {
+        if (!entry.isDirectory() || !reportFolder.test(entry.name)) continue;
+        const folder = join(root, entry.name);
+        for (const { id } of await db.reportPhoto.findMany({ where: { reportId: entry.name }, select: { id: true }, orderBy: { position: 'asc' } })) {
+            if (!photoName.test(id + '.jpg') || (await lstat(join(folder, thumbnailFile(id))).catch(absent))?.isFile()) continue;
+            const original = join(folder, id + '.jpg');
+            if (!(await lstat(original).catch(absent))?.isFile()) {
+                missingOriginals++;
+                continue;
+            }
+            await writeFile(join(folder, thumbnailFile(id)), await thumbnailOf(await readFile(original)), { flag: 'wx', mode: 0o600 });
+            created++;
+        }
+    }
+    return { created, missingOriginals };
 }
 
 function absent(error: NodeJS.ErrnoException) {

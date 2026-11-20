@@ -166,9 +166,9 @@ it('consolida todas as situações, categorias e as três prioridades para o ges
     expect(overview.counts).toEqual({ SENT: 1, UNDER_REVIEW: 1, IN_PROGRESS: 1, RESOLVED: 1, REJECTED: 1, CANCELED: 1 });
     expect(overview.categories).toContainEqual(expect.objectContaining({ id: archived.id, archived: true, count: 0 }));
     expect(overview.categories).toContainEqual(expect.objectContaining({ id: 'POTHOLE', count: 1 }));
-    const queue = (await client(actors.manager, 'MANAGER').get('/reports?scope=management&limit=3').expect(200)).body.data as { id: string; createdAt: string; coverPhoto: { contentPath: string } }[];
+    const queue = (await client(actors.manager, 'MANAGER').get('/reports?scope=management&limit=3').expect(200)).body.data as { id: string; createdAt: string; coverPhoto: { contentPath: string; thumbnailPath: string } }[];
     expect(overview.priorities.map((r: { id: string }) => r.id)).toEqual(queue.map((r) => r.id));
-    expect(overview.priorities[0].photoPath).toBe(queue[0]!.coverPhoto.contentPath);
+    expect(overview.priorities[0].photoPath).toBe(queue[0]!.coverPhoto.thumbnailPath);
     expect(overview.priorities[0]).not.toHaveProperty('author');
     const oldest = queue.slice().sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id))[0]!;
     expect(overview.oldest).toEqual({ id: oldest.id, createdAt: oldest.createdAt });

@@ -29,6 +29,7 @@ it('mostra os registros recentes e o total encerrado quando a fila está em dia'
         render(<ManagerOverview onSessionExpired={vi.fn()} />);
         const recentSection = within(await screen.findByRole('region', { name: 'Registros recentes' }));
         expect(await recentSection.findByRole('link', { name: /Luminária da praça/ })).toHaveAttribute('href', '/atendimento/id-real-da-ocorrencia');
+        expect(recentSection.getByRole('link', { name: /Luminária da praça/ }).querySelector('img')).toHaveAttribute('src', '/api/v1/reports/id-real-da-ocorrencia/photos/foto/thumb');
         expect(screen.getByRole('link', { name: /6 Ocorrências encerradas/ })).toHaveAttribute('href', '/atendimento?ordem=recentes');
         expect(screen.getByText('Sem pendências')).toBeVisible();
         expect(screen.queryByRole('region', { name: 'Pendências por categoria' })).toBeNull();

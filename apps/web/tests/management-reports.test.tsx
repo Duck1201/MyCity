@@ -39,3 +39,20 @@ it('consulta a fila do gestor e abre o protocolo anônimo com as fotos em ordem'
     await userEvent.click(back);
     expect(await screen.findByRole('link', { name: 'Abrir denúncia: Buraco na esquina' })).toHaveFocus();
 });
+
+it('mostra na fila a miniatura da foto de capa, não a original', async () => {
+    const report = { id: '7d1f6a5e-4c2b-4f0a-9e3d-2b1c0a9f8e7d', description: 'Poste apagado', category: 'POTHOLE', confirmationCount: 0, status: 'SENT', createdAt: '2026-11-19T14:00:00Z', latitude: -20.75, longitude: -42.88, coverPhotoId: 'capa' };
+    vi.stubGlobal(
+        'fetch',
+        vi.fn(async (url: string) => {
+            if (url.endsWith('/categories')) return categoriesResponse();
+            return Response.json({ data: [report], page: 1, total: 1, counts: { SENT: 1, REJECTED: 0, CANCELED: 0, IN_PROGRESS: 0, UNDER_REVIEW: 0, RESOLVED: 0 } });
+        }),
+    );
+    history.replaceState({}, '', '/atendimento');
+    render(<QueueJourney />);
+    await screen.findByText(report.description);
+    const sources = [...document.querySelectorAll('img')].map((img) => img.getAttribute('src'));
+    expect(sources).toContain('/api/v1/reports/' + report.id + '/photos/capa/thumb');
+    expect(sources).not.toContain('/api/v1/reports/' + report.id + '/photos/capa');
+});

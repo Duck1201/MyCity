@@ -80,6 +80,7 @@ export interface ReportPhoto {
     height: number;
     byteSize: number;
     contentPath: string;
+    thumbnailPath: string;
 }
 export interface ReportSummary {
     id: string;

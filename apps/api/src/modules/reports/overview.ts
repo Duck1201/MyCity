@@ -27,7 +27,7 @@ export function managementOverview(db: Database): Promise<ManagementOverview> {
                 counts,
                 oldest: oldest && { id: oldest.id, createdAt: oldest.createdAt.toISOString() },
                 categories: catalog.map(({ id, name, archived, icon }) => ({ id, name, archived, icon: categoryIconFor(id, icon), count: pendingByCategory.get(id) ?? 0 })).sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, 'pt-BR') || a.id.localeCompare(b.id)),
-                priorities: rows.map(({ id, description, category, status, _count, photos }) => ({ id, description, category, status, confirmationCount: _count.confirmations, ...(photos[0] && { photoPath: '/api/v1/reports/' + id + '/photos/' + photos[0].id }) })),
+                priorities: rows.map(({ id, description, category, status, _count, photos }) => ({ id, description, category, status, confirmationCount: _count.confirmations, ...(photos[0] && { photoPath: '/api/v1/reports/' + id + '/photos/' + photos[0].id + '/thumb' }) })),
             };
         },
         { isolationLevel: 'RepeatableRead' },
