@@ -23,7 +23,7 @@ O job **Verify tag** recusa tags fora da `main` ou sem CI aprovada. As imagens `
 
 ## Configuração no GitHub
 
-Environment `demonstration`, restrito a tags `v*`:
+Environment `demonstration`, que aceita somente tags `v*.*.*` (nenhuma branch):
 
 | Tipo     | Nome                                                                | Uso                                         |
 | -------- | ------------------------------------------------------------------- | ------------------------------------------- |
@@ -34,7 +34,7 @@ Environment `demonstration`, restrito a tags `v*`:
 
 As senhas do banco e das contas **não** ficam no GitHub: elas existem só no `.env` do servidor. A origem pública da demonstração está em `PUBLIC_ORIGIN` no workflow e é usada no build do APK e na verificação final.
 
-A `main` exige PR, os checks da CI, histórico linear e conversas resolvidas. Actions usa token somente leitura por padrão e actions fixadas por SHA. O [Dependabot](../.github/dependabot.yml) abre PRs mensais; nenhuma atualização é mesclada sem CI. Não aplique downgrade ou override incompatível só para zerar a auditoria.
+A `main` exige PR, os checks da CI, histórico linear e conversas resolvidas. O ruleset **Release tags** permite que só administradores criem, movam ou apaguem tags `v*`, porque uma tag dispara a publicação com os secrets do environment. Actions usa token somente leitura por padrão e actions fixadas por SHA. O [Dependabot](../.github/dependabot.yml) abre PRs mensais; nenhuma atualização é mesclada sem CI. Não aplique downgrade ou override incompatível só para zerar a auditoria.
 
 ## Preparar um servidor
 
