@@ -72,7 +72,7 @@ Na fila, `q` aceita até 160 caracteres e localiza termos no protocolo, relato e
 
 Categorias vêm do catálogo persistido (incluindo grupos sem denúncias). Os seis identificadores originais continuam válidos. Uma categoria cadastrada pelo gestor recebe um UUID e pode ser usada imediatamente nos mesmos endpoints. Listas, detalhes e marcadores incluem `category` e `categoryName`. As respostas e justificativas têm limite de 2.000 caracteres após trim (C07). A resposta pública usa uma chave de repetição vinculada à denúncia e ao ator. Mesma chave com texto diferente retorna 409, sem criar outro evento.
 
-Para o mapa, use `bbox=west,south,east,north`, com coordenadas válidas e west < east, south < north; cruzamento do antimeridiano requer duas consultas, uma de cada lado. Se a área exigir várias páginas, não mostrar a primeira como se fosse o total. O filtro regional segue adiado.
+Para o mapa, use `bbox=west,south,east,north`, com coordenadas válidas e west < east, south < north. O cruzamento do antimeridiano requer duas consultas, uma de cada lado. O app arredonda os limites da área para fora em intervalos de 0,01 grau antes de enviar a consulta. O app filtra os resultados pela área visível para exibir e contar os pontos. Se a área exigir várias páginas, não mostrar a primeira como se fosse o total. O filtro regional segue adiado.
 
 ### Criação multipart
 

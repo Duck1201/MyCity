@@ -1,12 +1,12 @@
 import { type ReactNode } from 'react';
-import { Animated, Image, KeyboardAvoidingView, Linking, Platform, StyleSheet, View, Pressable } from 'react-native';
+import { Image, KeyboardAvoidingView, Linking, Platform, ScrollView, StyleSheet, View, Pressable } from 'react-native';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import square from '../prototype/photos/praca-silviano-brandao.webp';
 import { colors, mobileStyles } from '../theme';
 import { Text, TextInput } from './typography';
 import { CpfInput } from './cpf-input';
 import { ActionButton } from './action-button';
-import { LoginInputFrame, type useLoginFade } from './login-motion';
+import { LoginInputFrame } from './login-motion';
 
 function Wordmark({ location }: { location?: string }) {
     return (
@@ -22,28 +22,31 @@ function Wordmark({ location }: { location?: string }) {
     );
 }
 
-export function CitizenAccessLayout({ children, onLeave }: { children: ReactNode; onLeave?: (() => void) | undefined }) {
+export function CitizenAccessLayout({ children, headerAction, onLeave }: { children: ReactNode; headerAction?: ReactNode; onLeave?: (() => void) | undefined }) {
     return (
         <View style={accessStyles.container}>
             <View style={accessStyles.header}>
                 <Wordmark />
-                {onLeave && (
-                    <Pressable accessibilityRole="button" onPress={onLeave} style={accessStyles.exit}>
-                        <Text style={accessStyles.exitText}>Sair</Text>
-                    </Pressable>
-                )}
+                <View style={accessStyles.headerActions}>
+                    {headerAction}
+                    {onLeave && (
+                        <Pressable accessibilityRole="button" onPress={onLeave} style={accessStyles.exit}>
+                            <Text style={accessStyles.exitText}>Sair</Text>
+                        </Pressable>
+                    )}
+                </View>
             </View>
             {children}
         </View>
     );
 }
 
-type LoginFields = { cpf: string; password: string; setCpf: (value: string) => void; setPassword: (value: string) => void; message: string; busy: boolean; motion: boolean; formOpacity: ReturnType<typeof useLoginFade> };
+type LoginFields = { cpf: string; password: string; setCpf: (value: string) => void; setPassword: (value: string) => void; message: string; busy: boolean; motion: boolean };
 const ignoreChange = () => {};
 export function CitizenLoginScreen({ credentials, onEnter }: { credentials?: LoginFields; onEnter: () => void }) {
     return (
         <KeyboardAvoidingView style={accessStyles.loginRoot} behavior="padding">
-            <Animated.ScrollView style={{ opacity: credentials?.formOpacity ?? 1 }} keyboardShouldPersistTaps="handled" contentContainerStyle={accessStyles.loginPage}>
+            <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={accessStyles.loginPage}>
                 <View style={accessStyles.scene}>
                     <Image source={square} style={accessStyles.sceneImage} resizeMode="cover" accessible accessibilityRole={Platform.OS === 'web' ? undefined : 'image'} accessibilityLabel="Praça Silviano Brandão com o Santuário Santa Rita de Cássia, em Viçosa" />
                     <View pointerEvents="none" style={StyleSheet.absoluteFill} accessible={false}>
@@ -80,7 +83,7 @@ export function CitizenLoginScreen({ credentials, onEnter }: { credentials?: Log
                     )}
                     <ActionButton pending={!!credentials?.busy} label={credentials?.busy ? 'Entrando…' : 'Entrar'} onPress={onEnter} />
                 </View>
-            </Animated.ScrollView>
+            </ScrollView>
         </KeyboardAvoidingView>
     );
 }
@@ -88,10 +91,11 @@ export function CitizenLoginScreen({ credentials, onEnter }: { credentials?: Log
 export const accessStyles = StyleSheet.create({
     loginRoot: { flex: 1, backgroundColor: colors.surface },
     container: { flex: 1, backgroundColor: colors.canvas },
-    header: { minHeight: 55, paddingHorizontal: 18, backgroundColor: colors.deepTeal, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    header: { minHeight: 55, paddingHorizontal: 18, backgroundColor: colors.rail, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    headerActions: { flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 1 },
     wordmark: { flexDirection: 'row', gap: 10, alignItems: 'center', paddingVertical: 8 },
     pin: { width: 18, height: 18, backgroundColor: colors.surface, borderRadius: 10, borderBottomLeftRadius: 2, transform: [{ rotate: '-45deg' }], justifyContent: 'center', alignItems: 'center' },
-    pinCenter: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.deepTeal },
+    pinCenter: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.rail },
     brand: { fontSize: 24, letterSpacing: -0.8, fontWeight: '700', color: colors.surface },
     exit: { minHeight: 48, minWidth: 48, justifyContent: 'center', alignItems: 'center' },
     exitText: { fontWeight: '600', color: colors.surface, fontSize: 15 },
@@ -106,6 +110,6 @@ export const accessStyles = StyleSheet.create({
     loginFields: { flexGrow: 1, marginTop: -24, borderTopLeftRadius: 24, borderTopRightRadius: 24, backgroundColor: colors.surface, paddingHorizontal: 24, paddingTop: 26, paddingBottom: 24, gap: 8 },
     title: { ...mobileStyles.title, fontSize: 28, marginBottom: 8 },
     label: mobileStyles.label,
-    input: { minHeight: 50, paddingHorizontal: 14, paddingVertical: 12, fontSize: 17, borderWidth: 1, borderColor: '#819ba5', backgroundColor: colors.surface, borderRadius: 8, color: colors.ink },
+    input: { minHeight: 50, paddingHorizontal: 14, paddingVertical: 12, fontSize: 17, borderWidth: 1, borderColor: colors.muted, backgroundColor: colors.surface, borderRadius: 8, color: colors.ink },
     error: mobileStyles.error,
 });

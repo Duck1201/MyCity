@@ -8,18 +8,12 @@ import { AppFonts } from './components/app-fonts';
 import { CitizenAccess } from './citizen-access';
 import { CitizenWorkspace } from './citizen-workspace';
 import { type CitizenDraft } from './citizen-report';
+import { QueryCacheProvider } from './use-active-query';
+import { colors } from './theme';
 
 const apiBase = resolveApiBase({ development: __DEV__, configuredUrl: process.env.EXPO_PUBLIC_API_URL, developmentPort: process.env.EXPO_PUBLIC_API_PORT, metroHostUri: Constants.expoConfig?.hostUri });
 
 export default function App() {
-    return (
-        <AppFonts>
-            <Application />
-        </AppFonts>
-    );
-}
-
-function Application() {
     if (__DEV__ && process.env.EXPO_PUBLIC_MY_CITY_PROTOTYPE === '1') {
         // eslint-disable-next-line @typescript-eslint/no-require-imports -- Metro drops this dependency when folding the production branch.
         const { CitizenPrototype } = require('./prototype/citizen-prototype') as typeof import('./prototype/citizen-prototype');
@@ -27,7 +21,9 @@ function Application() {
             <SafeAreaProvider initialMetrics={initialWindowMetrics}>
                 <SafeAreaView style={styles.preview}>
                     <StatusBar style="dark" />
-                    <CitizenPrototype />
+                    <AppFonts>
+                        <CitizenPrototype />
+                    </AppFonts>
                 </SafeAreaView>
             </SafeAreaProvider>
         );
@@ -69,11 +65,19 @@ function ConnectedApp() {
         <SafeAreaProvider initialMetrics={initialWindowMetrics}>
             <SafeAreaView style={styles.container}>
                 <StatusBar style="dark" />
-                <CitizenAccess apiBase={apiBase} onSignedOut={() => selectOwner(null)} onAuthenticated={selectOwner}>
-                    {(token, onSessionExpired) => <CitizenWorkspace linkedReport={linkedReport} clearLink={clearLink} draftRef={draft} apiBase={apiBase} token={token} onSessionExpired={onSessionExpired} />}
-                </CitizenAccess>
+                <AppFonts>
+                    {(fontsLoaded) => (
+                        <CitizenAccess apiBase={apiBase} ready={fontsLoaded} onSignedOut={() => selectOwner(null)} onAuthenticated={selectOwner}>
+                            {(token, onSessionExpired, onLeave) => (
+                                <QueryCacheProvider key={token}>
+                                    <CitizenWorkspace linkedReport={linkedReport} clearLink={clearLink} draftRef={draft} apiBase={apiBase} token={token} onSessionExpired={onSessionExpired} onLeave={onLeave} />
+                                </QueryCacheProvider>
+                            )}
+                        </CitizenAccess>
+                    )}
+                </AppFonts>
             </SafeAreaView>
         </SafeAreaProvider>
     );
 }
-const styles = StyleSheet.create({ container: { flex: 1, backgroundColor: '#fff' }, preview: { flex: 1, backgroundColor: '#fff' } });
+const styles = StyleSheet.create({ container: { flex: 1, backgroundColor: colors.surface }, preview: { flex: 1, backgroundColor: colors.surface } });

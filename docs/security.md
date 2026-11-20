@@ -16,6 +16,8 @@ Para entrar em contato sobre uma vulnerabilidade, siga o [procedimento de relato
 
 A API aplica cotas por IP antes da leitura do corpo do login, da consulta de prontidão e da entrega da documentação habilitada. As cotas são independentes por processo. A implantação hospedada usa uma instância da API e dois proxies (Caddy e Nginx). Os limites e a resposta HTTP 429 estão no [contrato HTTP](api/contract.md).
 
+Os diagnósticos do Caddy preservam o método e o caminho da requisição. O log de acesso do Nginx também registra os status e a duração. Ambos omitem os parâmetros de consulta e o cabeçalho `Referer`. Em `/api/`, o status do proxy no registro de acesso permite identificar falhas de encaminhamento sem registrar o diagnóstico bruto do Nginx que contém a URL original.
+
 ## Recebimento e leitura de fotos
 
 - Autenticar e autorizar o cidadão antes de processar multipart, decodificar imagens ou escrever arquivos de upload/staging. Uma tentativa sem permissão não pode deixar arquivos no servidor.
@@ -48,3 +50,5 @@ O login usa CPF e senha próprios. Nome e foto de perfil aparecem quando o autor
 Rodar `npm run security:check` e as verificações funcionais aplicáveis, depois executar os agentes de `agents/readme.md`. A CI bloqueia publicação de imagens se o job `Security checks` falhar. O job verifica segredos no histórico/conteúdo e dependências; vulnerabilidades altas/críticas causam falha, enquanto as demais permanecem visíveis e precisam de triagem.
 
 O Pentest Sol deve avaliar as fronteiras efetivamente implementadas, independentemente do autor da mudança. Luna e os QAs usam as personas fornecidas. Resultados bloqueantes devem ser corrigidos e reavaliados antes de avançar.
+
+No Android, o cache de consultas fica em memória durante a sessão. Uma resposta HTTP 403 ou 404 invalida os resultados armazenados e as respostas anteriores ainda em trânsito, inclusive as representações do mesmo registro no Feed, no histórico e no mapa.

@@ -1,4 +1,5 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useContext, useRef } from 'react';
+import { QueryCache } from './query-cache';
 export type CitizenRequest = <T>(path: string, signal: AbortSignal, method?: 'GET' | 'PUT' | 'DELETE' | 'POST', body?: object) => Promise<T>;
 export class ApiFailure extends Error {
     constructor(readonly status: number) {
@@ -7,6 +8,7 @@ export class ApiFailure extends Error {
 }
 
 export function useCitizenRequest(apiBase: string, token: string, onSessionExpired: () => void): CitizenRequest {
+    const cache = useContext(QueryCache);
     const expired = useRef(false);
     return useCallback(
         async <T>(path: string, signal: AbortSignal, method: 'GET' | 'PUT' | 'POST' | 'DELETE' = 'GET', body?: object) => {
@@ -16,9 +18,10 @@ export function useCitizenRequest(apiBase: string, token: string, onSessionExpir
                 expired.current = true;
                 onSessionExpired();
             }
+            if (response.status === 403 || response.status === 404) cache?.invalidate();
             if (!response.ok) throw new ApiFailure(response.status);
             return (await response.json()) as T;
         },
-        [apiBase, token, onSessionExpired],
+        [apiBase, token, onSessionExpired, cache],
     );
 }

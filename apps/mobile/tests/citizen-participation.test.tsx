@@ -1,12 +1,20 @@
 import { categoryResponse } from './category-fixture';
-import { AppState, Linking, Share } from 'react-native';
+import { AccessibilityInfo, Animated, AppState, Linking, Share } from 'react-native';
+import * as Location from 'expo-location';
 import App from '../src/app';
 import * as SecureStore from 'expo-secure-store';
 jest.mock('expo-secure-store', () => ({ getItemAsync: jest.fn(), setItemAsync: jest.fn(), deleteItemAsync: jest.fn() }));
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { QueryCacheProvider } from '../src/query-cache';
 import { CitizenWorkspace } from '../src/citizen-workspace';
 
 jest.mock('react-native-maps', () => ({ __esModule: true, default: 'MapView', Marker: 'Marker', PROVIDER_GOOGLE: 'google' }));
+jest.mock('expo-location', () => ({
+    Accuracy: { Balanced: 3 },
+    requestForegroundPermissionsAsync: jest.fn(),
+    getCurrentPositionAsync: jest.fn(),
+    watchPositionAsync: jest.fn(),
+}));
 jest.mock('../src/report-photos', () => ({ pickReportPhoto: jest.fn() }));
 jest.mock('expo-crypto', () => ({ randomUUID: () => 'local-uuid' }));
 const base = 'https://demo.test/api/v1';
@@ -18,10 +26,173 @@ const currentState = Object.getOwnPropertyDescriptor(AppState, 'currentState')!;
 beforeEach(() => {
     Object.defineProperty(AppState, 'currentState', { ...currentState, value: 'active' });
     jest.spyOn(AppState, 'addEventListener').mockReturnValue({ remove: jest.fn() });
+    jest.mocked(Location.requestForegroundPermissionsAsync)
+        .mockReset()
+        .mockResolvedValue({ granted: false } as Location.PermissionResponse);
+    jest.mocked(Location.watchPositionAsync).mockReset();
 });
 afterEach(() => {
     Object.defineProperty(AppState, 'currentState', currentState);
     jest.restoreAllMocks();
+});
+
+it('troca de aba e abre uma denúncia sem animar a superfície inteira', async () => {
+    jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(false);
+    const timing = jest.spyOn(Animated, 'timing').mockImplementation(() => ({ start: jest.fn(), stop: jest.fn(), reset: jest.fn() }));
+    jest.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+        const url = new URL(String(input));
+        if (url.pathname.endsWith('/history')) return response(page([]));
+        if (url.pathname.endsWith('/p-4')) return response({ data: report });
+        return response(page(url.searchParams.get('scope') === 'feed' ? [report] : []));
+    });
+    await openApp();
+    await fireEvent.press(screen.getByRole('tab', { name: 'Feed' }));
+    await fireEvent.press(await screen.findByText(report.description));
+    await fireEvent.press(await screen.findByRole('button', { name: 'Voltar ao feed' }));
+    expect(await screen.findByText(report.description)).toBeVisible();
+    expect(timing.mock.calls.filter(([, config]) => config.toValue === 0 && config.duration === 190)).toHaveLength(2);
+    expect(timing.mock.calls.filter(([, config]) => config.toValue === 1)).toHaveLength(0);
+    await fireEvent.press(screen.getByRole('button', { name: 'Resolvidas' }));
+    expect(screen.getByRole('header', { name: 'Histórico de resolvidas' })).toBeVisible();
+    expect(screen.getByRole('tab', { name: 'Feed', selected: true })).toBeVisible();
+    await fireEvent.press(screen.getByRole('button', { name: 'Notificações' }));
+    expect(screen.getByRole('header', { name: 'Avisos de atendimento' })).toBeVisible();
+});
+
+it('centraliza a câmera com uma leitura pontual e consulta uma área aproximada sem contar pontos fora da tela', async () => {
+    let locate!: Location.LocationCallback;
+    const gps = { latitude: -19.904723, longitude: -43.907391 };
+    const remove = jest.fn();
+    jest.mocked(Location.requestForegroundPermissionsAsync).mockResolvedValueOnce({ granted: true } as Location.PermissionResponse);
+    jest.mocked(Location.watchPositionAsync).mockImplementationOnce(async (_, callback) => {
+        locate = callback;
+        return { remove };
+    });
+    const nearby = { id: 'nearby', ...gps, category: 'POTHOLE', status: 'SENT', confirmationCount: 0 };
+    const outside = { ...nearby, id: 'outside', latitude: -19.919 };
+    const fetch = jest.spyOn(globalThis, 'fetch').mockImplementation(async (input) => response(page(String(input).includes('/reports/map') ? [nearby, outside] : [])));
+    await openApp();
+    expect(Location.requestForegroundPermissionsAsync).not.toHaveBeenCalled();
+    await fireEvent.press(screen.getByRole('tab', { name: 'Mapa' }));
+    expect(screen.getByText('Buscando sua localização…')).toBeVisible();
+    expect(screen.getByTestId('community-map').props.initialRegion.latitude).toBeCloseTo(-20.7526);
+    expect(fetch.mock.calls.some(([input]) => String(input).includes('/reports/map'))).toBe(true);
+    expect(Location.watchPositionAsync).toHaveBeenCalledTimes(1);
+    await act(() => locate({ coords: gps } as Location.LocationObject));
+    const map = await screen.findByTestId('community-map');
+    expect(map.props.initialRegion).toMatchObject(gps);
+    expect(map).not.toHaveProp('showsUserLocation', true);
+    expect(screen.getByTestId('device-location')).toHaveProp('coordinate', gps);
+    expect(remove).toHaveBeenCalledTimes(1);
+    expect(await screen.findByText('1 denúncia nesta área')).toBeVisible();
+    expect(screen.getByTestId('report-marker-nearby')).toBeVisible();
+    expect(screen.queryByTestId('report-marker-outside')).toBeNull();
+    const requests = fetch.mock.calls.filter(([input]) => String(input).includes('/reports/map'));
+    expect(requests).toHaveLength(2);
+    const bounds = new URL(String(requests[1]?.[0])).searchParams.get('bbox')?.split(',').map(Number) ?? [];
+    expect(bounds).toEqual([-43.92, -19.92, -43.89, -19.89]);
+    await fireEvent.press(screen.getByRole('tab', { name: 'Início' }));
+    await fireEvent.press(screen.getByRole('tab', { name: 'Mapa' }));
+    expect(screen.getByTestId('community-map').props.initialRegion).toMatchObject(gps);
+    expect(Location.requestForegroundPermissionsAsync).toHaveBeenCalledTimes(1);
+    expect(Location.watchPositionAsync).toHaveBeenCalledTimes(1);
+});
+
+it('preserva a área explorada quando a primeira leitura de GPS chega atrasada', async () => {
+    let locate!: Location.LocationCallback;
+    jest.mocked(Location.requestForegroundPermissionsAsync).mockResolvedValueOnce({ granted: true } as Location.PermissionResponse);
+    jest.mocked(Location.watchPositionAsync).mockImplementationOnce(async (_, callback) => {
+        locate = callback;
+        return { remove: jest.fn() };
+    });
+    jest.spyOn(globalThis, 'fetch').mockResolvedValue(response(page([])));
+    await openApp();
+    await fireEvent.press(screen.getByRole('tab', { name: 'Mapa' }));
+    const explored = { latitude: -20.8, longitude: -42.8, latitudeDelta: 0.02, longitudeDelta: 0.02 };
+    await fireEvent(screen.getByTestId('community-map'), 'regionChangeComplete', explored, { isGesture: true });
+    const gps = { latitude: -20.7, longitude: -42.7 };
+    await act(() => locate({ coords: gps } as Location.LocationObject));
+    expect(screen.getByTestId('device-location')).toHaveProp('coordinate', gps);
+    await fireEvent.press(screen.getByRole('button', { name: 'Ver lista' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Ver mapa' }));
+    expect(screen.getByTestId('community-map')).toHaveProp('initialRegion', explored);
+});
+
+it('abre a área de Viçosa quando o GPS demora e ignora respostas que chegam depois do limite', async () => {
+    jest.useFakeTimers();
+    try {
+        let locate!: Location.LocationCallback;
+        const remove = jest.fn();
+        jest.mocked(Location.requestForegroundPermissionsAsync).mockResolvedValueOnce({ granted: true } as Location.PermissionResponse);
+        jest.mocked(Location.watchPositionAsync).mockImplementationOnce(async (_, callback) => {
+            locate = callback;
+            return { remove };
+        });
+        jest.spyOn(globalThis, 'fetch').mockResolvedValue(response(page([])));
+        await openApp();
+        await fireEvent.press(screen.getByRole('tab', { name: 'Mapa' }));
+        await act(() => jest.advanceTimersByTimeAsync(6000));
+        expect(remove).toHaveBeenCalledTimes(1);
+        expect(screen.getByText(/GPS indisponível/)).toBeVisible();
+        const city = screen.getByTestId('community-map').props.initialRegion;
+        expect(city.latitude).toBeCloseTo(-20.7526);
+        await act(() => locate({ coords: { latitude: -19.9, longitude: -43.9 } } as Location.LocationObject));
+        expect(screen.getByTestId('community-map').props.initialRegion).toEqual(city);
+    } finally {
+        jest.useRealTimers();
+    }
+});
+
+it('remove a aquisição se o cidadão sai do mapa antes de o Android entregar a inscrição', async () => {
+    const remove = jest.fn();
+    let registered!: (subscription: Location.LocationSubscription) => void;
+    jest.mocked(Location.requestForegroundPermissionsAsync).mockResolvedValueOnce({ granted: true } as Location.PermissionResponse);
+    jest.mocked(Location.watchPositionAsync).mockReturnValueOnce(
+        new Promise((resolve) => {
+            registered = resolve;
+        }),
+    );
+    jest.spyOn(globalThis, 'fetch').mockResolvedValue(response(page([])));
+    await openApp();
+    await fireEvent.press(screen.getByRole('tab', { name: 'Mapa' }));
+    expect(Location.watchPositionAsync).toHaveBeenCalledTimes(1);
+    await fireEvent.press(screen.getByRole('tab', { name: 'Início' }));
+    await act(() => registered({ remove }));
+    expect(remove).toHaveBeenCalledTimes(1);
+});
+
+it('interrompe a aquisição ao colocar o app em segundo plano', async () => {
+    let background!: (state: 'background') => void;
+    const remove = jest.fn();
+    jest.mocked(Location.requestForegroundPermissionsAsync).mockResolvedValueOnce({ granted: true } as Location.PermissionResponse);
+    jest.mocked(Location.watchPositionAsync).mockImplementationOnce(async () => {
+        background = jest.mocked(AppState.addEventListener).mock.lastCall![1];
+        return { remove };
+    });
+    jest.spyOn(globalThis, 'fetch').mockResolvedValue(response(page([])));
+    await openApp();
+    await fireEvent.press(screen.getByRole('tab', { name: 'Mapa' }));
+    await act(() => background('background'));
+    expect(remove).toHaveBeenCalledTimes(1);
+    expect(screen.getByText(/GPS indisponível/)).toBeVisible();
+});
+
+it('envia limites aproximados nos dois lados do antimeridiano e mantém os pontos visíveis', async () => {
+    const points = [
+        { id: 'west', latitude: 0, longitude: 179.997, category: 'POTHOLE', status: 'SENT', confirmationCount: 0 },
+        { id: 'east', latitude: 0, longitude: -179.998, category: 'POTHOLE', status: 'SENT', confirmationCount: 0 },
+    ];
+    const bounds: string[] = [];
+    jest.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+        const box = new URL(String(input)).searchParams.get('bbox');
+        if (box) bounds.push(box);
+        return response(page(box?.endsWith(',180,0.01') ? [points[0]] : box?.startsWith('-180,-0.01,') ? [points[1]] : []));
+    });
+    await openApp();
+    await fireEvent.press(screen.getByRole('tab', { name: 'Mapa' }));
+    await fireEvent(screen.getByTestId('community-map'), 'regionChangeComplete', { latitude: 0, longitude: 179.999, latitudeDelta: 0.013, longitudeDelta: 0.013 });
+    expect(bounds.slice(-2)).toEqual(['179.99,-0.01,180,0.01', '-180,-0.01,-179.99,0.01']);
+    expect(await screen.findByText('2 denúncias nesta área')).toBeVisible();
 });
 
 it('filtra o feed por categoria e confirma e retira a participação através do detalhe', async () => {
@@ -49,7 +220,9 @@ it('filtra o feed por categoria e confirma e retira a participação através do
     await openApp();
     await fireEvent.press(screen.getByRole('tab', { name: 'Feed' }));
     await fireEvent.press(screen.getByText('Filtros'));
+    await fireEvent.press(screen.getByRole('button', { name: 'Categoria' }));
     await fireEvent.press(screen.getByRole('button', { name: 'Buraco na via' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Aplicar filtros' }));
     await fireEvent.press(await screen.findByText('Pista quebrada'));
     await fireEvent.press(await screen.findByText('Também vi isso'));
     expect(await screen.findByText('1 confirmação')).toBeVisible();
@@ -58,7 +231,8 @@ it('filtra o feed por categoria e confirma e retira a participação através do
     expect(api.mock.calls.filter(([url]) => String(url).endsWith('/confirmation')).map(([, init]) => init?.method)).toEqual(['PUT', 'DELETE']);
 });
 
-it('carrega todas as páginas da área visível do mapa e abre a denúncia pelo segundo marcador', async () => {
+it('carrega as páginas do mapa, abre pelo resumo e restaura a seleção com movimento reduzido', async () => {
+    jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(true);
     const points = ['map-1', 'map-2'].map((id, i) => ({ id, latitude: i / 10, longitude: i / 10, category: 'POTHOLE', status: 'SENT', confirmationCount: i }));
     const bounds: string[] = [];
     jest.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
@@ -79,6 +253,8 @@ it('carrega todas as páginas da área visível do mapa e abre a denúncia pelo 
     const initialRegion = screen.getByTestId('community-map').props.initialRegion;
     expect(initialRegion.latitude).toBeCloseTo(-20.7526, 2);
     expect(initialRegion.longitudeDelta).toBeLessThan(0.1);
+    expect(screen.getByTestId('community-map')).toHaveProp('showsUserLocation', false);
+    expect(screen.getByText(/Localização sem permissão/)).toBeVisible();
     await fireEvent(screen.getByTestId('community-map'), 'regionChangeComplete', { latitude: 0, longitude: 0, latitudeDelta: 2, longitudeDelta: 2 });
     expect(await screen.findByText('2 denúncias nesta área')).toBeVisible();
     expect(screen.queryByText(/map-2/)).toBeNull();
@@ -87,9 +263,16 @@ it('carrega todas as páginas da área visível do mapa e abre a denúncia pelo 
     await fireEvent.press(screen.getByRole('button', { name: 'Ver mapa' }));
     expect(screen.getByTestId('community-map').props.initialRegion.latitude).toBe(0);
     await fireEvent.press(screen.getByTestId('report-marker-map-2'));
+    expect(screen.getByTestId('community-map')).toBeVisible();
+    await fireEvent.press(screen.getByRole('button', { name: 'Ver denúncia' }));
     expect(await screen.findByText(report.description)).toBeVisible();
     expect(screen.queryByText('map-2')).toBeNull();
     expect(bounds.filter((v) => v === '-1,-1,1,1')).toHaveLength(2);
+    await fireEvent.press(screen.getByRole('button', { name: 'Voltar ao mapa' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Ver denúncia' })).toBeVisible());
+    expect(screen.getByTestId('community-map').props.initialRegion.latitude).toBe(0);
+    await fireEvent.press(screen.getByRole('button', { name: 'Fechar resumo' }));
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Ver denúncia' })).toBeNull());
 });
 
 it('só cancela após confirmar e envia a versão exibida; conflito recarrega a situação atual', async () => {
@@ -162,7 +345,7 @@ it('mostra a foto de capa do feed com a sessão do cidadão apenas na origem da 
 
 it('filtra o mapa pelo grupo cadastrado e apresenta seu nome no marcador e no detalhe', async () => {
     const option = { id: '5012d21a-c0a4-4184-bdb6-a728e273d0d3', name: 'Acessibilidade no passeio' };
-    const marker = { id: report.id, category: option.id, categoryName: option.name, status: 'SENT', longitude: 0, latitude: 0, confirmationCount: 0 };
+    const marker = { id: report.id, category: option.id, categoryName: option.name, status: 'SENT', longitude: -42.88, latitude: -20.75, confirmationCount: 0 };
     const api = jest.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
         expect(init?.headers).toMatchObject({ Authorization: 'Bearer sintetico' });
         const url = new URL(String(input));
@@ -174,11 +357,25 @@ it('filtra o mapa pelo grupo cadastrado e apresenta seu nome no marcador e no de
     });
     await openApp();
     await fireEvent.press(screen.getByRole('tab', { name: 'Mapa' }));
+    const map = screen.getByTestId('community-map');
     await fireEvent.press(screen.getByText('Filtros'));
+    await fireEvent.press(screen.getByRole('button', { name: 'Categoria' }));
     await fireEvent.press(await screen.findByRole('button', { name: option.name }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Cancelar' }));
+    expect(screen.getByTestId('community-map')).toBe(map);
+    expect(api.mock.calls.some(([url]) => new URL(String(url)).searchParams.has('category'))).toBe(false);
+    await fireEvent.press(screen.getByText('Filtros'));
+    await fireEvent.press(screen.getByRole('button', { name: 'Categoria' }));
+    await fireEvent.press(await screen.findByRole('button', { name: option.name }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Aplicar filtros' }));
     const pin = await screen.findByTestId('report-marker-' + report.id);
-    expect(pin).toHaveProp('title', option.name);
+    expect(screen.getByTestId('community-map')).toBe(map);
+    expect(pin).toHaveProp('accessibilityLabel', option.name + ', Enviado');
     await fireEvent.press(pin);
+    await fireEvent.press(map, { nativeEvent: { action: 'press' } });
+    expect(screen.queryByRole('button', { name: 'Ver denúncia' })).toBeNull();
+    await fireEvent.press(pin);
+    await fireEvent.press(screen.getByRole('button', { name: 'Ver denúncia' }));
     expect(await screen.findByText(option.name)).toBeVisible();
     expect(api.mock.calls.some(([url]) => new URL(String(url)).searchParams.get('category') === option.id)).toBe(true);
 });
@@ -258,4 +455,37 @@ it('mantém o aviso de conflito se a denúncia desaparecer do feed durante a con
     expect(await screen.findByText('Nenhuma denúncia encontrada.')).toBeVisible();
     expect(screen.getByText('A situação da denúncia mudou. Consulte a atualização.')).toBeVisible();
     expect(screen.queryByText(/p-4/)).toBeNull();
+});
+
+it('retira o registro do cache do feed após cancelar mesmo se a próxima consulta falhar', async () => {
+    let canceled = false;
+    const own = { ...report, isMine: true, allowedActions: ['CANCEL'] };
+    const closed = { ...own, status: 'CANCELED', allowedActions: [], version: 2 };
+    jest.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+        const url = new URL(String(input));
+        if (url.pathname.endsWith('/categories')) return categoryResponse();
+        if (url.pathname.endsWith('/reports')) {
+            if (canceled) throw Error('Sem conexão');
+            return response(page(url.searchParams.get('scope') === 'feed' ? [own] : []));
+        }
+        if (url.pathname.endsWith('/cancellation')) {
+            canceled = true;
+            return response({ data: closed });
+        }
+        if (url.pathname.endsWith('/history')) return response(page([]));
+        return response({ data: canceled ? closed : own });
+    });
+    await render(
+        <QueryCacheProvider>
+            <CitizenWorkspace apiBase={base} token="sintetico" onSessionExpired={() => {}} draftRef={{ current: null }} />
+        </QueryCacheProvider>,
+    );
+    await fireEvent.press(screen.getByRole('tab', { name: 'Feed' }));
+    await fireEvent.press(await screen.findByText(report.description));
+    await fireEvent.press(await screen.findByText('Cancelar denúncia'));
+    await fireEvent.press(screen.getByText('Confirmar cancelamento'));
+    expect(await screen.findByText('Status: Cancelado')).toBeVisible();
+    await fireEvent.press(screen.getByRole('button', { name: 'Voltar ao feed' }));
+    await screen.findByText(/Não foi possível atualizar/);
+    expect(screen.queryByText(report.description)).toBeNull();
 });

@@ -13,7 +13,7 @@ export function categoryLabel(item: { category: string; categoryName?: string | 
 
 export function CategoryCatalog({ request, children, activeOnly = false }: { activeOnly?: boolean; request: CitizenRequest; children: (categories: ReportCategoryOption[]) => ReactNode }) {
     const load = useCallback((signal: AbortSignal) => request<{ data: ReportCategoryOption[] }>('/categories', signal), [request]);
-    const catalog = useActiveQuery(load);
+    const catalog = useActiveQuery(load, true, '/categories');
     const options = catalog.data?.data.filter((option) => !activeOnly || !option.archived);
     return (
         <>

@@ -9,21 +9,33 @@ export const statusLabels: Record<ReportStatus, string> = { SENT: 'Enviado', UND
 
 export function ReportOverview({ detail, apiBase, token }: { detail: ReportDetail; apiBase: string; token: string }) {
     return (
-        <>
-            <Text style={mobileStyles.heading}>{categoryLabel(detail)}</Text>
-            <Text style={mobileStyles.body}>{detail.description}</Text>
-            <Text style={[mobileStyles.status, statusTint(detail.status)]}>Status: {statusLabels[detail.status]}</Text>
-            <View style={styles.author}>
-                {detail.author && <Image source={{ uri: detail.author.photoUrl }} accessibilityLabel="Foto do autor" style={styles.avatar} />}
-                <Text style={mobileStyles.body}>Autor: {detail.author?.name ?? 'Anônimo'}</Text>
+        <View style={styles.overview}>
+            <View style={styles.heading}>
+                <Text accessibilityRole="header" style={mobileStyles.heading}>
+                    {categoryLabel(detail)}
+                </Text>
+                <Text style={[mobileStyles.status, statusTint(detail.status)]}>Status: {statusLabels[detail.status]}</Text>
             </View>
-            <Text style={mobileStyles.meta}>
-                Coordenadas: {detail.location.latitude}, {detail.location.longitude}
-            </Text>
+            <Text style={mobileStyles.body}>{detail.description}</Text>
+            <View style={styles.metadata}>
+                <View style={styles.author}>
+                    {detail.author && <Image source={{ uri: detail.author.photoUrl }} accessibilityLabel="Foto do autor" style={styles.avatar} />}
+                    <Text style={mobileStyles.body}>Autor: {detail.author?.name ?? 'Anônimo'}</Text>
+                </View>
+                <Text style={mobileStyles.meta}>
+                    Coordenadas: {detail.location.latitude}, {detail.location.longitude}
+                </Text>
+            </View>
             {detail.photos.map((photo, i) => (
-                <ReportPhoto key={photo.id} apiBase={apiBase} token={token} path={photo.contentPath} label={'Foto ' + (i + 1) + ' da denúncia'} />
+                <ReportPhoto key={photo.id} apiBase={apiBase} token={token} path={photo.contentPath} index={i} width={photo.width} height={photo.height} />
             ))}
-        </>
+        </View>
     );
 }
-const styles = StyleSheet.create({ author: { flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' }, avatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.line } });
+const styles = StyleSheet.create({
+    overview: { ...mobileStyles.card, gap: 14 },
+    heading: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
+    metadata: { gap: 6, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line, paddingTop: 10 },
+    author: { flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
+    avatar: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.line },
+});

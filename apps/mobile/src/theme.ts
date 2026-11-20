@@ -4,7 +4,8 @@ import type { ReportStatus } from '@mycity/contracts';
 export const colors = {
     ink: '#182e4a',
     teal: '#23568e',
-    deepTeal: '#173653',
+    deepTeal: '#182e4a',
+    rail: '#103d4a',
     surface: '#ffffff',
     canvas: '#f8fafd',
     muted: '#526571',
