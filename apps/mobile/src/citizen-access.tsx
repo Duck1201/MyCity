@@ -8,6 +8,7 @@ import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { View } from 'react-native';
 import { Text } from './components/typography';
 import * as SecureStore from 'expo-secure-store';
+import { AppLoadingScreen } from './components/app-loading-screen';
 import { ActionButton } from './components/action-button';
 
 const sessionKey = 'mycity.session';
@@ -115,6 +116,7 @@ export function CitizenAccess({ apiBase, children, onSignedOut, onAuthenticated 
             setAccess('logoutFailed');
         }
     }
+    if (access === 'checking') return <AppLoadingScreen />;
     return (
         <ScreenTransition route={access === 'citizen' ? 'workspace' : 'access'} depth={access === 'citizen' ? 1 : 0}>
             {access === 'login' ? (
@@ -125,11 +127,6 @@ export function CitizenAccess({ apiBase, children, onSignedOut, onAuthenticated 
                         children(token, expire)
                     ) : (
                         <View style={accessStyles.form}>
-                            {access === 'checking' && (
-                                <Text accessibilityLiveRegion="polite" style={mobileStyles.meta}>
-                                    Verificando sua sessão…
-                                </Text>
-                            )}
                             {access === 'signingOut' && (
                                 <Text accessibilityLiveRegion="polite" style={mobileStyles.meta}>
                                     Encerrando sua sessão…

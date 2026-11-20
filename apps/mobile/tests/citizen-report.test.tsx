@@ -1,7 +1,7 @@
 import { CitizenWorkspace } from '../src/citizen-workspace';
 import { categoryResponse } from './category-fixture';
 import { AppState } from 'react-native';
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { pickReportPhoto } from '../src/report-photos';
 import { CitizenReport } from '../src/citizen-report';
 import * as location from 'expo-location';
@@ -14,7 +14,7 @@ jest.mock('expo-file-system', () => ({
         }
     },
 }));
-jest.mock('expo-location', () => ({ requestForegroundPermissionsAsync: jest.fn() }));
+jest.mock('expo-location', () => ({ requestForegroundPermissionsAsync: jest.fn(), getCurrentPositionAsync: jest.fn() }));
 jest.mock('../src/report-photos', () => ({ pickReportPhoto: jest.fn(async () => 'file:///cache/foto.jpg') }));
 jest.mock('expo-crypto', () => {
     let sequence = 0;
@@ -42,7 +42,9 @@ it('preserva o formulário após perda da resposta e reenvia fotos e metadados i
         await fireEvent.changeText(screen.getByLabelText('Descrição'), 'Via com buraco');
         await fireEvent.press(screen.getByText('Galeria'));
         jest.mocked(location.requestForegroundPermissionsAsync).mockResolvedValueOnce({ granted: false } as Awaited<ReturnType<typeof location.requestForegroundPermissionsAsync>>);
+        await fireEvent.press(screen.getByText('Escolher no mapa'));
         await fireEvent.press(screen.getByText('Usar GPS'));
+        expect(await screen.findByText('GPS indisponível. Toque no mapa para escolher o ponto.')).toBeVisible();
         await fireEvent(screen.getByTestId('location-map'), 'press', { nativeEvent: { coordinate: { latitude: -20, longitude: -42 } } });
         await fireEvent.press(screen.getByText('Confirmar ponto'));
         await fireEvent.press(screen.getByText('Enviar denúncia'));
@@ -61,6 +63,84 @@ it('preserva o formulário após perda da resposta e reenvia fotos e metadados i
         expect(JSON.parse(bodies[0].get('metadata'))).toMatchObject({ category: 'POTHOLE', description: 'Via com buraco', showIdentity: true, location: { source: 'MANUAL', latitude: -20, longitude: -42 } });
     } finally {
         globalThis.fetch = previousFetch;
+    }
+});
+
+it('abre o mapa na região urbana e descarta um ponto manual não confirmado', async () => {
+    const catalog = jest.spyOn(globalThis, 'fetch').mockImplementation(async () => categoryResponse());
+    try {
+        await render(<CitizenReport apiBase="https://example.test/api/v1" token="teste" onSessionExpired={jest.fn()} />);
+        await fireEvent.changeText(screen.getByLabelText('Descrição'), 'Iluminação da praça');
+        await fireEvent.press(screen.getByText('Escolher no mapa'));
+        expect(screen.getByRole('header', { name: 'Escolher localização' })).toBeVisible();
+        const region = screen.getByTestId('location-map').props.initialRegion;
+        expect(region.latitude).toBeCloseTo(-20.75, 1);
+        expect(region.longitude).toBeCloseTo(-42.88, 1);
+        expect(region.latitudeDelta).toBeLessThan(0.2);
+        expect(screen.getByRole('button', { name: 'Confirmar ponto' })).toBeDisabled();
+        await fireEvent(screen.getByTestId('location-map'), 'press', { nativeEvent: { coordinate: { latitude: -20.752, longitude: -42.881 } } });
+        await fireEvent.press(screen.getByRole('button', { name: 'Cancelar' }));
+        expect(screen.getByLabelText('Descrição')).toHaveProp('value', 'Iluminação da praça');
+        await fireEvent.press(screen.getByText('Escolher no mapa'));
+        expect(screen.getByRole('button', { name: 'Confirmar ponto' })).toBeDisabled();
+    } finally {
+        catalog.mockRestore();
+    }
+});
+
+it('preserva origem GPS ao confirmar e altera para manual só após confirmar o ajuste', async () => {
+    const catalog = jest.spyOn(globalThis, 'fetch').mockImplementation(async () => categoryResponse());
+    const gps = { latitude: -20.753, longitude: -42.882 };
+    const manual = { latitude: -20.751, longitude: -42.883 };
+    const draftRef = { current: { category: 'LIGHTING', description: 'Praça', photos: ['file:///teste.jpg'], location: { ...manual, source: 'MANUAL' as const }, showIdentity: false, requestId: 'original' } };
+    try {
+        await render(<CitizenReport apiBase="https://example.test/api/v1" token="teste" onSessionExpired={jest.fn()} draftRef={draftRef} />);
+        await fireEvent.press(screen.getByText('Escolher no mapa'));
+        expect(screen.getByTestId('location-map').props.initialRegion).toMatchObject(manual);
+        jest.mocked(location.requestForegroundPermissionsAsync).mockResolvedValueOnce({ granted: true } as Awaited<ReturnType<typeof location.requestForegroundPermissionsAsync>>);
+        jest.mocked(location.getCurrentPositionAsync).mockResolvedValueOnce({ coords: gps } as Awaited<ReturnType<typeof location.getCurrentPositionAsync>>);
+        await fireEvent.press(screen.getByText('Usar GPS'));
+        await fireEvent.press(screen.getByText('Confirmar ponto'));
+        expect(draftRef.current.location).toEqual({ ...gps, source: 'GPS' });
+        await fireEvent.press(screen.getByText('Escolher no mapa'));
+        expect(screen.getByTestId('location-map').props.initialRegion).toMatchObject(gps);
+        await fireEvent(screen.getByTestId('location-map'), 'press', { nativeEvent: { coordinate: manual } });
+        await fireEvent.press(screen.getByText('Cancelar'));
+        expect(draftRef.current.location).toEqual({ ...gps, source: 'GPS' });
+        await fireEvent.press(screen.getByText('Escolher no mapa'));
+        await fireEvent(screen.getByTestId('location-map'), 'press', { nativeEvent: { coordinate: manual } });
+        await fireEvent.press(screen.getByText('Confirmar ponto'));
+        expect(draftRef.current.location).toEqual({ ...manual, source: 'MANUAL' });
+    } finally {
+        catalog.mockRestore();
+    }
+});
+
+it('mantém o ajuste manual feito enquanto o GPS responde', async () => {
+    const catalog = jest.spyOn(globalThis, 'fetch').mockImplementation(async () => categoryResponse());
+    type Fix = Awaited<ReturnType<typeof location.getCurrentPositionAsync>>;
+    let finish!: (fix: Fix) => void;
+    const fix = new Promise<Fix>((resolve) => {
+        finish = resolve;
+    });
+    jest.mocked(location.requestForegroundPermissionsAsync).mockResolvedValueOnce({ granted: true } as Awaited<ReturnType<typeof location.requestForegroundPermissionsAsync>>);
+    jest.mocked(location.getCurrentPositionAsync).mockReturnValueOnce(fix);
+    const draftRef = { current: { category: 'LIGHTING', description: 'Praça', photos: [] as string[], location: null, showIdentity: false, requestId: 'original' } };
+    const manual = { latitude: -20.75, longitude: -42.88 };
+    try {
+        await render(<CitizenReport apiBase="https://example.test/api/v1" token="teste" onSessionExpired={jest.fn()} draftRef={draftRef} />);
+        await fireEvent.press(screen.getByText('Escolher no mapa'));
+        await fireEvent.press(screen.getByText('Usar GPS'));
+        expect(screen.getByText('Buscando GPS…')).toBeVisible();
+        await fireEvent(screen.getByTestId('location-map'), 'press', { nativeEvent: { coordinate: manual } });
+        await act(async () => {
+            finish({ coords: { latitude: 1, longitude: 2 } } as Fix);
+            await fix;
+        });
+        await fireEvent.press(screen.getByText('Confirmar ponto'));
+        expect(draftRef.current.location).toEqual({ ...manual, source: 'MANUAL' });
+    } finally {
+        catalog.mockRestore();
     }
 });
 

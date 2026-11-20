@@ -32,6 +32,8 @@ try {
     if (action === '--sync-development-passwords') {
         const missing = await identity.syncDevelopmentPasswords(passwords);
         if (missing) console.info('Existem contas de demonstração ausentes. Para provisioná-las, execute npm run db:seed.');
+    } else if (action === '--sync-deployment-passwords') {
+        await identity.syncDeploymentPasswords(passwords);
     } else if (action === '--rotate-passwords') {
         await identity.rotateDemoPasswords(passwords);
         await provisionDemoProfiles(database);

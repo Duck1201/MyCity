@@ -17,6 +17,7 @@
         "db:seed": "prisma db seed",
         "docs:generate": "node scripts/generate-openapi.mjs",
         "docs:check": "node scripts/generate-openapi.mjs --check",
+        "db:sync-deployment-passwords": "tsx prisma/seed.ts --sync-deployment-passwords",
         "db:rotate-demo-passwords": "tsx prisma/seed.ts --rotate-passwords"
     },
     "dependencies": {

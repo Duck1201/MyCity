@@ -44,7 +44,11 @@ mv -f "$watermark.next" "$watermark"
 export DOCKER_CONFIG
 DOCKER_CONFIG=$(mktemp -d "$deploy_root/.registry.XXXXXX")
 trap 'rm -rf -- "$DOCKER_CONFIG"' EXIT
-docker login ghcr.io --username "$registry_user" --password-stdin
+IFS= read -r registry_token
+[[ -n "$registry_token" ]] || exit 2
+printf '%s' "$registry_token" | docker login ghcr.io --username "$registry_user" --password-stdin
+unset registry_token
+python3 "$release_dir/deployment-env.py" apply "$deploy_root/.env"
 
 compose=(docker compose --env-file "$deploy_root/.env" -f "$release_dir/compose.deploy.yaml")
 "${compose[@]}" --profile tools pull
@@ -63,6 +67,8 @@ fi
 if [[ ! -f "$deploy_root/.seeded" ]]; then
     "${compose[@]}" --profile tools run --rm seed
     touch "$deploy_root/.seeded"
+else
+    "${compose[@]}" --profile tools run --rm -T seed npm run db:sync-deployment-passwords -w @mycity/api
 fi
 "${compose[@]}" up -d --wait api web edge
 curl --fail --silent --show-error http://127.0.0.1:8090/api/v1/health/ready

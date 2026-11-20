@@ -71,11 +71,17 @@ sha256sum "$SIGNED_APK"
 
 Confira o pacote `br.edu.mycity.app` e o SHA-1 do signatário contra a restrição do Maps. Instale o arquivo referenciado por `SIGNED_APK` no Android físico desbloqueado. Na raiz, execute `bash apps/mobile/tests/launch-release.sh` para verificar a abertura do app instalado e percorra a jornada com o Metro desligado. Guarde com o resultado o commit, o SHA-256 do APK e o modelo do aparelho.
 
+### Baixar o APK da CI
+
+No GitHub do projeto, abra **Actions → Android release** e escolha a execução do SHA desejado. Após a CI aprovar um push na `main`, o workflow gera o APK da revisão testada e o assina em um runner separado. Em **Artifacts**, baixe `mycity-android-<sha>-<tentativa>`, extraia os arquivos e rode `sha256sum --check mycity.apk.sha256` antes de instalar `mycity.apk`. O download de artefatos no GitHub exige login.
+
+O environment `demonstration` permite a branch `main` e guarda `GOOGLE_MAPS_ANDROID_API_KEY`, `ANDROID_RELEASE_KEYSTORE_BASE64` e `ANDROID_RELEASE_STORE_PASSWORD`. O build recebe a chave restrita de Maps no prebuild. A etapa de assinatura lê o keystore PKCS12 com alias `mycity-release` e verifica o pacote e o SHA-256 do certificado. O APK de transferência é removido no fim da execução. Se precisar repetir após a limpeza, use **Re-run all jobs** para gerar um novo APK de transferência.
+
 ## Publicação no servidor
 
 1. Conferir o alvo e preservar aplicações/proxy já existentes.
 2. Preparar configuração e volumes para banco e imagens, mantendo a porta do banco na rede privada. No arquivo protegido de ambiente do servidor, manter `POSTGRES_PASSWORD` para administração e definir `API_DATABASE_PASSWORD` com valor aleatório exclusivo, como 32 bytes gerados em hexadecimal. São aceitos letras, dígitos, sublinhado e hífen. Reservar o nome de papel `mycity_api` para o serviço.
-3. Construir imagens e configurar proxy/HTTPS para web e API.
+3. Atualizar o secret `EC2_RUNTIME_ENV` a partir do arquivo local privado conforme [CI/CD](ci-cd.md#configuração-protegida). No push aprovado da main, o deploy valida a lista de variáveis e a sequência da release, preserva as configurações locais restantes e substitui atomicamente o ambiente sob o lock. A senha proprietária deve coincidir com a do volume existente. Cada deploy reconcilia as senhas das contas provisionadas habilitadas; mudar a senha de uma conta revoga suas sessões. Configuração idêntica preserva as sessões. Construir imagens e configurar proxy/HTTPS para web e API.
 4. Fazer backup do banco e das fotos se já existirem dados. O deploy aplica as migrações com o proprietário e executa `provision` em seguida. Tanto no primeiro deploy quanto em volume existente, esse serviço configura a senha e concede ao papel `mycity_api` as operações necessárias nas tabelas do aplicativo. Ao mudar o schema, revisar as concessões em `infra/provision-api.sql`. Para rotacionar a senha da API, atualizar o segredo no destino e reaplicar a release em janela de manutenção.
 5. Executar seed idempotente apenas para preparar os dados necessários.
 6. Iniciar serviços, conferir liveness/readiness e logs sem segredos.

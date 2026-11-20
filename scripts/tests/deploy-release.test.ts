@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { appendFileSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parse } from 'yaml';
 import { afterEach, beforeEach, expect, it } from 'vitest';
@@ -7,23 +7,32 @@ import { afterEach, beforeEach, expect, it } from 'vitest';
 const sha = 'a'.repeat(40);
 const digest = 'sha256:' + 'b'.repeat(64);
 let root: string;
+const runtime = {
+    POSTGRES_PASSWORD: 'test-db-password',
+    API_DATABASE_PASSWORD: 'test-api-password',
+    DEMO_CITIZEN_A_PASSWORD: 'test-first-password',
+    DEMO_CITIZEN_B_PASSWORD: 'test-second-password',
+    DEMO_MANAGER_PASSWORD: 'test-manager-password',
+    WEB_ORIGIN: 'https://demo.example.test',
+};
 
 beforeEach(() => {
     root = mkdtempSync('/tmp/mycity-release-');
-    writeFileSync(join(root, '.env'), '');
+    writeFileSync(join(root, '.env'), 'POSTGRES_PASSWORD=test-db-password\nLOCAL_OPTION=preserved\n', { mode: 0o600 });
     mkdirSync(join(root, 'releases', sha), { recursive: true });
     writeFileSync(join(root, 'releases', sha, 'compose.deploy.yaml'), '');
     writeFileSync(join(root, 'commands.sh'), 'docker() { printf "%s\\n" "$*" >> "$TRACE"; }\ncurl() { printf "%s\\n" "$*" >> "$TRACE"; }\n');
 });
 afterEach(() => rmSync(root, { recursive: true, force: true }));
 
-function deploy(sequence: number, imageDigest = digest, manifestSha = sha, attempt = 1) {
+function deploy(sequence: number, imageDigest = digest, manifestSha = sha, attempt = 1, settings: Record<string, string> = runtime) {
     const directory = join(root, 'releases', sha + '-' + sequence + '-' + attempt);
     mkdirSync(directory, { recursive: true });
     writeFileSync(join(directory, 'compose.deploy.yaml'), '');
+    copyFileSync('scripts/deployment-env.py', join(directory, 'deployment-env.py'));
     const images = ['api', 'tools', 'web'].map((image) => image.toUpperCase() + '_DIGEST=' + imageDigest);
     writeFileSync(join(directory, 'images.env'), ['RELEASE_SHA=' + manifestSha, 'CI_NUMBER=' + sequence, 'CI_ATTEMPT=' + attempt, ...images].join('\n') + '\n');
-    const run = spawnSync('/bin/bash', ['-c', 'source "$COMMANDS"; source scripts/deploy.sh', 'deploy.sh', root, sha, 'tester', String(sequence), String(attempt)], { env: { PATH: '/usr/bin:/bin', COMMANDS: join(root, 'commands.sh'), TRACE: join(root, 'trace') } });
+    const run = spawnSync('/bin/bash', ['-c', 'source "$COMMANDS"; source scripts/deploy.sh', 'deploy.sh', root, sha, 'tester', String(sequence), String(attempt)], { input: 'fake-registry-token\n' + JSON.stringify(settings), env: { PATH: '/usr/bin:/bin', COMMANDS: join(root, 'commands.sh'), TRACE: join(root, 'trace') } });
     return run.status;
 }
 
@@ -31,6 +40,51 @@ it('aplica os digests da CI e permite repetir a mesma release', () => {
     expect(deploy(10)).toBe(0);
     expect(deploy(10)).toBe(0);
     expect(readFileSync(join(root, 'current-release'), 'utf8').trim()).toBe(sha);
+});
+
+it('aplica somente o ambiente da implantação aceita, preservando configurações do servidor', () => {
+    const file = join(root, '.env');
+    expect(deploy(11)).toBe(0);
+    const active = readFileSync(file, 'utf8');
+    expect(active).toContain('LOCAL_OPTION=preserved');
+    expect(active).toContain('test-manager-password');
+    expect(deploy(10, digest, sha, 1, { ...runtime, DEMO_MANAGER_PASSWORD: 'different-secret' })).not.toBe(0);
+    expect(readFileSync(file, 'utf8')).toBe(active);
+});
+
+it.each([{ GOOGLE_MAPS_ANDROID_API_KEY: 'build-only' }, { POSTGRES_PASSWORD: 'wrong-volume-password' }])('preserva o ambiente diante de configuração extra ou senha de volume divergente', (override) => {
+    const before = readFileSync(join(root, '.env'), 'utf8');
+    expect(deploy(12, digest, sha, 1, { ...runtime, ...override })).not.toBe(0);
+    expect(readFileSync(join(root, '.env'), 'utf8')).toBe(before);
+});
+
+it('preserva o papel em uso pela API quando diverge a senha de banco no deploy', () => {
+    expect(deploy(11)).toBe(0);
+    const file = join(root, '.env');
+    const before = readFileSync(file, 'utf8');
+    expect(deploy(12, digest, sha, 1, { ...runtime, API_DATABASE_PASSWORD: 'different-runtime-db-password' })).not.toBe(0);
+    expect(readFileSync(file, 'utf8')).toBe(before);
+});
+
+it('recusa a configuração de build antes de enviar dados pelo SSH', () => {
+    const input = { ...runtime, GOOGLE_MAPS_ANDROID_API_KEY: 'build-only' };
+    const result = spawnSync('python3', ['scripts/deployment-env.py', 'send'], {
+        env: { PATH: '/usr/bin:/bin', EC2_RUNTIME_ENV: JSON.stringify(input), GHCR_TOKEN: 'registry-fixture' },
+        encoding: 'utf8',
+    });
+    expect(result.status).not.toBe(0);
+    expect(result.stdout).toBe('');
+    expect(result.stderr).not.toContain(input.GOOGLE_MAPS_ANDROID_API_KEY);
+});
+
+it('impede exibição da carga da EC2 quando o envio é iniciado diretamente no terminal', () => {
+    const result = spawnSync('script', ['-q', '-e', '-c', 'python3 scripts/deployment-env.py send', '/dev/null'], {
+        env: { PATH: '/usr/bin:/bin', EC2_RUNTIME_ENV: JSON.stringify(runtime), GHCR_TOKEN: 'synthetic-registry-token' },
+        encoding: 'utf8',
+    });
+    expect(result.status).not.toBe(0);
+    expect(result.stdout).not.toContain(runtime.POSTGRES_PASSWORD);
+    expect(result.stdout).not.toContain('synthetic-registry-token');
 });
 
 it('fecha o acesso antes da migração legada e retoma a rotação antes de ativar a API', () => {

@@ -30,7 +30,7 @@ export function createIdentity(database: Database) {
                     where: { cpf: { in: accounts.map(({ cpf }) => cpf) } },
                     select: { cpf: true, password: true, loginEnabled: true },
                 });
-                if (mode === 'rotate' && existing.length !== accounts.length) {
+                if ((mode === 'rotate' || (mode === 'sync' && !localDevelopment)) && existing.length !== accounts.length) {
                     throw new DemoPasswordError('A rotação exige as três contas já provisionadas.');
                 }
                 for (const { cpf, role, secret } of accounts) {
@@ -76,6 +76,9 @@ export function createIdentity(database: Database) {
         },
         async provisionDemoAccounts(passwords: DemoPasswords, { localDevelopment = false } = {}) {
             await writeDemoAccounts(passwords, 'seed', localDevelopment);
+        },
+        async syncDeploymentPasswords(passwords: DemoPasswords) {
+            await writeDemoAccounts(passwords, 'sync');
         },
         async rotateDemoPasswords(passwords: DemoPasswords) {
             await writeDemoAccounts(passwords, 'rotate');

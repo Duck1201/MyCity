@@ -1,5 +1,5 @@
 import { usePanelLoading, usePanelVisible } from './panel-loading';
-import { useEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { categoryIconFor, managementQueueSchema, type ManagementQueuePage } from '@mycity/contracts';
 import { useCategoryCatalog } from './category-catalog';
 import { QueueLoading } from './components/queue-loading';
@@ -45,7 +45,7 @@ export function ManagementReports({ onSessionExpired }: { onSessionExpired: () =
     const [wasReset, setWasReset] = useState(false);
     const visible = usePanelVisible();
     const focusStamp = useRef('');
-    useEffect(() => {
+    useLayoutEffect(() => {
         if (!visible) return;
         const id: unknown = history.state?.focus;
         if (typeof id !== 'string' || !id || focusStamp.current === location.href + '|' + id) return;

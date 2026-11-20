@@ -76,9 +76,16 @@ it('carrega todas as páginas da área visível do mapa e abre a denúncia pelo 
     });
     await openApp();
     await fireEvent.press(screen.getByRole('tab', { name: 'Mapa' }));
+    const initialRegion = screen.getByTestId('community-map').props.initialRegion;
+    expect(initialRegion.latitude).toBeCloseTo(-20.7526, 2);
+    expect(initialRegion.longitudeDelta).toBeLessThan(0.1);
     await fireEvent(screen.getByTestId('community-map'), 'regionChangeComplete', { latitude: 0, longitude: 0, latitudeDelta: 2, longitudeDelta: 2 });
     expect(await screen.findByText('2 denúncias nesta área')).toBeVisible();
     expect(screen.queryByText(/map-2/)).toBeNull();
+    await fireEvent.press(screen.getByRole('button', { name: 'Ver lista' }));
+    expect(screen.getByText('Enviado · 1 confirmação')).toBeVisible();
+    await fireEvent.press(screen.getByRole('button', { name: 'Ver mapa' }));
+    expect(screen.getByTestId('community-map').props.initialRegion.latitude).toBe(0);
     await fireEvent.press(screen.getByTestId('report-marker-map-2'));
     expect(await screen.findByText(report.description)).toBeVisible();
     expect(screen.queryByText('map-2')).toBeNull();

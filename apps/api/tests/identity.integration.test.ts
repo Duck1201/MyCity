@@ -126,6 +126,28 @@ describe('provisionamento das contas de demonstração', () => {
         expect(await identity.verifyCredentials('00000000001', passwords.citizenA)).toBeTruthy();
     });
 
+    it('deploy mantém sessões com a mesma configuração e revoga somente a conta cuja senha mudou', async () => {
+        await identity.provisionDemoAccounts(passwords);
+        const app = createApp(database);
+        const login = (cpf: string, password: string) => request(app).post('/api/v1/sessions').send({ cpf, password, transport: 'bearer' });
+        const manager = await login('00000000003', passwords.manager).expect(201);
+        const citizen = await login('00000000001', passwords.citizenA).expect(201);
+        const before = await database.user.findUniqueOrThrow({ where: { cpf: '00000000003' } });
+        await identity.syncDeploymentPasswords(passwords);
+        expect(await database.user.findUnique({ where: { cpf: '00000000003' } })).toEqual(before);
+        await identity.syncDeploymentPasswords({ ...passwords, manager: replacements.manager });
+        await request(app)
+            .get('/api/v1/me')
+            .set('Authorization', 'Bearer ' + manager.body.data.token)
+            .expect(401);
+        await request(app)
+            .get('/api/v1/me')
+            .set('Authorization', 'Bearer ' + citizen.body.data.token)
+            .expect(200);
+        await login('00000000003', replacements.manager).expect(201);
+        await expect(identity.syncDeploymentPasswords({ ...passwords, manager: passwords.citizenA })).rejects.toThrow('distintas');
+    });
+
     it('rotação explícita substitui a senha legada preservando as três identidades', async () => {
         await identity.provisionDemoAccounts(passwords);
         const manager = await database.user.findUniqueOrThrow({ where: { cpf: '00000000003' } });
