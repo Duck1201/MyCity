@@ -6,7 +6,7 @@ Repositório: [Duck1201/MyCity](https://github.com/Duck1201/MyCity), público, c
 
 - Commits e títulos de PR seguem Conventional Commits, verificados por `scripts/check-commits.mjs` e testes em `scripts/tests/`.
 - Usar branches de trabalho e PRs para `main`. Squash merge habilitado; merge commits e rebase merge desabilitados. O título do PR vira o título do commit de squash.
-- Branches de origem são removidas após merge. Nenhum colaborador externo foi adicionado.
+- Branches de origem são removidas após merge. Na conferência de 20/11/2026, somente a conta proprietária tinha escrita. Contribuições externas entram por PR de fork. O responsável revisa também os workflows e scripts executados com acesso à produção antes de fazer merge.
 - Proteção aplicada e conferida pela API de `main`: PR, checks `Conventional Commits`, `Quality checks`, `Container builds` e `Security checks`, histórico linear, conversas resolvidas, bloqueio de force push e exclusão. As regras também se aplicam a administradores; o projeto individual exige PR, mas não uma aprovação de outro colaborador.
 
 ## Permissões do Actions
@@ -62,14 +62,17 @@ Backup do Caddyfile anterior: `/home/admin/discord-stream/deploy/Caddyfile.befor
 
 ## Configuração protegida
 
-| Tipo                        | Nome               | Uso                                               |
-| --------------------------- | ------------------ | ------------------------------------------------- |
-| Secret do environment       | SSH_PRIVATE_KEY    | Chave exclusiva do deploy                         |
-| Secret do environment       | SSH_KNOWN_HOSTS    | Chave de host verificada na conexão inicial       |
-| Variável do environment     | DEPLOY_HOST        | Host SSH da EC2                                   |
-| Variável do environment     | DEPLOY_USER        | Usuário de deploy                                 |
-| Variável do environment     | DEPLOY_DIR         | `/opt/mycity`                                     |
-| Arquivo somente no servidor | `/opt/mycity/.env` | Senhas aleatórias do PostgreSQL e das contas demo |
+| Tipo                        | Nome               | Uso                                                    |
+| --------------------------- | ------------------ | ------------------------------------------------------ |
+| Secret do environment       | EC2_RUNTIME_ENV    | Configuração de runtime selecionada do arquivo privado |
+| Secret do environment       | SSH_PRIVATE_KEY    | Chave exclusiva do deploy                              |
+| Secret do environment       | SSH_KNOWN_HOSTS    | Chave de host verificada na conexão inicial            |
+| Variável do environment     | DEPLOY_HOST        | Host SSH da EC2                                        |
+| Variável do environment     | DEPLOY_USER        | Usuário de deploy                                      |
+| Variável do environment     | DEPLOY_DIR         | `/opt/mycity`                                          |
+| Arquivo somente no servidor | `/opt/mycity/.env` | Senhas aleatórias do PostgreSQL e das contas demo      |
+
+Para atualizar a configuração da demonstração, edite `.env.production.local` privado na raiz e execute `node scripts/publish-runtime-env.mjs`. O comando envia por stdin ao secret `EC2_RUNTIME_ENV` de `Duck1201/MyCity` (environment `demonstration`) somente `POSTGRES_PASSWORD`, `API_DATABASE_PASSWORD`, `DEMO_CITIZEN_A_PASSWORD`, `DEMO_CITIZEN_B_PASSWORD`, `DEMO_MANAGER_PASSWORD` e `WEB_ORIGIN`. O próximo deploy de uma CI aprovada na main utiliza essa configuração. Maps, URL do app e assinatura pertencem ao build Android. O arquivo local permanece fora do Git.
 
 Tokens/segredos não entram nos comandos impressos, arquivos versionados ou imagens. A chave de host é fixada; não usar `StrictHostKeyChecking=no` nem buscar uma nova chave de host sem validação a cada execução.
 

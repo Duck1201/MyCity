@@ -76,15 +76,16 @@ jobs:
                   incoming=$(ssh "${ssh_opts[@]}" "$host" "mkdir -p '$DEPLOY_DIR/releases' && mktemp -d '$DEPLOY_DIR/releases/incoming-XXXXXXXX'")
                   [[ "$incoming" == "$DEPLOY_DIR/releases/${incoming##*/}" && "${incoming##*/}" =~ ^incoming-[[:alnum:]]{8}$ ]]
                   trap 'ssh "${ssh_opts[@]}" "$host" "rm -rf -- \"$incoming\""' EXIT
-                  scp "${ssh_opts[@]}" images.env infra/provision-api.sql infra/compose.deploy.yaml infra/Caddyfile.deploy scripts/deploy.sh "$host:$incoming/"
+                  scp "${ssh_opts[@]}" images.env infra/provision-api.sql infra/compose.deploy.yaml infra/Caddyfile.deploy scripts/deploy.sh scripts/deployment-env.py "$host:$incoming/"
                   ssh "${ssh_opts[@]}" "$host" "mv -T '$incoming' '$release' || diff -qr '$incoming' '$release'"
             - name: Deploy tested images
               env:
                   GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
                   GHCR_USER: ${{ github.actor }}
+                  EC2_RUNTIME_ENV: ${{ secrets.EC2_RUNTIME_ENV }}
               run: |
                   set -euo pipefail
-                  printf '%s' "$GHCR_TOKEN" | ssh -o BatchMode=yes -o StrictHostKeyChecking=yes "$DEPLOY_USER@$DEPLOY_HOST" "bash '$DEPLOY_DIR/releases/$RELEASE_SHA-$CI_NUMBER-$CI_ATTEMPT/deploy.sh' '$DEPLOY_DIR' '$RELEASE_SHA' '$GHCR_USER' '$CI_NUMBER' '$CI_ATTEMPT'"
+                  python3 scripts/deployment-env.py send | ssh -o BatchMode=yes -o StrictHostKeyChecking=yes "$DEPLOY_USER@$DEPLOY_HOST" "bash '$DEPLOY_DIR/releases/$RELEASE_SHA-$CI_NUMBER-$CI_ATTEMPT/deploy.sh' '$DEPLOY_DIR' '$RELEASE_SHA' '$GHCR_USER' '$CI_NUMBER' '$CI_ATTEMPT'"
             - name: Verify public HTTPS
               run: curl --fail --silent --show-error --connect-timeout 10 --max-time 30 https://mycity.private-gateway.site:8080/api/v1/health/ready
             - name: Remove runner SSH key
