@@ -127,6 +127,7 @@ jobs:
                   SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
               run: |
                   set -euo pipefail
+                  [[ "$RELEASE" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-[1-9][0-9]{0,8}$ ]]
                   [[ "$DEPLOY_HOST" =~ ^[a-zA-Z0-9.-]+$ && "$DEPLOY_USER" =~ ^[a-z_][a-z0-9_-]*$ && "$DEPLOY_DIR" =~ ^/[a-zA-Z0-9/_-]+$ ]]
                   for digest in "$API_DIGEST" "$TOOLS_DIGEST" "$WEB_DIGEST"; do [[ "$digest" =~ ^sha256:[a-f0-9]{64}$ ]]; done
                   printf 'API_DIGEST=%s\nTOOLS_DIGEST=%s\nWEB_DIGEST=%s\n' "$API_DIGEST" "$TOOLS_DIGEST" "$WEB_DIGEST" > deploy/images.env

@@ -4,12 +4,12 @@ Este guia cobre o caminho do código até o servidor: como o GitHub valida e pub
 
 ## Fluxo de entrega
 
-| Evento                   | O que acontece                                                                                                                        |
-| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
-| PR para `main`           | [CI](../.github/workflows/ci.yml): commits convencionais, segredos, auditoria, formatação, lint, tipos, testes com PostgreSQL, build. |
-| Merge na `main` (squash) | A mesma CI roda no commit da `main`. Nada é publicado.                                                                                |
-| Tag `vX.Y.Z` na `main`   | [Release](../.github/workflows/release.yml): publica as imagens, implanta no servidor e anexa o APK assinado ao GitHub Release.       |
-| Rollback                 | Em **Actions → Release**, abra a execução da versão anterior e use **Re-run jobs → Deploy**. O job reaproveita os digests dela.       |
+| Evento                   | O que acontece                                                                                                                                                                                                                                                    |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| PR para `main`           | [CI](../.github/workflows/ci.yml): commits convencionais, segredos, auditoria, formatação, lint, tipos, testes com PostgreSQL, build.                                                                                                                             |
+| Merge na `main` (squash) | A mesma CI roda no commit da `main`. Nada é publicado.                                                                                                                                                                                                            |
+| Tag `vX.Y.Z` na `main`   | [Release](../.github/workflows/release.yml): publica as imagens, implanta no servidor e anexa o APK assinado ao GitHub Release.                                                                                                                                   |
+| Rollback                 | Em **Actions → Release**, abra a execução da versão anterior e use **Re-run jobs → Deploy**. O job reaproveita os digests dela. As migrações só avançam: volte apenas para uma versão compatível com o schema atual ou restaure o backup feito antes da migração. |
 
 Para lançar uma versão depois do merge:
 

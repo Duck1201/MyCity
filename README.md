@@ -53,7 +53,7 @@ Para mudar portas, configurar a API do celular ou executar a versão compilada e
 
 Instale um APK configurado para a API que você pretende usar, em um dispositivo com Android 7.0 (API 24) ou superior. Entre com a conta de cidadão fornecida pelo responsável pela instalação. Autorize a câmera e a localização quando usar esses recursos.
 
-O guia de Android explica como testar com o ambiente local, baixar o artefato da CI e gerar um APK assinado com a URL da sua API e a configuração do mapa. [Configuração do Android](docs/runbook.md#configuração-do-android)
+O guia de Android explica como testar com o ambiente local, baixar o APK de uma versão publicada e gerar um APK assinado com a URL da sua API e a configuração do mapa. [Configuração do Android](docs/runbook.md#configuração-do-android)
 
 ## Guias
 
