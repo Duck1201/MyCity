@@ -36,20 +36,31 @@ Para uma instalação vazia, use o seed normal. Se faltar uma conta em uma insta
 
 Para usar um endereço explícito no app, defina `EXPO_PUBLIC_API_URL` terminando em `/api/v1`. No emulador, `10.0.2.2` aponta para a máquina de desenvolvimento. Para usar o mapa em um build, restrinja `GOOGLE_MAPS_ANDROID_API_KEY` ao pacote `br.edu.mycity.app` e ao SHA-1 do certificado da variante.
 
+### Obter a chave do Google Maps
+
+Quem distribui o APK configura o mapa para seu pacote e certificado. O Google exige um projeto com faturamento habilitado. A tabela do Google lista uso gratuito ilimitado para o Maps SDK básico utilizado pelo app. Outros serviços têm tarifas próprias. Consulte a [tabela de preços](https://developers.google.com/maps/billing-and-pricing/pricing) e o [guia de credenciais](https://developers.google.com/maps/documentation/android-sdk/get-api-key?hl=pt-br).
+
+1. Entre no [Google Cloud Console](https://console.cloud.google.com/) com sua conta Google. No seletor do topo, crie ou selecione o projeto que administrará a chave. Vincule uma conta em [Faturamento](https://console.cloud.google.com/billing).
+2. Abra o [Maps SDK for Android](https://console.cloud.google.com/apis/library/maps-android-backend.googleapis.com) no mesmo projeto e clique em **Ativar**. Ao ver **API ativada**, vá direto à página de credenciais.
+3. Em [APIs e serviços → Credenciais](https://console.cloud.google.com/apis/credentials), escolha **Criar credenciais → Chave de API**. Abra a chave criada para editá-la.
+4. Em **Restrições de aplicativo → Apps Android**, adicione o pacote `br.edu.mycity.app` e o SHA-1 do certificado que assinará seu APK. Em **Restrições da API**, escolha **Restringir chave → Maps SDK for Android** e salve.
+5. Guarde a chave na variável `GOOGLE_MAPS_ANDROID_API_KEY` no `.env` privado da raiz. A configuração entra no APK durante o build. Ao alterar a chave, gere e instale um novo APK.
+
+**Como obter o SHA-1.** Use o keystore de release que você controla. Na primeira distribuição, crie-o com `keytool -genkeypair -alias mycity-release -keyalg RSA -keysize 3072 -validity 10000 -storetype PKCS12 -keystore /caminho/privado/release.keystore` e guarde uma cópia recuperável. Para consultar a impressão digital, execute `keytool -list -v -alias mycity-release -keystore /caminho/privado/release.keystore` e informe a senha quando solicitado. Copie o campo **SHA1**. Após assinar, confira a mesma impressão digital no APK com `apksigner verify --print-certs`.
+
 ### Gerar o APK assinado localmente
 
-Em uma cópia de build da revisão aprovada com as dependências do lockfile instaladas, configure o SDK Android e o JDK compatíveis com o wrapper Gradle da versão do Expo. Exporte a chave restrita em `GOOGLE_MAPS_ANDROID_API_KEY` no ambiente privado. Defina `ANDROID_BUILD_TOOLS` como o diretório dos build-tools instalados, `RELEASE_KEYSTORE` como o caminho absoluto do keystore com alias `mycity-release`, `RELEASE_PASSWORD_FILE` como o arquivo privado com sua senha e `SIGNED_APK` como o caminho absoluto do APK final fora do Git. Guarde o keystore e uma cópia recuperável sob controle do responsável.
+Em uma cópia de build da revisão aprovada com as dependências do lockfile instaladas, use Node 24 e npm 11 e configure um JDK compatível com o Gradle, o SDK Android (compile SDK 37), os build-tools e o ADB para testar via USB. O prebuild abaixo carrega a chave de mapas do arquivo privado na raiz. Defina `ANDROID_BUILD_TOOLS` como o diretório dos build-tools instalados, `RELEASE_KEYSTORE` como o caminho absoluto do keystore com alias `mycity-release`, `RELEASE_PASSWORD_FILE` como o arquivo privado com sua senha e `SIGNED_APK` como o caminho absoluto do APK final fora do Git. Guarde o keystore e uma cópia recuperável sob controle do responsável. O exemplo usa a API da demonstração. Para sua própria instalação, substitua o endereço por uma URL HTTPS acessível ao celular, terminada em `/api/v1`, e provisione as contas nessa instalação.
 
 ```bash
 set -eu
 umask 077
-: "${GOOGLE_MAPS_ANDROID_API_KEY:?Configure a chave restrita antes de gerar o projeto nativo}"
 export EXPO_PUBLIC_API_URL=https://mycity.private-gateway.site:8080/api/v1
 export NODE_ENV=production EXPO_NO_DOTENV=1 EXPO_NO_TELEMETRY=1
 unset EXPO_PUBLIC_MY_CITY_PROTOTYPE
 npm run build:contracts
 cd apps/mobile
-../../node_modules/.bin/expo prebuild --platform android --no-install --template ../../node_modules/expo/template.tgz
+node --env-file=../../.env ../../node_modules/.bin/expo prebuild --platform android --no-install --template ../../node_modules/expo/template.tgz
 cd android
 ./gradlew :app:assembleRelease
 "$ANDROID_BUILD_TOOLS/apksigner" sign --ks "$RELEASE_KEYSTORE" --ks-key-alias mycity-release --ks-pass "file:$RELEASE_PASSWORD_FILE" --out "$SIGNED_APK" app/build/outputs/apk/release/app-release.apk
