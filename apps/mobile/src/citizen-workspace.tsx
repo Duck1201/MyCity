@@ -1,7 +1,7 @@
 import { CommunityHighlight } from './components/community-highlight';
 import { categoryLabel } from './category-catalog';
 import { mobileStyles, colors } from './theme';
-import { CitizenCover, Icon, type IconName } from './prototype/civic-header';
+import { CitizenCover, Icon, type IconName } from './components/civic-header';
 import { ReportCard } from './components/report-card';
 import { reportPhotoSource } from './components/report-photo';
 import { useCallback, useEffect, useRef, useMemo, useState } from 'react';

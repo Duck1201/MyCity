@@ -1,8 +1,8 @@
 import { Image, Platform, Pressable, StyleSheet, View } from 'react-native';
 import Svg, { Circle, Path, Polyline, Rect } from 'react-native-svg';
-import { Text } from '../components/typography';
+import { Text } from './typography';
 import { colors } from '../theme';
-import lake from './photos/cidade.webp';
+import lake from '../assets/cidade.webp';
 
 // Lucide outlines.
 const icons = {

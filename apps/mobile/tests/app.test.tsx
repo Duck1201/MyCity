@@ -6,9 +6,6 @@ import App from '../src/app';
 jest.mock('expo-secure-store', () => ({ getItemAsync: jest.fn(async () => null) }));
 jest.mock('expo-font', () => ({ ...jest.requireActual('expo-font'), useFonts: jest.fn(() => [true, null]) }));
 jest.mock('react-native-maps', () => ({ __esModule: true, default: 'MapView', Marker: 'Marker' }));
-jest.mock('../src/prototype/citizen-prototype', () => {
-    throw new Error('O app integrado carregou a prévia.');
-});
 
 it('inicia a restauração da sessão junto com as fontes e mantém a mesma tela de abertura', async () => {
     const fonts = jest.mocked(useFonts);

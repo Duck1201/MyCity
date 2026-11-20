@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react';
 import { Download, MapPin, Search, ThumbsUp } from 'lucide-react';
 import type { ReportStatus, ReportStatusCounts } from '@mycity/contracts';
-import { CategorySymbol, type CategoryIcon } from './prototype/category-symbol';
-import { Link } from './prototype/navigation';
+import { CategorySymbol, type CategoryIcon } from './components/category-symbol';
+import { Link } from './navigation';
 import { statusKeys, statusNames } from './report-status-labels';
 export interface TableRow {
     id: string;

@@ -1,8 +1,7 @@
 import { useFonts } from 'expo-font';
-import { Text } from '../src/components/typography';
+import { Text, TextInput } from '../src/components/typography';
 import { AppFonts } from '../src/components/app-fonts';
 import { fireEvent, render, screen } from '@testing-library/react-native';
-import { CitizenPrototype } from '../src/prototype/citizen-prototype';
 import { ActionButton } from '../src/components/action-button';
 import { CpfInput } from '../src/components/cpf-input';
 
@@ -10,11 +9,18 @@ jest.mock('expo-font', () => ({ ...jest.requireActual('expo-font'), useFonts: je
 
 jest.mock('react-native-maps', () => ({ __esModule: true, default: 'MapView', Marker: 'Marker' }));
 
-it('aplica as faces locais da Nunito ao título, ao texto e ao campo do protótipo', async () => {
-    await render(<CitizenPrototype />);
-    expect(screen.getByRole('header', { name: 'Início' })).toHaveStyle({ fontFamily: 'Nunito-ExtraBold' });
+it('aplica a face da Nunito correspondente ao peso do título, do texto e do campo', async () => {
+    await render(
+        <>
+            <Text accessibilityRole="header" style={{ fontWeight: '800' }}>
+                Início
+            </Text>
+            <Text>Equipe encaminhada para vistoria.</Text>
+            <TextInput accessibilityLabel="Relato" style={{ fontWeight: '400' }} />
+        </>,
+    );
+    expect(screen.getByRole('header', { name: 'Início' })).toHaveStyle({ fontFamily: 'Nunito-ExtraBold', fontWeight: 'normal' });
     expect(screen.getByText('Equipe encaminhada para vistoria.')).toHaveStyle({ fontFamily: 'Nunito-Regular' });
-    await fireEvent.press(screen.getByRole('button', { name: 'Nova denúncia' }));
     expect(screen.getByLabelText('Relato')).toHaveStyle({ fontFamily: 'Nunito-Regular' });
 });
 

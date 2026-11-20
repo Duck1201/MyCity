@@ -2,7 +2,7 @@ import { StyleSheet, View, type ImageSourcePropType } from 'react-native';
 import { type ReportStatus } from '@mycity/contracts';
 import { colors, mobileStyles } from '../theme';
 import { statusLabels } from '../report-overview';
-import { Icon } from '../prototype/civic-header';
+import { Icon } from './civic-header';
 import { MotionPressable } from './motion-pressable';
 import { ReportThumbnail } from './report-photo';
 import { Text } from './typography';

@@ -1,7 +1,7 @@
 import { lazy, StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import './styles.css';
-import './prototype/console.css';
+import './panel.css';
 
 import { ManagerAccess } from './manager-access';
 import type { QueueNavigation } from './manager-shell';

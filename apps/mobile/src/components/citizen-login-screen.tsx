@@ -1,7 +1,7 @@
 import { type ReactNode } from 'react';
 import { Image, KeyboardAvoidingView, Linking, Platform, ScrollView, StyleSheet, View, Pressable } from 'react-native';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
-import square from '../prototype/photos/praca-silviano-brandao.webp';
+import square from '../assets/praca-silviano-brandao.webp';
 import { colors, mobileStyles } from '../theme';
 import { Text, TextInput } from './typography';
 import { CpfInput } from './cpf-input';
@@ -42,8 +42,7 @@ export function CitizenAccessLayout({ children, headerAction, onLeave }: { child
 }
 
 type LoginFields = { cpf: string; password: string; setCpf: (value: string) => void; setPassword: (value: string) => void; message: string; busy: boolean; motion: boolean };
-const ignoreChange = () => {};
-export function CitizenLoginScreen({ credentials, onEnter }: { credentials?: LoginFields; onEnter: () => void }) {
+export function CitizenLoginScreen({ credentials, onEnter }: { credentials: LoginFields; onEnter: () => void }) {
     return (
         <KeyboardAvoidingView style={accessStyles.loginRoot} behavior="padding">
             <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={accessStyles.loginPage}>
@@ -73,15 +72,15 @@ export function CitizenLoginScreen({ credentials, onEnter }: { credentials?: Log
                         Entrar no MyCity
                     </Text>
                     <Text style={accessStyles.label}>CPF</Text>
-                    <LoginInputFrame animate={credentials?.motion ?? false}>{(focusEvents) => <CpfInput {...focusEvents} accessibilityLabel="CPF" style={accessStyles.input} value={credentials?.cpf ?? ''} editable={!!credentials} keyboardType="numeric" autoComplete={credentials ? 'username' : 'off'} placeholder="000.000.000-00" placeholderTextColor={colors.muted} selectionColor={colors.teal} onChangeText={credentials?.setCpf ?? ignoreChange} />}</LoginInputFrame>
+                    <LoginInputFrame animate={credentials.motion}>{(focusEvents) => <CpfInput {...focusEvents} accessibilityLabel="CPF" style={accessStyles.input} value={credentials.cpf} keyboardType="numeric" autoComplete="username" placeholder="000.000.000-00" placeholderTextColor={colors.muted} selectionColor={colors.teal} onChangeText={credentials.setCpf} />}</LoginInputFrame>
                     <Text style={accessStyles.label}>Senha</Text>
-                    <LoginInputFrame animate={credentials?.motion ?? false}>{(focusEvents) => <TextInput {...focusEvents} accessibilityLabel="Senha" style={accessStyles.input} value={credentials?.password ?? ''} editable={!!credentials} selectionColor={colors.teal} secureTextEntry autoComplete={credentials ? 'current-password' : 'off'} onChangeText={credentials?.setPassword} onSubmitEditing={onEnter} />}</LoginInputFrame>
-                    {!!credentials?.message && (
+                    <LoginInputFrame animate={credentials.motion}>{(focusEvents) => <TextInput {...focusEvents} accessibilityLabel="Senha" style={accessStyles.input} value={credentials.password} selectionColor={colors.teal} secureTextEntry autoComplete="current-password" onChangeText={credentials.setPassword} onSubmitEditing={onEnter} />}</LoginInputFrame>
+                    {!!credentials.message && (
                         <Text accessibilityLiveRegion="polite" style={accessStyles.error}>
                             {credentials.message}
                         </Text>
                     )}
-                    <ActionButton pending={!!credentials?.busy} label={credentials?.busy ? 'Entrando…' : 'Entrar'} onPress={onEnter} />
+                    <ActionButton pending={!!credentials.busy} label={credentials.busy ? 'Entrando…' : 'Entrar'} onPress={onEnter} />
                 </View>
             </ScrollView>
         </KeyboardAvoidingView>

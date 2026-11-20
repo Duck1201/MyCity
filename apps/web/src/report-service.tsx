@@ -3,7 +3,7 @@ import { isReopening } from './manager-transitions';
 import { ManagerStatusActions } from './components/manager-status-actions';
 import { OccurrenceContent, OccurrenceReply } from './components/occurrence-content';
 import { Status } from './queue-presentation';
-import { CategorySymbol } from './prototype/category-symbol';
+import { CategorySymbol } from './components/category-symbol';
 import { useCategoryCatalog } from './category-catalog';
 import { useEffect, useRef, useState } from 'react';
 import type { ReportDetail, ReportStatus, ReportEvent, ReportReply, ReportTransition } from '@mycity/contracts';

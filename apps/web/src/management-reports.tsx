@@ -3,11 +3,11 @@ import { useLayoutEffect, useRef, useState } from 'react';
 import { categoryIconFor, managementQueueSchema, type ManagementQueuePage } from '@mycity/contracts';
 import { useCategoryCatalog } from './category-catalog';
 import { QueueLoading } from './components/queue-loading';
-import { navigate, queueUrl, useLocation } from './prototype/navigation';
+import { navigate, queueUrl, useLocation } from './navigation';
 import { QueueLayout, queuePageSize, ReportTable } from './queue-presentation';
 import { useLiveQuery } from './use-live-query';
 import './queue-filters.css';
-import './prototype/queue.css';
+import './queue.css';
 
 const dateFormat = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo' });
 export function ManagementReports({ onSessionExpired }: { onSessionExpired: () => void }) {

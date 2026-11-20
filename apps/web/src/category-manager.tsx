@@ -2,7 +2,7 @@ import { usePanelLoading } from './panel-loading';
 import { useEffect, useRef } from 'react';
 import { categoryIconFor, type ReportCategoryOption } from '@mycity/contracts';
 import { useCategoryCatalog } from './category-catalog';
-import { CategoryCatalogView, type CategoryChange } from './prototype/catalog';
+import { CategoryCatalogView, type CategoryChange } from './category-catalog-view';
 
 type Props = { onSessionExpired: () => void; onCreated?: (category: ReportCategoryOption) => void };
 

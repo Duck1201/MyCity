@@ -3,7 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import { Marker, type Region } from 'react-native-maps';
 import type { ReportMarker } from '@mycity/contracts';
 import { categoryLabel } from './category-catalog';
-import { Icon } from './prototype/civic-header';
+import { Icon } from './components/civic-header';
 import { Text } from './components/typography';
 import { statusLabels } from './report-overview';
 import { colors } from './theme';

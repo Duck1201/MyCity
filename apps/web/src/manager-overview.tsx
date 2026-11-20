@@ -1,7 +1,7 @@
 import { usePanelLoading } from './panel-loading';
 import { categoryIconFor, type ManagementOverview, type ManagementQueuePage } from '@mycity/contracts';
 import { useLiveQuery } from './use-live-query';
-import { OverviewPanel, RecentReports } from './prototype/overview-panel';
+import { OverviewPanel, RecentReports } from './components/overview-panel';
 
 function RecentQueue({ categories, onSessionExpired }: { categories: ManagementOverview['categories']; onSessionExpired: () => void }) {
     const query = useLiveQuery<ManagementQueuePage>('/api/v1/reports/queue?ordem=recentes&limit=3', onSessionExpired);

@@ -1,6 +1,6 @@
 import type { ComponentProps, ReactNode, Ref } from 'react';
 import { CalendarDays, Check, History, MapPin, MessageSquare, UserRound, UsersRound } from 'lucide-react';
-import { PhotoGallery } from '../prototype/photo-gallery';
+import { PhotoGallery } from './photo-gallery';
 
 type ReplyProps = {
     value: string;

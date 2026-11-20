@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { CategorySymbol } from './category-symbol';
 import type { CategoryIcon } from './category-symbol';
-import { Link, queueUrl } from './navigation';
+import { Link, queueUrl } from '../navigation';
 import './category-ranking.css';
 
 export type RankedCategory = { id: string; name: string; icon: CategoryIcon; archived: boolean; count: number };

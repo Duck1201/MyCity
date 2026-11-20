@@ -5,7 +5,7 @@ import { Text } from './components/typography';
 import type { WeatherAlert } from '@mycity/contracts';
 import type { CitizenRequest } from './citizen-api';
 import { colors, mobileStyles } from './theme';
-import { Icon } from './prototype/civic-header';
+import { Icon } from './components/civic-header';
 import { ActionButton } from './components/action-button';
 import { useActiveQuery } from './use-active-query';
 

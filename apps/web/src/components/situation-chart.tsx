@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { ReportStatus, ReportStatusCounts } from '@mycity/contracts';
 import { statusKeys, statusNames } from '../report-status-labels';
-import { Link, queueUrl } from './navigation';
+import { Link, queueUrl } from '../navigation';
 import './situation-chart.css';
 
 const radius = 68;

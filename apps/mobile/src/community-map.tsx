@@ -5,7 +5,7 @@ import * as Location from 'expo-location';
 import { readDevicePosition } from './device-position';
 import { cityRegion, pointRegion } from './map-region';
 import { ActivityIndicator, Animated, AppState, BackHandler, Platform, ScrollView, StyleSheet, View } from 'react-native';
-import { Icon } from './prototype/civic-header';
+import { Icon } from './components/civic-header';
 import { MotionPressable } from './components/motion-pressable';
 import { useMotionEnabled } from './components/use-motion-enabled';
 import { Text } from './components/typography';
