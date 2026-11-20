@@ -1,8 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { expect, it } from 'vitest';
 
-const config = readFileSync('infra/nginx.conf', 'utf8');
-const edge = readFileSync('infra/Caddyfile.deploy', 'utf8');
+const config = readFileSync('deploy/nginx.conf', 'utf8');
+const edge = readFileSync('deploy/Caddyfile', 'utf8');
 
 it('registra o método, a rota e o resultado sem a query string nem o Referer', () => {
     const format = config.match(/^\s*log_format\s+mycity\s+([^;]+);/m)?.[1] ?? '';

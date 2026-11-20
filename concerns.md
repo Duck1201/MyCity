@@ -35,7 +35,7 @@ Este registro reúne decisões e pendências do MVP. O [plano](plan.md#aceite-da
 - C02/C03: Google Maps no Android e confirmação por coordenadas GPS ou manuais. Endereço, bairro e filtro regional ficam para outra entrega.
 - C05/C27/C31: sessões e acesso protegido implementados. As contas legadas ficam desabilitadas até a rotação explícita. As três contas do Compose local foram rotacionadas e verificadas em 19/11/2026. A etapa 6 registrou os três logins após a rotação da demonstração hospedada (C28).
 - C06/C07: aprovados JPEG com maior lado de 1.600 px, 5 MiB por foto, 16 MiB por envio e descrição até 1.000 caracteres. Na etapa 3 foram aprovados até 2.000 caracteres após trim para respostas e justificativas.
-- C13/C15: reenvio concorrente e falhas de publicação cobertos por testes. Reconciliação de órfãos disponível no [runbook](docs/runbook.md#reconciliação-offline-das-fotos).
+- C13/C15: reenvio concorrente e falhas de publicação cobertos por testes. Reconciliação de órfãos disponível no [runbook](docs/deploy.md#reconciliar-fotos-órfãs).
 - C04/C08: matriz de visibilidade aprovada na etapa 4. Nos estados finais o gestor pode responder e as confirmações ficam congeladas. O descarte dos dados do ensaio segue C12.
 
 ## Diferenças já decididas

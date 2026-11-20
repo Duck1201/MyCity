@@ -11,8 +11,6 @@ Use uma conta provisionada pelo operador da sua instalação. Para experimentar 
 - **Cidadão.** Entre no app Android e toque no **+** no canto inferior direito. Escolha a categoria, descreva o problema, anexe fotos e confirme o ponto no mapa. Depois de enviar, acompanhe o retorno em **Meus registros** e em **Notificações**, no cabeçalho. Para consultar ocorrências de outras pessoas, abra o **Feed** ou o **Mapa**. O histórico de **Resolvidas** fica no Feed.
 - **Gestor.** Entre no painel web e abra **Atendimento**. Use a busca e os filtros para encontrar uma denúncia. Abra o relato para conferir os anexos, registrar uma resposta ou mudar a situação do atendimento. Em **Categorias**, gerencie as opções que o cidadão pode escolher ao registrar uma denúncia.
 
-Para conhecer a interface do cidadão no navegador com exemplos locais, abra a [prévia web](../README.md#explorar-o-app-no-navegador).
-
 ## Estados confirmados
 
 ```mermaid

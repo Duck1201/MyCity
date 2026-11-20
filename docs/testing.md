@@ -73,7 +73,7 @@ Os contratos, a API, o painel e os scripts de infraestrutura usam Vitest. O app 
 
 Para rodar só a integração HTTP, mantenha o serviço `test-db` ativo e execute `npm run test:integration` na raiz. O runner aplica as migrações em `mycity_test` e usa a porta local 55433 por padrão. Ele aceita `TEST_DATABASE_URL` para outro destino local com o mesmo nome de banco. Use o banco de desenvolvimento para ensaios manuais.
 
-O job **Quality checks** exporta o bundle Android após os testes. Para repetir localmente, execute `npm run export:android -w @mycity/mobile`. O build assinado segue em um [workflow próprio](../.github/workflows/android-release.yml) após uma CI aprovada de push na `main). Para rodar a checagem de segredos da CI localmente, use Linux x86-64, a plataforma validada pelo instalador do Gitleaks.
+O job **Quality checks** exporta o bundle Android após os testes. Para repetir localmente, execute `npm run export:android -w @mycity/mobile`. O build assinado segue em um [workflow próprio](../.github/workflows/release.yml) após uma CI aprovada de push na `main). Para rodar a checagem de segredos da CI localmente, use Linux x86-64, a plataforma validada pelo instalador do Gitleaks.
 
 ## Alertas simulados e revisão visual
 
