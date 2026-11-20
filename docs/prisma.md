@@ -75,6 +75,6 @@ npm run format:check
 
 ## Critério de revisão
 
-Antes de aprovar uma alteração Prisma, conferir: mapeamentos físicos, timestamps, hashes não expostos, compatibilidade do SQL, preservação de dados, recuperação e testes reais. Sol revisa riscos de migração/autorização; Luna e QA de integração verificam cenários e evidências conforme [agents/readme.md](../agents/readme.md).
+Antes de aprovar uma alteração Prisma, conferir: mapeamentos físicos, timestamps, hashes não expostos, compatibilidade do SQL, preservação de dados, recuperação e testes reais. Antes de lançar uma versão com migração, rode os revisores `security-reviewer` e `regression-reviewer` descritos no [AGENTS.md](../AGENTS.md#fluxo-de-uma-mudança).
 
 Consulte o SQL da [migração de usuários para CPF](../apps/api/prisma/migrations/20261119040000_user_cpf_mapping/migration.sql).

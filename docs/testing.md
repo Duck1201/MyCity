@@ -75,52 +75,34 @@ Para rodar só a integração HTTP, mantenha o serviço `test-db` ativo e execut
 
 O job **Quality checks** exporta o bundle Android após os testes. Para repetir localmente, execute `npm run export:android -w @mycity/mobile`. O build assinado segue em um [workflow próprio](../.github/workflows/release.yml) após uma CI aprovada de push na `main). Para rodar a checagem de segredos da CI localmente, use Linux x86-64, a plataforma validada pelo instalador do Gitleaks.
 
-## Alertas simulados e revisão visual
-
-A etapa 5 cobriu o cenário T17 nos clientes e a expiração da sessão do painel offline.
-
-## Participação e consulta
-
-A etapa 4 cobriu a integração com as duas contas, a ordenação na web e os critérios de visibilidade de feed, mapa, link e histórico.
-
-## Atendimento
-
-A etapa 3 cobriu testes de concorrência, rollback, respostas públicas, acesso pessoal aos avisos e persistência da leitura, além do percurso gestor–cidadão. A etapa 4 acrescenta a corrida entre cancelamento e avanço pelo gestor sobre a mesma versão.
-
-## Primeira denúncia
-
-O fluxo no proxy usa HTTP real com cookie e Bearer. As interfaces nativas de câmera, galeria, GPS e mapa são simuladas nos testes de componentes. A homologação física e hospedada foi dispensada pelo responsável nesta entrega.
-
 ## Aceite por critério
 
 Depois do aceite, siga a [política de descarte dos dados fictícios da homologação](runbook.md#descartar-os-dados-da-homologação).
 
-| Critérios              | Jornada                                                  | Ambiente e limite                                                                                                                                                                              |
-| ---------------------- | -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| AC01, AC11, AC19, AC20 | Sessão, upload autenticado, fotos protegidas e anonimato | Controles de acesso e limites na integração. No Galaxy com a EC2, publicação anônima por HTTPS e sessão preservada após atualizar e reiniciar o APK.                                           |
-| AC02, AC04             | Criação, catálogo e filtros                              | Gestor no Chrome, cidadão em componente e integração com HTTP real.                                                                                                                            |
-| AC03, AC08, AC17       | GPS, seleção manual, mapa e fotos                        | No Galaxy M32 com a EC2, câmera e galeria, GPS indisponível com alternativa manual, GPS autorizado e base Google carregada. Publicação em ponto público com dois JPEGs verificados pela API.   |
-| AC05, AC06, AC09, AC12 | Confirmação, prioridade, resolvidas e cancelamento       | API e PostgreSQL com duas contas, painel no Chrome e componente mobile.                                                                                                                        |
-| AC07, AC13, AC15       | Atendimento, retorno e polling                           | Escritas reais e componente cidadão; testes com relógio controlado cobrem o ciclo de atualização.                                                                                              |
-| AC14                   | Acesso da gestão                                         | Consulta e atendimento globais por papel; região e geocodificação adiadas.                                                                                                                     |
-| AC10                   | Lista e detalhe dos cenários                             | Componente com HTTP local, catálogo de simulação.                                                                                                                                              |
-| AC16                   | Seed, persistência e restauração                         | Na EC2, denúncia e JPEG sobreviveram à recriação de API e painel. Em restauração isolada, o vínculo, o tamanho e o SHA-256 do JPEG coincidiram.                                                |
-| AC18                   | APK independente, API HTTPS, atendimento e aviso         | Galaxy M32 com Android 13, APK assinado e API da demonstração na EC2. O autor abriu o aviso e o histórico após o atendimento no painel; a leitura e a sessão persistiram após reiniciar o app. |
-| AC21                   | Swagger, opt-in e contrato gerado                        | Suíte de documentação e verificação de drift no check local.                                                                                                                                   |
+| Critérios              | Jornada                                                  | Ambiente e limite                                                                                                                                                                                                 |
+| ---------------------- | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| AC01, AC11, AC19, AC20 | Sessão, upload autenticado, fotos protegidas e anonimato | Controles de acesso e limites na integração. No Galaxy com o servidor da demonstração, publicação anônima por HTTPS e sessão preservada após atualizar e reiniciar o APK.                                         |
+| AC02, AC04             | Criação, catálogo e filtros                              | Gestor no Chrome, cidadão em componente e integração com HTTP real.                                                                                                                                               |
+| AC03, AC08, AC17       | GPS, seleção manual, mapa e fotos                        | No Galaxy M32 com o servidor da demonstração, câmera e galeria, GPS indisponível com alternativa manual, GPS autorizado e base Google carregada. Publicação em ponto público com dois JPEGs verificados pela API. |
+| AC05, AC06, AC09, AC12 | Confirmação, prioridade, resolvidas e cancelamento       | API e PostgreSQL com duas contas, painel no Chrome e componente mobile.                                                                                                                                           |
+| AC07, AC13, AC15       | Atendimento, retorno e polling                           | Escritas reais e componente cidadão; testes com relógio controlado cobrem o ciclo de atualização.                                                                                                                 |
+| AC14                   | Acesso da gestão                                         | Consulta e atendimento globais por papel; região e geocodificação adiadas.                                                                                                                                        |
+| AC10                   | Lista e detalhe dos cenários                             | Componente com HTTP local, catálogo de simulação.                                                                                                                                                                 |
+| AC16                   | Seed, persistência e restauração                         | No servidor da demonstração, denúncia e JPEG sobreviveram à recriação de API e painel. Em restauração isolada, o vínculo, o tamanho e o SHA-256 do JPEG coincidiram.                                              |
+| AC18                   | APK independente, API HTTPS, atendimento e aviso         | Galaxy M32 com Android 13, APK assinado e API da demonstração. O autor abriu o aviso e o histórico após o atendimento no painel; a leitura e a sessão persistiram após reiniciar o app.                           |
+| AC21                   | Swagger, opt-in e contrato gerado                        | Suíte de documentação e verificação de drift no check local.                                                                                                                                                      |
 
-Na EC2, a revisão `a0c2e8f` passou no percurso API → painel no Chrome → cidadão. A confirmação, o atendimento e o aviso corresponderam ao mesmo registro. Uma restauração isolada preservou o vínculo e o SHA-256 da foto. A cadeia pública respondeu 429 com `Retry-After` em readiness e manteve liveness disponível. As 11 migrações, os três perfis e os privilégios restritos do runtime foram conferidos no destino.
+No servidor da demonstração, a revisão `a0c2e8f` passou no percurso API → painel no Chrome → cidadão. A confirmação, o atendimento e o aviso corresponderam ao mesmo registro. Uma restauração isolada preservou o vínculo e o SHA-256 da foto. A cadeia pública respondeu 429 com `Retry-After` em readiness e manteve liveness disponível. As 11 migrações, os três perfis e os privilégios restritos do runtime foram conferidos no destino.
 
 O APK de `bdd3cfb` publicou duas fotos e um ponto escolhido manualmente no parque público após o teste de GPS. A atualização para `c4ab4a7` preservou a sessão do segundo cidadão, que confirmou a ocorrência. O gestor avançou para **Em análise** no Chrome; o autor releu o histórico e o aviso no Galaxy. A inspeção das telas e dos rótulos acessíveis confirmou a ausência do UUID. SHA-256 do APK final: `388b363a5428b09d58c4538ec577a8d9b9fad98844426dcec703bfe00dd11db2`. O código mobile coincide com a revisão integrada `98698da`.
 
 O ponto manual persistido coincidiu com as três casas decimais visíveis no aparelho; painel e API mostraram as mesmas coordenadas completas. A galeria do painel exibiu os dois JPEGs nas dimensões naturais esperadas, com orientação coerente e objeto reconhecível. A amostra da câmera não continha texto para avaliar legibilidade fina.
 
-A EC2 manteve HTTPS disponível e o proxy recolheu os processos auxiliares após cinco sondas consecutivas. Sol, Luna e os QAs de interface e integração revisaram as evidências. Após o aceite, foram removidos somente as duas denúncias e os três anexos do ensaio. As três contas e os três perfis preexistentes foram preservados. A [rastreabilidade](requirements.md) registra o recorte das fontes acadêmicas, incluindo alertas simulados e as decisões sobre região, avaliação e emissão manual.
+O servidor manteve HTTPS disponível e o proxy recolheu os processos auxiliares após cinco sondas consecutivas. Os revisores de segurança, regressão, interface e integração conferiram as evidências. Após o aceite, foram removidos somente as duas denúncias e os três anexos do ensaio. As três contas e os três perfis preexistentes foram preservados. A [rastreabilidade](requirements.md) registra o recorte das fontes acadêmicas, incluindo alertas simulados e as decisões sobre região, avaliação e emissão manual.
 
-## QA independente após cada fase
+## Revisão antes de uma versão
 
-O gate definido em [agents/readme.md](../agents/readme.md) é obrigatório. Sol revisa segurança; Luna valida cenários funcionais baseados nas personas; QA de interface aplica Nielsen e QA de integração verifica o fluxo real conforme a fase. Relatórios indicam a revisão e o ambiente, distinguem achados de hipóteses e registram o que não foi executado.
-
-Comandos automáticos: `npm run security:check`, além da suíte funcional. Esses comandos não executam os modelos nem substituem seus relatórios. O principal aciona os agentes, aguarda os resultados e bloqueia avanço quando necessário.
+Antes de criar uma tag, rode a suíte completa e os revisores de segurança e regressão (`.claude/agents/` no Claude Code, `.codex/agents/` no Codex), como descreve o [AGENTS.md](../AGENTS.md#fluxo-de-uma-mudança). Eles não substituem a CI, e a CI não substitui o parecer deles.
 
 ## Cenários aprovados para CPF e identificação por denúncia
 
@@ -135,15 +117,13 @@ A suíte cobre CPF, escolha de identificação e projeção dos dados do autor. 
 
 Os testes locais cobrem inicialização conjunta, Ctrl+C, persistência e reexecução do seed, recuperação de falhas e reset em PostgreSQL descartável. O banco usado para desenvolvimento fica fora dos testes destrutivos.
 
-No Galaxy M32, o ensaio do app integrado cobriu Voltar, teclado, fonte ampliada, movimento reduzido, câmera, galeria, GPS e envio à API local.
+## Verificações físicas pendentes
 
-A exportação de produção do Android exclui as fotos demonstrativas usadas só na prévia. A instalação do APK desta alteração segue pendente porque o ADB não encontrou aparelho conectado.
+Os testes automatizados simulam câmera, GPS e mapa. No Galaxy M32 (Android 13), a rodada final do app integrado foi feita pelo Expo Go com a API local e cobriu o botão **+**, campos pendentes, câmera negada com alternativa na galeria, filtros, Voltar, mapa claro em Viçosa com GPS negado, resumo e retorno ao marcador, movimento reduzido e abertura sem tela cinza. Continuam sem nova medição física:
 
-O ensaio de configuração local cobriu a troca de senha no reinício, a preservação de sessões e o login pelo proxy em portas personalizadas. Falta verificar em Android físico na mesma LAN que o app conecta à API após mudar `PORT` e reiniciar o Metro. O ADB não listou dispositivo durante o ensaio.
-
-Após o retorno sobre a interface do APK, o Galaxy M32 com Android 13 e modo escuro reproduziu a tela cinza entre a abertura nativa e o carregamento do MyCity. Com o fundo branco configurado no tema da janela, a nova gravação a 30 quadros por segundo não mostrou essa tela cinza. O ensaio com API local e conta fictícia passou pelo Início, Feed, Resolvidas, Notificações, Nova denúncia e Mapa. A primeira área consultada no mapa coincidiu com a posição do provedor Android. Os filtros abriram sobre o mapa e a alternância entre mapa e lista funcionou. Os testes automatizados verificam o fundo gerado pelo Expo e o caso em que a permissão é negada ou o GPS demora. O ensaio local reutilizou a base nativa do APK instalado, com o bundle e o tema atualizados.
-
-A revisão posterior acrescentou regressões para o retorno de **Resolvidas** e **Notificações**, a identificação visual dos filtros e a Nunito na abertura. O mapa é exercitado com uma primeira leitura pontual, cancelamento ao expirar ou sair da tela, limites aproximados dos dois lados do antimeridiano e contagem local dos pontos visíveis. No Galaxy M32 com API local, **Voltar** retornou de Notificações para Resolvidas e depois ao Feed. O filtro aplicado ficou disponível com o painel fechado. A primeira consulta do mapa usou limites aproximados e incluiu a posição do provedor Android. Ensaios isolados com Nginx e Caddy verificam o conteúdo dos logs com requisições fictícias e falhas de encaminhamento.
+- leitura de GPS autorizada e fluidez no APK de **release** (a rodada usou Expo Go);
+- TalkBack e fonte ampliada após os ajustes da última rodada;
+- conexão do app à API na mesma LAN depois de mudar `PORT` e reiniciar o Metro.
 
 ## Atualizar as capturas do README
 
@@ -156,7 +136,3 @@ Os arquivos ficam em [`docs/images/`](images/). Para trocar as capturas, substit
 | `citizen-feed.png`      | **Feed → Ativas** no mesmo aparelho, com o mesmo enquadramento da tela **Início**.             |
 
 Capture somente a interface com dados fictícios. Abra o README renderizado em largura de desktop e de celular para conferir o enquadramento, a legibilidade e o texto junto de cada imagem.
-
-No Galaxy M32 com Android 13, o app integrado via Expo Go e USB acessou a API local com conta fictícia. O percurso cobriu o botão **+**, a indicação de campos pendentes, a câmera negada com orientação ao lado de **Galeria**, o Feed com filtro **Em análise** e o retorno de Notificações ao alerta aberto. Com o GPS negado, o mapa claro abriu em Viçosa. A seleção exibiu o resumo e **Ver denúncia** retornou ao marcador pelo botão **Voltar ao mapa**. A alternância entre lista e mapa manteve a região. O ensaio repetiu filtro e detalhe com movimento reduzido no Android. A gravação do percurso teve 1.881 quadros sem quadro central inteiramente uniforme. No ensaio com a localização precisa permitida durante o uso, abrir **+** mostrou **Localização obtida por GPS** no formulário. Abrir o ajuste trouxe o ponto do aparelho. Mover o mapa e cancelar preservou o GPS no formulário. O envio direto com foto e localização do tipo GPS foi exercitado no teste do formulário com dados fictícios. No mapa comunitário, um grupo de três denúncias resolvidas permitiu selecionar a categoria, abrir o detalhe e voltar ao resumo. A fluidez no APK de release ficou sem nova medição física.
-
-No gate local do refinamento, a regressão de acesso revogado cobre HTTP 403 e 404, resposta atrasada e retorno offline. A regressão de cancelamento confirma a retirada do registro do Feed mesmo quando a próxima consulta falha. No ajuste manual, o teste verifica a remoção da inscrição do GPS e o descarte de leitura tardia. O QA de integração conferiu no Chrome a foto do exemplo fictício do seed contra o JPEG no volume e seus metadados no PostgreSQL.

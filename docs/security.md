@@ -45,10 +45,8 @@ Sessão, criação de denúncia, consulta do gestor e leitura de fotos foram ver
 
 O login usa CPF e senha próprios. Nome e foto de perfil aparecem quando o autor mantém “Quero mostrar minha cara” marcado. Se desmarcar, os DTOs omitem os dados do autor, inclusive para o gestor. O backend mantém o vínculo interno para permissões e notificações. Swagger e OpenAPI são habilitados somente em desenvolvimento com `API_DOCS_ENABLED=true`, quando a API escuta em loopback. [Contrato e configuração do Swagger](api/contract.md#swagger-gerado)
 
-## Gate após cada fase
+## Revisão antes de uma versão
 
-Rodar `npm run security:check` e as verificações funcionais aplicáveis, depois executar os agentes de `agents/readme.md`. A CI bloqueia publicação de imagens se o job `Security checks` falhar. O job verifica segredos no histórico/conteúdo e dependências; vulnerabilidades altas/críticas causam falha, enquanto as demais permanecem visíveis e precisam de triagem.
+Rode `npm run security:check` e as verificações funcionais aplicáveis. O workflow de release refaz a varredura de segredos e a auditoria antes de publicar imagens: segredos no histórico ou no conteúdo e vulnerabilidades altas ou críticas bloqueiam a versão; as demais ficam visíveis para triagem.
 
-O Pentest Sol deve avaliar as fronteiras efetivamente implementadas, independentemente do autor da mudança. Luna e os QAs usam as personas fornecidas. Resultados bloqueantes devem ser corrigidos e reavaliados antes de avançar.
-
-No Android, o cache de consultas fica em memória durante a sessão. Uma resposta HTTP 403 ou 404 invalida os resultados armazenados e as respostas anteriores ainda em trânsito, inclusive as representações do mesmo registro no Feed, no histórico e no mapa.
+Antes de criar a tag, o revisor `security-reviewer` avalia as fronteiras alteradas, independentemente do autor da mudança, e o `regression-reviewer` repete as jornadas das personas. Achados bloqueantes são corrigidos e reavaliados antes da tag.

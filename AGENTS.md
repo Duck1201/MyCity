@@ -1,38 +1,79 @@
 # Trabalhar no MyCity
 
-Converse em pt-BR. Use inglês no código e nos commits, pt-BR na interface.
+Converse em pt-BR. Código, identificadores, comentários e commits em inglês; textos da interface em pt-BR. Use Nunito como fonte do painel e do app.
 
-## Ambiente de desenvolvimento
+O MVP está entregue (veja [plan.md](plan.md)). Toda mudança agora é manutenção: um PR pequeno por assunto.
 
-- Trabalhe no checkout de desenvolvimento existente, inclusive ao delegar. Use essa raiz como diretório de trabalho de cada agente. Criar clone, worktree ou cópia do checkout para trabalhar exige pedido explícito do responsável.
-- Reutilize a configuração, a API, o painel e o PostgreSQL já disponíveis. Preserve as alterações de outras tarefas e execute em sequência as verificações que gravam no mesmo recurso. Se faltar um serviço, verifique a configuração e siga o [README](README.md#executar-localmente) para iniciá-lo nesse checkout.
-- Rode a suíte automatizada no banco dedicado `mycity_test`. Nos fluxos manuais integrados, use o banco de desenvolvimento com registros fictícios e preserve os dados das demais tarefas. Coordene com o agente principal qualquer verificação que escreva no banco, nos uploads ou em outro recurso compartilhado.
+## Fluxo de uma mudança
 
-Use Nunito como fonte padrão das interfaces do painel web e do app mobile, inclusive nas prévias.
+Siga os passos na ordem. Nenhum deles é opcional.
 
-## Localizar a mudança
+1. **Branch.** Nunca commite na `main`.
 
-Antes de alterar comportamento, localize a fase em [plan.md](plan.md), as decisões abertas em [concerns.md](concerns.md) e o critério em [requisitos](docs/requirements.md). Uma proposta pendente exige decisão antes de virar comportamento. Para um bug, comece pelo comando ou fluxo em que o usuário observou o erro.
+    ```bash
+    git switch main && git pull
+    git switch -c <tipo>/<assunto>   # tipo: feat, fix, refactor, docs, ci, build, test, chore
+    ```
 
-| Se a tarefa envolve                       | Comece aqui                                                                                                                                                                                      |
-| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Regra de negócio ou jornada               | [Escopo](docs/scope.md), [vocabulário](docs/context.md) e [fluxos](docs/flows.md). A regra pertence ao módulo em `apps/api/src/modules/`.                                                        |
-| API, autenticação ou uploads              | [Contrato HTTP](docs/api/contract.md) e [segurança](docs/security.md). Valide permissões no backend antes do upload. DTOs e validações compartilhados ficam em `packages/contracts`.             |
-| Banco ou migração                         | [Modelo de dados](docs/data-model.md) e [convenções Prisma](docs/prisma.md). Preserve migrações publicadas e dados existentes.                                                                   |
-| Fronteiras entre módulos                  | [Arquitetura e decisões](docs/architecture.md). Use interfaces públicas em memória. Cada módulo controla seus dados.                                                                             |
-| Painel ou app                             | `apps/web` (React/Tailwind/shadcn) ou `apps/mobile` (Expo/StyleSheet). Aplique as [heurísticas de usabilidade](docs/usability.md). Valide as mudanças no painel e no app integrados à API local. |
-| Ambiente local                            | [Execução local](README.md#executar-localmente), `.env.example` e scripts do workspace envolvido. Use npm workspaces e o lockfile da raiz.                                                       |
-| Deploy, migração hospedada ou recuperação | [Publicação e operação](docs/deploy.md) e [runbook](docs/runbook.md). Preserve serviços, volumes e segredos. Migrações e seed são explícitos.                                                    |
+2. **Ambiente.** Use este checkout, o `.env` e os serviços que já existem; não crie clone, worktree ou cópia sem pedido explícito. Se faltar algo, siga o [README](README.md#executar-localmente):
 
-## Implementar e verificar
+    ```bash
+    docker compose up -d --wait db                    # banco de desenvolvimento
+    docker compose --profile test up -d --wait test-db # banco da suíte (mycity_test)
+    npm run dev                                       # API :3000 + painel :8090
+    npm run dev:mobile                                # Metro para o app (Expo Go ou APK de dev)
+    ```
 
-- Para bug ou feature, escreva a regressão na mesma alteração e confirme a falha antes de implementar. Teste pela interface pública. Confira a persistência pela API e pelo painel do próprio ambiente de desenvolvimento, usando dados fictícios da tarefa. Mocks ficam nas fronteiras externas. Se o serviço estiver indisponível, verifique a configuração do projeto e informe o bloqueio.
-- Preserve a força das asserções. Quando o comportamento solicitado mudar, atualize a expectativa correspondente e explique a mudança. Se um teste parecer errado por outro motivo, mostre esperado e obtido e peça autorização antes de alterá-lo. Investigue instabilidade sem skips, retries, detecção de teste ou aumento de tolerância.
-- Para código, rode as [verificações locais](README.md#testes-e-qualidade) e as da plataforma afetada. Informe separadamente o resultado da suíte completa de CI. Em refactors, execute a suíte existente. Para mudanças no painel, confira o fluxo no navegador. Para mudanças que afetem câmera, GPS, mapa ou APK, valide em Android físico e registre lacunas em [testes](docs/testing.md). Para documentação, verifique links, formatação e os comandos ou fluxos que tiver alterado.
-- Atualize o documento que define a regra alterada. Mudanças de comportamento atualizam o contrato aplicável e os critérios de aceitação. Registre pendências em `concerns.md` e informe na entrega as verificações realizadas e suas limitações. Preserve as fontes históricas em `docs/references/` e use a origem indicada pelo usuário para artefatos.
+3. **Localize a regra** antes de mudar comportamento (tabela abaixo). Se a regra depende de uma decisão aberta em [concerns.md](concerns.md), pergunte ao responsável antes.
 
-## Entregar
+4. **Teste primeiro.** Escreva o teste de regressão, veja-o **falhar** pelo motivo certo e só então implemente. Teste pela interface pública (rota HTTP, componente, função exportada), na pasta `tests/` do workspace. Banco e regra de negócio nunca são mockados; mock só na fronteira externa (relógio, Maps, rede do aparelho).
 
-Informe o que mudou, o que passou e o que ficou pendente. Use branches curtas e Conventional Commits para PRs destinados a `main`; publique apenas dentro do escopo autorizado. Mantenha `.env`, credenciais e dumps fora do Git.
+5. **Verifique tudo**, nesta ordem:
 
-Ao **encerrar uma fase implementada do plano**, siga o [gate de revisão](agents/readme.md). Pentest Sol revisa segurança e Luna executa regressão pelas personas. Inclua os QAs de interface e integração conforme a superfície alterada. Os modelos e o procedimento alternativo para Luna estão nesse guia. Informe a finalidade antes de delegar, coordene o uso do banco, confira as entregas e reporte os resultados. Achados bloqueantes e verificações materiais pendentes impedem o fechamento da fase.
+    ```bash
+    npm run format:check
+    npm run check                                 # OpenAPI, lint, tipos, todos os testes, build
+    npm run export:android -w @mycity/mobile      # se mexeu no app
+    ```
+
+    Mudou o painel? Confira o fluxo no navegador contra a API local. Mudou câmera, GPS, mapa ou build Android? Valide no Android físico; se não der, registre a lacuna em [docs/testing.md](docs/testing.md).
+
+6. **Atualize o documento da regra** que mudou (tabela abaixo) e registre pendências em [concerns.md](concerns.md).
+
+7. **Commit, push e PR.**
+
+    ```bash
+    git add <arquivos> && git commit -m "<tipo>: <resumo em inglês>"
+    git push -u origin HEAD
+    gh pr create --base main
+    ```
+
+    A CI precisa ficar verde. O merge é **squash** e o título do PR vira o commit na `main`. Diga no PR o que mudou, o que foi verificado e o que ficou pendente.
+
+8. **Release** (só quando o responsável pedir): uma tag `vX.Y.Z` na `main` publica as imagens, implanta no servidor e anexa o APK. Antes da tag, rode os dois revisores sobre a `main`: no Claude Code, os subagentes `security-reviewer` e `regression-reviewer`; no Codex, `security_reviewer` e `regression_reviewer` (`.codex/agents/`). As instruções são as mesmas, em `.claude/agents/`. Veja [docs/deploy.md](docs/deploy.md#fluxo-de-entrega).
+
+## Testes vermelhos
+
+Teste falhando é informação sobre o código. Conserte o código, nunca o teste: nada de apagar, pular (`skip`, `.only`, comentar), afrouxar asserção, aumentar timeout, colocar retry ou regravar snapshot. Se o teste parecer errado, pare e mostre ao responsável esperado, obtido e o motivo. Teste instável é bug a investigar. Teste que já estava vermelho antes da sua mudança é reportado como pré-existente.
+
+## Onde está cada regra
+
+| Se a tarefa envolve        | Leia                                                                                                                        | O código fica em                                          |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| Regra de negócio, jornada  | [Escopo](docs/scope.md), [vocabulário](docs/context.md), [fluxos](docs/flows.md), [requisitos (AC)](docs/requirements.md)   | `apps/api/src/modules/<módulo>/`                          |
+| API, autenticação, uploads | [Contrato HTTP](docs/api/contract.md), [segurança](docs/security.md). Autorize antes de processar o upload.                 | `apps/api/src/`, DTOs e validação em `packages/contracts` |
+| Banco, migração            | [Modelo de dados](docs/data-model.md), [Prisma](docs/prisma.md). Nunca altere migração publicada.                           | `apps/api/prisma/`                                        |
+| Fronteira entre módulos    | [Arquitetura](docs/architecture.md). Interfaces públicas em memória; cada módulo controla seus dados.                       | `apps/api/src/modules/*/index.ts`                         |
+| Painel do gestor           | [Usabilidade](docs/usability.md)                                                                                            | `apps/web/src/` (React, Tailwind, shadcn)                 |
+| App do cidadão             | [Usabilidade](docs/usability.md), [Android](docs/runbook.md#configuração-do-android)                                        | `apps/mobile/src/` (Expo, StyleSheet)                     |
+| Testes e evidências        | [Estratégia de testes](docs/testing.md)                                                                                     | `*/tests/`, `scripts/tests/`                              |
+| Publicação, servidor       | [Publicação e operação](docs/deploy.md). Detalhes do servidor ficam no servidor, nunca no repositório.                      | `deploy/`, `.github/workflows/`                           |
+| Ambiente local             | [README](README.md#executar-localmente), [runbook](docs/runbook.md), `.env.example`. npm workspaces com o lockfile da raiz. | `scripts/`, `compose.yaml`                                |
+
+As fontes acadêmicas em `docs/references/` são históricas: não as edite.
+
+## Recursos compartilhados
+
+- A suíte automatizada usa só o banco `mycity_test`. Ensaios manuais usam o banco de desenvolvimento com dados fictícios, preservando o que outras tarefas criaram.
+- Rode em sequência as verificações que escrevem no mesmo banco ou nos uploads. Ao delegar, combine antes quem escreve.
+- `.env`, credenciais, keystores e dumps nunca entram no Git.
