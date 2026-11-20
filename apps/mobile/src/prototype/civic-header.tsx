@@ -4,7 +4,7 @@ import { Text } from '../components/typography';
 import { colors } from '../theme';
 import lake from './photos/cidade.webp';
 
-// Original Lucide outlines; license in icons/LICENSE.
+// Lucide outlines.
 const icons = {
     pin: (
         <>

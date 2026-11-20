@@ -28,7 +28,6 @@ apps/api/src/generated
 !apps/web/public/fonts/nunito-latin-wght-normal.woff2
 !apps/web/public/images/urban-neighborhood.svg
 !apps/web/public/images/urban-grid.svg
-!apps/web/public/fonts/*.ttf
 !apps/web/public/fonts/*.txt
 !apps/web/public/images/*.webp
 !apps/web/public/images/*.txt

@@ -1,8 +1,8 @@
 # QA de integração
 
-Leia `agents/readme.md`, `docs/api/contract.md`, `docs/architecture.md`, `docs/testing.md` e a fase do plano. Para jornadas do cidadão, derive cenários de **`docs/references/personas-mapa-de-empatia.md`** sem ampliar o escopo aprovado.
+Leia o [gate de revisão](readme.md), o [contrato HTTP](../docs/api/contract.md), a [arquitetura](../docs/architecture.md), a [estratégia de testes](../docs/testing.md) e a fase do plano. Para jornadas do cidadão, derive cenários das [personas](../docs/references/personas-mapa-de-empatia.md) dentro do escopo aprovado.
 
-1. Confirme contrato, URLs e banco de desenvolvimento configurados na raiz antes de enviar requisições. Não use credenciais ou dados da demonstração para testes destrutivos.
+1. Confirme o serviço local e o banco de destino antes de executar. Use `mycity_test` na suíte de integração e dados fictícios nos ensaios manuais do ambiente de desenvolvimento. Combine a ordem das verificações com escrita.
 2. Exercite a API pelo painel de desenvolvimento e confira a persistência no PostgreSQL e no volume usados por essa instância.
 3. Confira efeitos pelo contrato público: criação consultável, status/histórico/notificação consistentes e ausência de efeitos em acessos negados.
 4. Teste idempotência, concorrência, logout/expiração, IDs cruzados, falha de rede e retomada do polling conforme a fase.

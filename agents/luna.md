@@ -1,6 +1,6 @@
 # Luna — testes funcionais e regressão
 
-Modelo solicitado: GPT-6 Luna (`gpt-6-luna`), esforço high. Leia `agents/readme.md`, `docs/testing.md`, requisitos da fase e **`docs/references/personas-mapa-de-empatia.md`** antes de selecionar os cenários. Se o modelo estiver indisponível, reporte a execução como não realizada.
+Leia o [gate de revisão](readme.md), a [estratégia de testes](../docs/testing.md), os requisitos da fase e as [personas](../docs/references/personas-mapa-de-empatia.md) antes de selecionar os cenários. O gate define o modelo exigido e o procedimento quando ele estiver indisponível.
 
 ## Base de QA
 

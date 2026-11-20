@@ -17,9 +17,57 @@ describe('documentação OpenAPI local', () => {
         expect(ui.headers['cache-control']).toBe('no-store');
         const response = await request(app).get('/api/openapi.json');
         expect(response.status).toBe(200);
-        const spec = await SwaggerParser.validate(response.body);
+        const spec = await SwaggerParser.validate(structuredClone(response.body));
         expect(Object.keys(spec.paths!)).toEqual(['/api/v1/health/live', '/api/v1/health/ready', '/api/v1/sessions', '/api/v1/me', '/api/v1/sessions/current', '/api/v1/reports', '/api/v1/reports/{id}', '/api/v1/reports/{id}/photos/{photoId}', '/api/v1/reports/{id}/history', '/api/v1/reports/{id}/transitions', '/api/v1/reports/{id}/replies', '/api/v1/notifications', '/api/v1/notifications/{id}/read', '/api/v1/reports/map', '/api/v1/reports/overview', '/api/v1/reports/queue', '/api/v1/reports/queue.csv', '/api/v1/reports/summary', '/api/v1/reports/{id}/confirmation', '/api/v1/reports/{id}/cancellation', '/api/v1/weather-alerts', '/api/v1/weather-alerts/{id}', '/api/v1/categories', '/api/v1/categories/{id}']);
         expect(Object.keys(response.body.paths['/api/v1/categories/{id}'].patch.responses)).toEqual(['200', '401', '403', '404', '409', '422']);
+        for (const path of ['/api/v1/reports', '/api/v1/reports/map', '/api/v1/reports/summary', '/api/v1/reports/{id}/history']) {
+            expect(response.body.paths[path].get.responses).toHaveProperty('400');
+        }
+        expect(response.body.paths['/api/v1/reports/map'].get.responses).not.toHaveProperty('404');
+        expect(response.body.paths['/api/v1/me'].get.responses).not.toHaveProperty('404');
+        const reportResponse = (path: string, method: string, status = 200) => {
+            const schema = response.body.paths['/api/v1/reports' + path][method].responses[status].content?.['application/json']?.schema;
+            expect(schema, method.toUpperCase() + ' /api/v1/reports' + path + ' ' + status).toBeDefined();
+            return schema;
+        };
+        for (const [path, item] of [
+            ['', 'ReportSummary'],
+            ['/map', 'ReportMarker'],
+            ['/{id}/history', 'ReportEvent'],
+        ] as const) {
+            const page = reportResponse(path, 'get');
+            expect(page.required).toEqual(['data', 'page']);
+            expect(page.properties.data).toEqual({ type: 'array', items: { $ref: '#/components/schemas/' + item } });
+            expect(page.properties.page).toMatchObject({ required: ['nextCursor'], properties: { nextCursor: { type: 'string', nullable: true } } });
+        }
+        for (const [path, method, status] of [
+            ['', 'post', 201],
+            ['', 'post', 200],
+            ['/{id}', 'get', 200],
+            ['/{id}/transitions', 'post', 200],
+            ['/{id}/cancellation', 'post', 200],
+        ] as const) {
+            expect(reportResponse(path, method, status)).toMatchObject({ required: ['data'], properties: { data: { $ref: '#/components/schemas/ReportDetail' } } });
+        }
+        for (const status of [200, 201]) {
+            expect(reportResponse('/{id}/replies', 'post', status)).toMatchObject({ required: ['data'], properties: { data: { $ref: '#/components/schemas/ReportEvent' } } });
+        }
+        for (const [method, confirmed] of [
+            ['put', true],
+            ['delete', false],
+        ] as const) {
+            expect(reportResponse('/{id}/confirmation', method).properties.data).toMatchObject({ required: ['confirmed', 'confirmationCount'], properties: { confirmed: { type: 'boolean', enum: [confirmed] }, confirmationCount: { type: 'integer', minimum: 0 } } });
+        }
+        const queue = reportResponse('/queue', 'get');
+        expect(queue.required).toEqual(['data', 'total', 'counts', 'page']);
+        expect(queue.properties).toMatchObject({ data: { items: { $ref: '#/components/schemas/ManagementQueueRow' } }, counts: { $ref: '#/components/schemas/ReportStatusCounts' }, page: { type: 'integer', minimum: 1 }, total: { type: 'integer', minimum: 0 } });
+        expect(reportResponse('/summary', 'get')).toMatchObject({ required: ['data'], properties: { data: { $ref: '#/components/schemas/ReportStatusCounts' } } });
+        const { ReportSummary, ReportDetail, ManagementQueueRow } = response.body.components.schemas;
+        expect(ReportSummary.required).toContain('categoryName');
+        expect(ReportSummary.required).not.toContain('author');
+        expect(ReportSummary.properties.author.properties).toEqual({ name: { type: 'string' }, photoUrl: { type: 'string' } });
+        expect(ReportDetail.allOf[1].required).toEqual(['version', 'photos', 'allowedActions']);
+        expect(ManagementQueueRow).toMatchObject({ required: expect.arrayContaining(['coverPhotoId']), properties: { coverPhotoId: { type: 'string', nullable: true } } });
         const alert = response.body.components.schemas.WeatherAlert;
         expect(alert.required).toContain('simulated');
         expect(alert.properties.simulated.enum).toEqual([true]);

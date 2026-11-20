@@ -1,6 +1,6 @@
 # Vocabulário do MyCity
 
-Glossário do domínio do MVP. Mantido neste caminho lowercase por convenção documental do projeto.
+Glossário do domínio do MVP.
 
 **Denúncia (`report`):** registro de um problema urbano observado por um cidadão, com categoria, descrição, localização, fotos e estado de atendimento. Evitar alternar com “post” ou “chamado” nos contratos.
 
@@ -28,6 +28,8 @@ Glossário do domínio do MVP. Mantido neste caminho lowercase por convenção d
 
 **Alerta climático (`weather alert`):** comunicado de risco classificado em Atenção, Alerta ou Emergência. No MVP, seu conteúdo é simulado.
 
-**Região (`region`):** agrupamento territorial usado para consulta e filtragem. Sua associação com coordenadas ainda precisa ser definida; não delimita a permissão do gestor no MVP.
+**Categoria (`category`):** classificação de uma denúncia em um catálogo gerenciado pelo gestor. Somente categorias ativas aceitam novos registros. Arquivar uma categoria mantém suas denúncias vinculadas e consultáveis.
+
+**Região (`region`):** conceito territorial previsto para consulta em uma entrega posterior. O agrupamento por região, o filtro correspondente e a geocodificação estão adiados. O gestor atende sem restrição territorial.
 
 **Localização (`location`):** ponto geográfico do problema, capturado por GPS ou indicado manualmente. Não representa rastreamento contínuo do cidadão.

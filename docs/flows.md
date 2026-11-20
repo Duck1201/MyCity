@@ -4,6 +4,15 @@ O desenho, a implementação e a revisão destes fluxos seguem as [10 heurístic
 
 Regras aprovadas estão descritas como confirmadas. A matriz de visibilidade e a preservação de confirmações após o encerramento foram aprovadas na etapa 4 (C04/C08).
 
+## Primeiros passos
+
+Use uma conta provisionada pelo operador da sua instalação. Para experimentar com contas fictícias, siga o [início rápido](../README.md#executar-localmente).
+
+- **Cidadão.** Entre no app Android e toque em **Nova denúncia**. Escolha a categoria, descreva o problema, anexe fotos e confirme o ponto no mapa. Depois de enviar, acompanhe o retorno em **Meus registros** e **Notificações**. Para consultar ocorrências de outras pessoas, abra o **Feed** ou o **Mapa**.
+- **Gestor.** Entre no painel web e abra **Atendimento**. Use a busca e os filtros para encontrar uma denúncia. Abra o relato para conferir os anexos, registrar uma resposta ou mudar a situação do atendimento. Em **Categorias**, gerencie as opções que o cidadão pode escolher ao registrar uma denúncia.
+
+Para conhecer a interface do cidadão no navegador com exemplos locais, abra a [prévia web](../README.md#explorar-o-app-no-navegador).
+
 ## Estados confirmados
 
 ```mermaid
@@ -35,11 +44,11 @@ Usuário informa CPF e senha próprios do MyCity, recebe sua identidade e acessa
 1. Abrir Nova denúncia pelo Início, Feed ou Mapa, selecionar uma categoria ativa e preencher a descrição. O gestor pode acrescentar, arquivar e reativar grupos em Categorias. Ocorrências anteriores mantêm seus vínculos e filtros.
 2. Escolher de uma a três fotos via câmera/galeria e apresentar prévias/remover antes do envio.
 3. Solicitar GPS em contexto; se negado ou indisponível, oferecer mapa para selecionar o ponto.
-4. Revisar “Quero mostrar minha cara”, marcado por padrão: nome e foto de perfil ficam visíveis aos leitores autorizados; desmarcado, a denúncia é apresentada como “Anônimo”, inclusive ao gestor. Confirmar o ponto e os dados. Comprimir fotos e enviar uma operação de criação.
+4. Revisar “Quero mostrar minha cara”. A opção inicia ligada e exibe nome e foto de perfil aos leitores autorizados. Desligada, a denúncia é apresentada como “Anônimo”, inclusive ao gestor. Confirmar o ponto e os dados. O app prepara as fotos em JPEG e envia tudo em uma única operação.
 5. Durante o envio, impedir disparos duplicados pela interface; servidor também trata repetições.
 6. Ao voltar do formulário, retornar à origem e manter o rascunho na sessão. Se a categoria tiver sido arquivada, pedir uma nova seleção e preservar relato, fotos e ponto. Após publicar, abrir o acompanhamento e voltar ao Início em Meus registros.
 
-Não prometer manutenção de rascunho após encerrar o processo do app; essa capacidade não foi aprovada. Não enviar ponto padrão como se fosse GPS real. Falha de geocodificação não deve ser confundida com falta de coordenadas; a política proposta está em C03.
+O rascunho fica em memória durante a sessão do app. O ponto escolhido no mapa é manual e a publicação exige coordenadas confirmadas. Endereço, região e geocodificação foram adiados em C03.
 
 ### Consultar e confirmar
 
@@ -80,19 +89,21 @@ Decisão aprovada: exibir nome e foto de perfil somente quando “Quero mostrar 
 
 ## Inventário de telas
 
-| Plataforma | Tela                         | Estados essenciais                                                                |
-| ---------- | ---------------------------- | --------------------------------------------------------------------------------- |
-| App        | Login                        | Inicial, enviando, erro de credenciais, sem conexão                               |
-| App        | Feed                         | Lista, filtros, vazio, carregando, falha mantendo dados                           |
-| App        | Nova denúncia                | Campos, prévias, compressão, GPS negado/indisponível, seleção manual, envio/falha |
-| App        | Detalhes                     | Fotos, localização, confirmações, histórico, ações conforme papel/estado          |
-| App        | Mapa                         | Marcadores, filtro, seleção, vazio, erro de provedor                              |
-| App        | Minhas denúncias / histórico | Status ativos/finais, cancelamento e filtros                                      |
-| App        | Notificações                 | Lida/não lida, vazio, erro e navegação                                            |
-| App        | Alertas                      | Três níveis simulados e detalhes; indisponibilidade de dados                      |
-| App        | Perfil                       | Conta de demonstração e logout, sem edição/cadastro                               |
-| Web        | Login                        | Credenciais, erro, sessão expirada                                                |
-| Web        | Lista do gestor              | Filtros, prioridade, contadores, paginação e estados de consulta                  |
-| Web        | Detalhes do gestor           | Fotos, localização, histórico, resposta, transições, rejeição e conflito          |
+| Plataforma | Tela                    | Estados essenciais                                                                |
+| ---------- | ----------------------- | --------------------------------------------------------------------------------- |
+| App        | Login                   | Inicial, enviando, erro de credenciais, sem conexão                               |
+| App        | Feed                    | Lista, filtros, vazio, carregando, falha mantendo dados                           |
+| App        | Nova denúncia           | Campos, prévias, compressão, GPS negado/indisponível, seleção manual, envio/falha |
+| App        | Detalhes                | Fotos, localização, confirmações, histórico, ações conforme papel/estado          |
+| App        | Mapa                    | Marcadores, filtro, seleção, vazio, erro de provedor                              |
+| App        | Início / Meus registros | Destaque da comunidade, registros próprios, status, cancelamento e filtros        |
+| App        | Resolvidas              | Histórico das denúncias resolvidas                                                |
+| App        | Notificações            | Lida/não lida, vazio, erro e navegação                                            |
+| App        | Alertas                 | Três níveis simulados e detalhes; indisponibilidade de dados                      |
+| Web        | Login                   | Credenciais, erro, sessão expirada                                                |
+| Web        | Visão geral             | Indicadores, categorias e prioridades                                             |
+| Web        | Atendimento             | Filtros, prioridade, contadores, paginação, exportação e estados de consulta      |
+| Web        | Detalhes do gestor      | Fotos, localização, histórico, resposta, transições, rejeição e conflito          |
+| Web        | Categorias              | Cadastro, edição de nome e ícone, arquivamento e reativação                       |
 
-O inventário complementa os quatro wireframes; não define layout final. No frontend, refinar o conceito próprio `mycity-gestor-v2.png` com o feedback do responsável e verificar foco, rótulos, navegação, contraste e mensagens. Não depender apenas de cores para status/alerta.
+No app integrado, **Sair** está no cabeçalho da área autenticada. A [apresentação do README](../README.md#veja-como-funciona) mostra capturas atuais do painel e da prévia. Use as [diretrizes de usabilidade](usability.md) para revisar foco, rótulos, navegação, contraste e mensagens.
