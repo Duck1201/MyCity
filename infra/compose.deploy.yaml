@@ -81,6 +81,7 @@ services:
                 condition: service_healthy
         restart: unless-stopped
     edge:
+        init: true
         image: caddy:2.10-alpine
         ports:
             - 8080:8080

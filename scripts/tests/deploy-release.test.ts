@@ -73,6 +73,11 @@ it('recusa uma tentativa anterior e digests diferentes para a mesma tentativa', 
     expect(readFileSync(join(root, 'trace'), 'utf8')).toBe(trace);
 });
 
+it('coleta os processos filhos da sonda HTTPS do edge', () => {
+    const { services } = parse(readFileSync('infra/compose.deploy.yaml', 'utf8'));
+    expect(services.edge.init).toBe(true);
+});
+
 it('vincula cada serviço publicado ao digest correspondente', () => {
     const { services } = parse(readFileSync('infra/compose.deploy.yaml', 'utf8'));
     for (const [service, image] of [
