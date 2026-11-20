@@ -4,6 +4,8 @@
 
 O percurso principal liga cidadão, gestor e autor da denúncia. Um cidadão registra o problema com localização e fotos, outro confirma a ocorrência, o gestor atende e o autor acompanha o histórico e as notificações. Os [requisitos](docs/requirements.md) e os [fluxos](docs/flows.md) definem o comportamento. Decisões em aberto ficam em [concerns.md](concerns.md).
 
+As [referências acadêmicas](docs/references/) registram a proposta original. Para saber o que a entrega inclui, consulte o [escopo aprovado do MVP](docs/scope.md).
+
 ## Etapas
 
 | Etapa | Entrega                                                          | Situação e referência                                                                               |
@@ -18,7 +20,7 @@ O percurso principal liga cidadão, gestor e autor da denúncia. Um cidadão reg
 
 ## Revisão do frontend — painel administrativo e acompanhamento no Android
 
-**Retomada.** A prévia navegável, o app integrado e o painel integrado coexistem no workspace da branch `feat/demo-account-credentials`. O fechamento da sessão foi feito sobre `f7e19f6`, com alterações locais e arquivos novos fora do stage. Na próxima sessão, conferir `git status --short --branch` antes de trabalhar.
+As prévias navegáveis usam exemplos fictícios no cliente. Para iniciar a prévia do gestor, execute `npm run prototype -w @mycity/web` e abra a porta 8091. Para a prévia do cidadão, execute `npm run dev:mobile:web` e abra a porta 8093. Use o mesmo host de loopback nas duas abas para sincronizar confirmações e situações no navegador. Para testar a aplicação integrada com PostgreSQL, siga o [início rápido](README.md#executar-localmente).
 
 | Superfície             | O que está disponível                                                                                                                                                                                                                                                                                                                                                                                                             |
 | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -40,6 +42,6 @@ A API integrada já permite renomear categorias e desfazer somente o último ava
 
 No Galaxy M32, o cidadão publicou uma ocorrência com fotos da câmera e da galeria e escolheu um ponto público no mapa. Outro cidadão confirmou, o gestor atendeu pelo painel e o autor consultou o histórico e o aviso no APK. A sessão e a leitura persistiram após reiniciar o aplicativo. A [matriz de aceite](docs/testing.md#aceite-por-critério) identifica as revisões e verificações realizadas.
 
-A hospedagem passou pela rotação das contas, restrição do acesso ao banco, deploy por digest e recuperação isolada de banco e foto. Após o aceite, as duas denúncias e os três anexos do ensaio foram removidos. A preparação de uma nova instalação está no [runbook](docs/runbook.md#configuração-do-android). Região, bairro e geocodificação continuam adiados conforme o [escopo aprovado](docs/scope.md).
+A hospedagem passou pela rotação das contas, restrição do acesso ao banco, deploy por digest e recuperação isolada de banco e foto. Após o aceite, as duas denúncias e os três anexos do ensaio foram removidos. Para preparar outra instalação, consulte [hospedagem própria](docs/runbook.md#hospedar-uma-instância-própria) e [configuração do Android](docs/runbook.md#configuração-do-android). Região, bairro e geocodificação continuam adiados conforme o [escopo aprovado](docs/scope.md).
 
 O fechamento de cada fase segue o [gate de revisão](agents/readme.md). Para desenvolver e testar uma alteração, consulte o [AGENTS.md](AGENTS.md).

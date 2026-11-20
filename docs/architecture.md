@@ -6,8 +6,9 @@ Monorepo TypeScript, backend Express/Prisma em monólito modular, PostgreSQL e a
 
 ```mermaid
 flowchart LR
-    Mobile[APK Android] -->|HTTPS| API[API Express]
-    Browser[React web] -->|HTTPS| API
+    Mobile[APK Android] -->|HTTPS| Proxy[Proxy web]
+    Browser[React web] -->|HTTPS, mesma origem| Proxy
+    Proxy --> API[API Express]
     API --> Identity[Identidade]
     API --> Reports[Denúncias]
     API --> Notices[Notificações]
@@ -19,7 +20,7 @@ flowchart LR
     Reports --> Files[Volume de fotos]
 ```
 
-O desenho representa um único processo para todos os módulos, não quatro serviços. Alertas usa uma coleção determinística servida pelo módulo.
+Todos os módulos executam no mesmo processo da API. Alertas usa uma coleção determinística servida pelo módulo.
 
 As decisões registram os motivos para o [monólito modular](decisions/0001-modular-monorepo.md), o uso de [dados compartilhados e simulações](decisions/0002-shared-data-and-simulations.md) e a escolha de [polling](decisions/0003-polling-without-queue.md). Ao substituir uma decisão, referencie a anterior.
 
@@ -30,21 +31,22 @@ apps/api/src/modules/{identity,reports,notifications,alerts}/
 apps/web/
 apps/mobile/
 packages/contracts/
-docs/
-refs/                    # somente imagens de referência
+docs/                    # especificação, operação e referências acadêmicas
+refs/                    # wireframes e referência visual
 plan.md
 concerns.md
-compose.yaml             # fundação executável
+compose.yaml             # desenvolvimento e execução local
+infra/compose.deploy.yaml
 ```
 
-Uma interface pública por módulo concentra as operações relevantes. Organização interna pode separar domínio, aplicação e persistência quando isso ajudar, sem criar camadas de repasse para cada função. Proibir importações de arquivos internos de outro módulo por configuração de lint quando a ferramenta for escolhida.
+Cada módulo expõe suas operações a outros módulos pelo `index.ts`. O [ESLint](../eslint.config.js) restringe importações internas entre módulos e impede que clientes e contratos importem infraestrutura do servidor.
 
-| Módulo       | Dono de                                 | Interface pública conceitual                                            |
-| ------------ | --------------------------------------- | ----------------------------------------------------------------------- |
-| Identidade   | Usuários, credenciais e sessões         | Autenticar, resolver sessão, encerrar sessão                            |
-| Denúncias    | Denúncias, fotos, confirmações, eventos | Criar, consultar, confirmar, retirar, cancelar, transicionar, responder |
-| Notificações | Avisos individuais e leitura            | Registrar mudança de status, listar destinatário, marcar leitura        |
-| Alertas      | Cenários fictícios                      | Listar e consultar alertas simulados                                    |
+| Módulo       | Dono de                                              | Interface pública conceitual                                                               |
+| ------------ | ---------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| Identidade   | Usuários, credenciais, perfis e sessões              | Autenticar, resolver sessão, encerrar sessão, consultar perfis públicos                    |
+| Denúncias    | Denúncias, categorias, fotos, confirmações e eventos | Criar, consultar, confirmar, retirar, cancelar, transicionar, responder e gerir categorias |
+| Notificações | Avisos individuais e leitura                         | Registrar mudança de status, listar destinatário, marcar leitura                           |
+| Alertas      | Cenários fictícios                                   | Listar e consultar alertas simulados                                                       |
 
 Contratos compartilham DTOs e validações de entrada sem importar Prisma, segredos ou código do servidor nos clientes. Formatação de tela não decide autorização; o servidor sempre valida o ator real.
 
@@ -55,44 +57,42 @@ O backend fornece o banco aos módulos. O serviço de atendimento abre a transa�
 Na mudança de status:
 
 1. Resolver ator autenticado e validar permissão.
-2. Dentro da transação, carregar estado/versão, validar a transição e gravar condicionalmente.
+2. Dentro da transação, bloquear a linha da denúncia, ler estado e versão, validar a transição e atualizar a denúncia.
 3. Criar evento de histórico em Denúncias.
 4. Chamar a interface transacional de Notificações para criar um aviso ao autor, referenciado ao evento.
 5. Confirmar tudo junto ou desfazer todas as gravações. Só responder sucesso após commit.
 
-Notificações não consulta nem modifica tabelas de Denúncias; recebe apenas dados necessários do evento. Denúncias não escreve diretamente na tabela de Notificações. Um índice único por evento/destinatário impede avisos repetidos. A composição resolve dependências; não há importação circular entre módulos.
+Denúncias registra o aviso pela interface de Notificações. A criação do aviso recebe os dados do evento e grava apenas em Notificações. Na leitura, a consulta inclui o estado anterior pelo relacionamento com o evento, sem alterar o histórico. Um índice único por evento e destinatário impede avisos repetidos.
 
 ## Concorrência e idempotência
 
 - Versão inteira da denúncia protege atualizações concorrentes. Conflito exige recarregar a representação, não repetir cegamente o comando.
 - Confirmação tem unicidade de `(reportId, userId)`. PUT/DELETE representam presença/ausência e não um contador incrementado sem proteção.
-- Criação usa identificador de requisição do cliente com unicidade por autor. Mesma chave/payload retorna a mesma denúncia; payload diferente é conflito.
+- Criação usa identificador de requisição do cliente com unicidade por autor. Respostas do gestor têm chave própria por denúncia e gestor. Reenviar a mesma chave com o mesmo conteúdo retorna o registro existente. Alterar o conteúdo com a mesma chave gera conflito.
 - Transições usam versão esperada. Se o cliente perdeu a resposta, consulta o estado e o histórico antes de tentar outra mudança.
-- Ordenação determinística: confirmações desc, criação asc, ID asc. Paginação não promete snapshot durante mudanças; refetch reinicia a lista e elimina IDs duplicados.
+- Na fila de gestão, a ordenação por prioridade coloca denúncias ativas primeiro, por confirmações decrescentes e antiguidade. As encerradas vêm depois, das mais recentes às mais antigas. O ID desempata registros equivalentes. A fila usa páginas numeradas, enquanto as listas comunitárias usam cursor. A consistência da consulta individual não congela o conjunto entre requisições.
 
 ## Armazenamento de fotos
 
-1. Autenticar o cidadão e receber o multipart em memória com limite de 16 MiB.
-2. Validar quantidade, tamanho, conteúdo JPEG e dimensões. A API aplica a orientação e recodifica o JPEG.
+1. Autenticar e autorizar o cidadão antes de receber o multipart em memória com limite de 16 MiB.
+2. Validar uma a três fotos JPEG, até 5 MiB por foto e maior lado de até 1.600 px. A API aplica a orientação e recodifica o JPEG.
 3. Gravar os arquivos com IDs gerados pelo servidor no diretório privado da denúncia.
-4. Criar denúncia/metadados/evento inicial no banco e confirmar. Se o banco falhar, remover arquivos preparados quando possível.
+4. Criar denúncia, metadados e evento inicial na mesma transação. Se o resultado do commit for incerto, consultar o banco antes de remover os arquivos preparados.
 5. Servir fotos somente quando os metadados estiverem vinculados a uma denúncia visível ao solicitante.
-6. Tratar resíduos de interrupção com limpeza de staging e reconciliação de arquivos órfãos, respeitando uma margem de tempo para uploads em andamento.
+6. Reconciliar offline os diretórios órfãos remanescentes de interrupções, respeitando a idade mínima dos arquivos.
 
-Banco e arquivos não compartilham transação. A limpeza é manutenção local explícita; não exige fila. O [runbook](runbook.md#reconciliação-offline-das-fotos) descreve o inventário e a remoção de órfãos com mais de 24 horas. A etapa 6 inclui a prova de orientação e legibilidade no aparelho.
+Banco e arquivos não compartilham transação. O [runbook](runbook.md#reconciliação-offline-das-fotos) descreve a manutenção offline e a idade mínima de 24 horas para os diretórios. A [matriz de aceite](testing.md#aceite-por-critério) registra o ensaio de orientação e reconhecimento do objeto fotografado.
 
 ## Integrações e ciclo de vida
 
-GPS, câmera e galeria são capacidades reais do Android. O app usa Google Maps no Android. A geocodificação foi adiada. Meteorologia é simulada por escolha do produto. Nunca substituir silenciosamente GPS real por coordenadas de seed.
+O Android usa GPS, câmera, galeria e Google Maps. A geocodificação foi adiada. Meteorologia é simulada por escolha do produto. A sessão usa cookie no painel e Bearer no Android.
 
-Polling pertence ao ciclo de vida da tela: cinco segundos, uma requisição ativa, pausa em background e consulta ao retornar. Não há fila, push ou WebSocket. Estado stale deve ser indicado sem apagar dados válidos.
+As telas com polling consultam a cada cinco segundos, com uma requisição ativa por consulta. O Android pausa em segundo plano e o navegador deixa de consultar enquanto a aba está oculta. Ambos consultam ao voltar. Falhas transitórias podem manter o último resultado válido. Notificações são lidas pelo próprio cliente, sem fila, push ou WebSocket.
 
 ## Implantação
 
-Compose define web, API e PostgreSQL, com volumes distintos para banco/fotos. Somente a entrada HTTP(S) necessária será exposta publicamente; conexão do banco fica na rede de containers. Proxy/HTTPS devem se adaptar ao servidor existente (C09), sem presumir instalação ou portas disponíveis.
+O Compose local oferece PostgreSQL e também pode executar os builds de web e API. O Compose de implantação mantém PostgreSQL e API na rede de containers. O HTTPS passa pelo Caddy e chega ao Nginx do painel, que encaminha `/api` ao Express. Banco e fotos usam volumes distintos. Consulte [hospedagem própria](runbook.md#hospedar-uma-instância-própria) e [CI/CD da demonstração](ci-cd.md).
 
-Migrações e seed são passos explícitos, sem reset automático. Readiness verifica dependências; liveness só indica processo vivo. Backup precisa preservar correspondência entre banco e arquivos. APK usa URL HTTPS pública, não nome interno de serviço do Compose.
+Migrações e seed são passos explícitos. O runtime hospedado usa um papel PostgreSQL restrito. A prontidão consulta a tabela de usuários do banco e a liveness verifica o processo. O backup precisa preservar os vínculos entre banco e arquivos. O APK de distribuição usa uma origem HTTPS acessível ao aparelho com o sufixo `/api/v1`.
 
-## Limitações
-
-Bibliotecas base, versões e runners estão fixados no lockfile; transporte de sessão e mapas permanecem em concerns. Não adicionar serviços separados, Redis ou event bus apenas para reproduzir um desenho arquitetural.
+Os limites da entrega estão no [escopo](scope.md) e as pendências no [registro de decisões](../concerns.md).

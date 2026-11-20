@@ -1,6 +1,8 @@
 # Acesso restrito e uploads
 
-Diretriz confirmada pelo responsável: o repositório público não torna a aplicação de acesso livre. O ambiente de demonstração aceita apenas as contas previamente provisionadas e autorizadas; não há cadastro público.
+O ambiente de demonstração aceita apenas as contas previamente provisionadas e autorizadas. O repositório é público e a aplicação exige autenticação.
+
+Para entrar em contato sobre uma vulnerabilidade, siga o [procedimento de relato privado](../SECURITY.md).
 
 ## Acesso à aplicação
 
@@ -8,7 +10,7 @@ Diretriz confirmada pelo responsável: o repositório público não torna a apli
 - Denúncias, fotos, mapa e histórico exigem autenticação. As restrições de propriedade e de visibilidade por status são verificadas em cada operação.
 - Adotar negação por padrão nas rotas de negócio. Rotas públicas são exceções explícitas, como login e saúde genérica do serviço.
 - Papel e identidade vêm da sessão validada no servidor. Não confiar em campos enviados pelo cliente, URL, estado da interface ou ocultação de botões.
-- Sessões expiram em 24 horas sem renovação automática; logout revoga imediatamente. Token ausente, inválido, expirado ou revogado não autoriza operações.
+- Sessões expiram em 24 horas sem renovação automática. O logout revoga a sessão atual. A web usa cookie `HttpOnly`, `Secure` e `SameSite=Lax`. O Android usa Bearer salvo no armazenamento seguro do dispositivo.
 - Senhas das contas de demonstração são fornecidas por configuração protegida, nunca pelo código público ou por exemplos de teste. O seed preserva credenciais existentes.
 - Proteger o login contra tentativas repetidas e operações por cookie contra CSRF. Os limites da janela de 15 minutos e o cabeçalho de proteção da web estão no [contrato HTTP](api/contract.md).
 
@@ -21,7 +23,7 @@ A API aplica cotas por IP antes da leitura do corpo do login, da consulta de pro
 - Gerar nomes e caminhos no servidor; não usar caminhos fornecidos pelo cliente nem executar arquivos recebidos.
 - Armazenar fotos fora do diretório estático da web. Nginx não deve publicar livremente o volume de uploads.
 - Servir fotos por uma rota que valide sessão, permissão e vínculo entre foto e denúncia. Conhecer ou adivinhar uma URL não concede acesso.
-- A API limita cada cidadão a 30 tentativas de upload por janela de 15 minutos, permite quatro uploads simultâneos e exige 256 MiB de reserva mais 64 MiB para os envios em voo.
+- A API limita cada cidadão a 30 tentativas de upload por janela de 15 minutos. Compartilha quatro vagas simultâneas por processo e exige 320 MiB disponíveis antes de gravar um novo conjunto de fotos. O valor inclui 256 MiB de reserva e até 16 MiB para cada vaga.
 
 ## Verificação obrigatória antes de publicar essas funcionalidades
 
@@ -39,7 +41,7 @@ Os cenários são detalhados em `docs/testing.md`. Não considerar a proteção 
 
 Sessão, criação de denúncia, consulta do gestor e leitura de fotos foram verificadas localmente. A validação inclui origem e cabeçalho para mutações com cookie, papel antes do multipart no backend e leitura da foto por vínculo com a denúncia.
 
-Identidade aprovada: CPF e senha próprios, sem gov.br e sem e-mail. Nome/foto só aparecem quando o autor mantém “Quero mostrar minha cara” marcado. Desmarcado, os DTOs omitem identidade e identificadores inclusive ao gestor; o backend ainda conhece o autor para permissões. Swagger fica indisponível em produção até haver acesso administrativo próprio.
+O login usa CPF e senha próprios. Nome e foto de perfil aparecem quando o autor mantém “Quero mostrar minha cara” marcado. Se desmarcar, os DTOs omitem os dados do autor, inclusive para o gestor. O backend mantém o vínculo interno para permissões e notificações. Swagger e OpenAPI são habilitados somente em desenvolvimento com `API_DOCS_ENABLED=true`, quando a API escuta em loopback. [Contrato e configuração do Swagger](api/contract.md#swagger-gerado)
 
 ## Gate após cada fase
 

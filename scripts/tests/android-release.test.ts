@@ -5,6 +5,13 @@ import { join, resolve } from 'node:path';
 import { expect, it } from 'vitest';
 import { parse } from 'yaml';
 
+it('mantém o projeto Android gerado fora do Git e a configuração de release rastreável', () => {
+    const generated = spawnSync('git', ['check-ignore', '--', 'apps/mobile/android/app/src/main/AndroidManifest.xml'], { encoding: 'utf8' });
+    expect(generated.status, generated.stderr).toBe(0);
+    const source = spawnSync('git', ['check-ignore', '--no-index', '--', 'apps/mobile/release-rules.pro'], { encoding: 'utf8' });
+    expect(source.status, source.stderr).toBe(1);
+});
+
 it('configura o release gerado pelo Expo para preservar o construtor do banco do WorkManager', () => {
     const project = mkdtempSync(join(tmpdir(), 'mycity-android-release-'));
     try {

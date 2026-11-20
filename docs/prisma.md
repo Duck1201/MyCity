@@ -40,7 +40,7 @@ modifiedAt DateTime @default(now()) @updatedAt @map("modified_at")
 - A propriedade e a coluna chamam-se `password`. Seu conteúdo continua sendo **hash seguro**, nunca senha em texto puro.
 - Não mudar o algoritmo ou recalcular hashes apenas para renomear a coluna. O código atual usa scrypt; os hashes existentes são preservados na migração.
 - Não serializar `password` em DTOs, respostas, logs ou documentação de exemplos. Selecionar explicitamente os campos retornados.
-- Nomear o campo `password` não resolve o achado SEC-01 de senha compartilhada entre contas de demonstração. Credenciais distintas continuam obrigatórias antes do login HTTP.
+- O provisionamento hospedado e a rotação explícita exigem senhas distintas para as três contas de demonstração. O seed e a sincronização do ambiente local permitem senhas iguais ao usar o banco de desenvolvimento em loopback. [Operação das credenciais de demonstração](runbook.md#rotação-das-senhas-de-demonstração)
 
 ## Relações e constraints
 
@@ -71,7 +71,7 @@ npm run typecheck
 npm run format:check
 ```
 
-`db:migrate` usa a configuração do ambiente; confirme o alvo antes de executá-lo. O Prisma Client gerado não é versionado.
+`db:migrate` executa `prisma migrate deploy`, que aplica migrações pendentes. A URL usa `DATABASE_URL` do processo e, na ausência dessa variável, a configuração de `.env` na raiz. Confira o alvo antes de executar. Para preparar SQL de uma migração nova em um banco descartável, use `npm exec -w @mycity/api -- prisma migrate dev --create-only` e revise o arquivo gerado antes de aplicar. O Prisma Client gerado não é versionado.
 
 ## Critério de revisão
 

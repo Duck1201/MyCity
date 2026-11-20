@@ -1,6 +1,12 @@
 # Trabalhar no MyCity
 
-Converse em pt-BR. Use inglês no código e nos commits, pt-BR na interface. O agente principal e todos os subagentes trabalham no checkout atual, com o banco, a API e o painel de desenvolvimento configurados na raiz. Reutilize os serviços e endereços existentes e preserve as alterações de outras tarefas. Coordene em sequência as verificações que gravam no mesmo recurso. O [README](README.md) é o ponto de entrada para instalar, iniciar e testar o projeto.
+Converse em pt-BR. Use inglês no código e nos commits, pt-BR na interface.
+
+## Ambiente de desenvolvimento
+
+- Trabalhe no checkout de desenvolvimento existente, inclusive ao delegar. Use essa raiz como diretório de trabalho de cada agente. Criar clone, worktree ou cópia do checkout para trabalhar exige pedido explícito do responsável.
+- Reutilize a configuração, a API, o painel e o PostgreSQL já disponíveis. Preserve as alterações de outras tarefas e execute em sequência as verificações que gravam no mesmo recurso. Se faltar um serviço, verifique a configuração e siga o [README](README.md#executar-localmente) para iniciá-lo nesse checkout.
+- Rode a suíte automatizada no banco dedicado `mycity_test`. Nos fluxos manuais integrados, use o banco de desenvolvimento com registros fictícios e preserve os dados das demais tarefas. Coordene com o agente principal qualquer verificação que escreva no banco, nos uploads ou em outro recurso compartilhado.
 
 Use Nunito como fonte padrão das interfaces do painel web e do app mobile, inclusive nas prévias.
 
@@ -22,7 +28,7 @@ Antes de alterar comportamento, localize a fase em [plan.md](plan.md), as decis�
 
 - Para bug ou feature, escreva a regressão na mesma alteração e confirme a falha antes de implementar. Teste pela interface pública. Confira a persistência pela API e pelo painel do próprio ambiente de desenvolvimento, usando dados fictícios da tarefa. Mocks ficam nas fronteiras externas. Se o serviço estiver indisponível, verifique a configuração do projeto e informe o bloqueio.
 - Preserve a força das asserções. Quando o comportamento solicitado mudar, atualize a expectativa correspondente e explique a mudança. Se um teste parecer errado por outro motivo, mostre esperado e obtido e peça autorização antes de alterá-lo. Investigue instabilidade sem skips, retries, detecção de teste ou aumento de tolerância.
-- Para código, rode as [verificações locais](README.md#testes-e-qualidade) e as da plataforma afetada. Informe separadamente o resultado da suíte completa de CI. Em refactors, execute a suíte existente. Confira o painel no navegador e os recursos de câmera, GPS, mapa e APK em Android físico. Registre lacunas manuais em [testes](docs/testing.md). Para documentação, verifique links e formatação.
+- Para código, rode as [verificações locais](README.md#testes-e-qualidade) e as da plataforma afetada. Informe separadamente o resultado da suíte completa de CI. Em refactors, execute a suíte existente. Para mudanças no painel, confira o fluxo no navegador. Para mudanças que afetem câmera, GPS, mapa ou APK, valide em Android físico e registre lacunas em [testes](docs/testing.md). Para documentação, verifique links, formatação e os comandos ou fluxos que tiver alterado.
 - Atualize o documento que define a regra alterada. Mudanças de comportamento atualizam o contrato aplicável e os critérios de aceitação. Registre pendências em `concerns.md` e informe na entrega as verificações realizadas e suas limitações. Preserve as fontes históricas em `docs/references/` e use a origem indicada pelo usuário para artefatos.
 
 ## Entregar

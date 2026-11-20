@@ -1,73 +1,93 @@
 # MyCity
 
-O cidadão registra problemas urbanos pelo app Android e acompanha o histórico. O gestor usa o painel web para analisar denúncias, responder e atualizar o atendimento. Os dois clientes usam a mesma API e o mesmo PostgreSQL. Os alertas climáticos usam cenários simulados.
+O MyCity ajuda cidadãos a registrar problemas urbanos com fotos e localização. Quem registra acompanha o atendimento pelo app Android. No painel web, a equipe de gestão organiza a fila, responde aos relatos e atualiza a situação de cada denúncia.
 
-[Demonstração hospedada](https://mycity.private-gateway.site:8080)
+[Executar localmente](#executar-localmente) · [Usar no Android](#usar-o-app-android) · [Hospedar e manter](docs/runbook.md#hospedar-uma-instância-própria) · [Contribuir](#contribuir)
 
-![Visão geral do painel web do gestor](docs/images/manager-dashboard.png)
+## Veja como funciona
 
-<img src="docs/images/citizen-app.png" alt="App do cidadão no Galaxy M32" width="320">
+### Painel do gestor
 
-## Usar o app Android
+Em **Atendimento**, o gestor encontra os relatos, filtra por categoria e situação e abre cada ocorrência para consultar fotos, localização e histórico. A captura mostra as denúncias fictícias carregadas pelo seed no banco local.
 
-Para usar um APK já configurado, instale-o em Android 7.0 (API 24) ou superior, conecte o aparelho à internet e entre com uma conta de cidadão fornecida pelo responsável pela instalação. Autorize a câmera e a localização ao usar esses recursos. O APK já contém a configuração do mapa e funciona com o Metro desligado.
+![Fila de atendimento do gestor com denúncias, filtros e situações](docs/images/manager-dashboard.png)
 
-Para distribuir seu próprio APK, prepare uma API acessível pelo celular, uma chave de assinatura e um projeto Google Cloud com faturamento habilitado. O [guia do Android](docs/runbook.md#configuração-do-android) explica como entrar no console, obter a chave do Maps, restringi-la ao seu app e testar a instalação.
+### App do cidadão
+
+Em **Início**, o cidadão acompanha os próprios registros e pode abrir uma nova denúncia. No **Feed**, consulta ocorrências da cidade e pode confirmar que viu o mesmo problema.
+
+<p align="center">
+  <img src="docs/images/citizen-app.png" width="280" alt="Tela Início, com resumo da cidade e registros do cidadão">
+  <img src="docs/images/citizen-feed.png" width="280" alt="Tela Feed, com ocorrências ativas e seus estados">
+</p>
+
+As capturas do cidadão vêm da prévia web do app, que usa exemplos próprios. No Android integrado, o app e o painel compartilham a API e o PostgreSQL. Os alertas climáticos são simulados.
 
 ## Executar localmente
 
-Use Node 24 e npm 11. Na raiz do repositório, prepare a instalação:
+Você precisa de **Git, Node.js 24.11 ou superior na linha 24, npm 11 e Docker com Compose**. Use um terminal em Linux, macOS ou WSL com acesso ao Docker. A versão de Node usada na CI está em [`.nvmrc`](.nvmrc). Se já tem o checkout, comece em `npm ci` na raiz.
 
 ```bash
+git clone https://github.com/Duck1201/MyCity.git
+cd MyCity
 npm ci
 npm run setup
 ```
 
-O setup gera o cliente Prisma, compila os contratos e cria o `.env` se ele ainda não existir. Confira `DATABASE_URL`. Para usar o PostgreSQL do projeto, execute `docker compose up -d --wait db`. Com o banco disponível, prepare os dados e inicie o projeto:
+O setup gera o cliente Prisma, compila os contratos e cria um `.env` com senhas locais aleatórias. Se o arquivo já existe, ele é preservado. Confira se `DATABASE_URL` aponta para o banco de desenvolvimento que você pretende usar antes de migrar e semear.
 
 ```bash
+docker compose up -d --wait db
 npm run db:migrate
 npm run db:seed
 npm run dev
 ```
 
-Abra o painel em **http://localhost:8090**. Após entrar, a Visão geral abre os indicadores do banco local. Atendimento reúne a busca, os filtros, a exportação CSV e os detalhes; em Categorias, o gestor edita nomes e ícones e arquiva ou reativa grupos. O gestor usa o CPF `00000000003` e a senha `DEMO_MANAGER_PASSWORD` do ambiente. O seed também prepara os cidadãos com CPFs finais 01 e 02 e as respectivas senhas do ambiente. Ctrl+C encerra painel e API. Para abrir o app, execute `npm run dev:mobile` em outro terminal e conecte o celular à mesma rede do Metro. No PC, `npm run dev:mobile:web` abre a [prévia mobile](http://localhost:8093/), com o [login do cidadão](http://localhost:8093/login).
+Abra **<http://localhost:8090>** e entre como gestor com o CPF **`00000000003`** e a senha de `DEMO_MANAGER_PASSWORD` no seu `.env`. O seed prepara também os cidadãos `00000000001` e `00000000002`, com senhas em `DEMO_CITIZEN_A_PASSWORD` e `DEMO_CITIZEN_B_PASSWORD`. São contas fictícias provisionadas na instalação.
 
-Após editar `packages/contracts` durante a sessão, execute `npm run build:contracts` para atualizar o pacote consumido pela API.
+Abra **Atendimento** para explorar os exemplos. A API atende em **<http://localhost:3000/api/v1/health/ready>** para a verificação de saúde. Ctrl+C encerra o painel e a API.
 
-### Alterar o ambiente
+### Explorar o app no navegador
 
-- **Portas.** `WEB_PORT` define a porta do painel e `PORT` a da API (padrões 8090 e 3000). Reinicie `npm run dev` após editar o arquivo. Quem usa `dev:api` e `dev:web` separadamente deve reiniciar os dois. Reinicie o Metro se o endereço da API mudar. O app aceita `EXPO_PUBLIC_API_PORT` ou a URL completa em `EXPO_PUBLIC_API_URL`.
-- **Senhas.** Edite a variável da conta e reinicie a API. As três senhas podem ter o mesmo valor no desenvolvimento local. Nas bases locais de desenvolvimento via loopback, a nova senha de uma conta habilitada revoga as sessões daquela conta. Outros destinos e contas legadas exigem [rotação explícita](docs/runbook.md#rotação-das-senhas-de-demonstração). Uma variável exportada no terminal tem precedência sobre a mesma chave no arquivo.
-- **Dados.** Repetir o seed preserva registros e senhas. Para apagar os dados locais, encerre o desenvolvimento e confira o destino antes de usar `npm run db:reset`. O reset reaplica as migrações e termina sem usuários nem denúncias.
+Em outro terminal, execute `npm run dev:mobile:web` e abra **<http://localhost:8093>**. A prévia usa dados locais do protótipo e funciona sem API, banco ou credenciais. O link **Ver tela de login** permite experimentar a interface de entrada.
 
-### Executar com Docker Compose
+Para mudar portas, configurar a API do celular ou executar a versão compilada em containers, consulte o [guia de ambiente local](docs/runbook.md#ambiente-local).
 
-Para servir também a API e o painel compilados, encerre o Vite e use:
+## Usar o app Android
+
+Instale um APK configurado para a API que você pretende usar, em um dispositivo com Android 7.0 (API 24) ou superior. Entre com a conta de cidadão fornecida pelo responsável pela instalação. Autorize a câmera e a localização quando usar esses recursos.
+
+O guia de Android explica como testar com o ambiente local, baixar o artefato da CI e gerar um APK assinado com a URL da sua API e a configuração do mapa. [Configuração do Android](docs/runbook.md#configuração-do-android)
+
+## Guias
+
+| Quero…                                      | Onde começar                                                                                                       |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| Explorar a demonstração hospedada           | [Painel da demonstração](https://mycity.private-gateway.site:8080), com conta de gestor fornecida pelo responsável |
+| Registrar ou atender uma denúncia           | [Primeiros passos por perfil](docs/flows.md#primeiros-passos)                                                      |
+| Instalar e operar minha própria instância   | [Hospedagem própria](docs/runbook.md#hospedar-uma-instância-própria)                                               |
+| Atualizar uma instalação ou recuperar dados | [Operação e recuperação](docs/runbook.md#persistência-backup-e-recuperação)                                        |
+| Integrar ou entender o código               | [Contrato HTTP](docs/api/contract.md) e [arquitetura](docs/architecture.md)                                        |
+| Entender o recorte do MVP                   | [Escopo](docs/scope.md) e [decisões pendentes](concerns.md)                                                        |
+
+## Contribuir
+
+Em um fork, crie uma branch curta e abra um PR para `main`. Use Conventional Commits nos commits e no título do PR. O [AGENTS.md](AGENTS.md) indica onde ficam as regras, o código e os testes de cada área. As [regras de colaboração](docs/ci-cd.md#colaboração) detalham o fluxo do GitHub.
+
+Encontrou uma vulnerabilidade? Use o [canal privado de segurança](SECURITY.md).
+
+### Testes e qualidade
+
+Em uma instalação local já preparada, inicie o PostgreSQL de testes e rode as verificações:
 
 ```bash
-docker compose up -d --wait db
-docker compose --profile tools run --rm --build migrate
-docker compose --profile tools run --rm --build seed
-docker compose up -d --build --wait api web
-```
-
-Para voltar ao desenvolvimento local, use `docker compose stop web api`. Os volumes guardam o banco e as fotos.
-
-## Testes e qualidade
-
-```bash
-npm run lint
-npm run typecheck
-npm test --workspaces --if-present
-npm run build
+docker compose --profile test up -d --wait test-db
 npm run format:check
+npm run check
 ```
 
-Valide o fluxo integrado no painel local com a API, o PostgreSQL e as fotos do ambiente já em execução. A CI executa `npm run check`, incluindo OpenAPI, ferramentas e integrações HTTP. O runner automatizado de integração restringe o destino a `mycity_test`; preserve essa proteção e os dados do desenvolvimento. Use `npm run security:check` para a auditoria e `npm run export:android -w @mycity/mobile` para verificar o bundle.
+O check valida OpenAPI, lint, tipos, testes e build. A integração automatizada usa o banco dedicado `mycity_test`. Consulte a [estratégia de testes](docs/testing.md) para os ensaios manuais, as verificações do Android e a atualização das capturas deste README.
 
-## Trabalhar no projeto
+## Licença
 
-O [AGENTS.md](AGENTS.md) indica a especificação, o código e os testes de cada área. O [plano](plan.md) registra as fases e [concerns.md](concerns.md) acompanha decisões pendentes. Para operar uma instalação ou recuperar dados, use o [runbook](docs/runbook.md).
-
-Licença [Apache 2.0](LICENSE). Atribuições em [NOTICE](NOTICE).
+O código do MyCity usa [Apache 2.0](LICENSE). Autores, fontes e licenças das fotos que aparecem nas capturas estão nos [créditos das ocorrências](apps/web/src/prototype/images/report-credits.json) e nos [créditos da prévia mobile](apps/mobile/src/prototype/photos/creditos.txt).

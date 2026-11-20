@@ -2,9 +2,22 @@
 const prefix = '/api/v1';
 const json = (schema) => ({ 'application/json': { schema } });
 const string = { type: 'string' };
+const boolean = { type: 'boolean' };
+const timestamp = { type: 'string', format: 'date-time' };
+const count = { type: 'integer', minimum: 0 };
+const positiveInteger = { type: 'integer', minimum: 1 };
+const latitude = { type: 'number', minimum: -90, maximum: 90 };
+const longitude = { type: 'number', minimum: -180, maximum: 180 };
+const object = (properties, required = Object.keys(properties)) => ({ type: 'object', required, properties });
+const ref = (name) => ({ $ref: '#/components/schemas/' + name });
+const array = (items) => ({ type: 'array', items });
+const dataContent = (data) => json(object({ data }));
+const cursorContent = (items) => json(object({ data: array(items), page: object({ nextCursor: { ...string, nullable: true } }) }));
 const secured = [{ WebSession: [] }, { AndroidSession: [] }];
 const unauthorized = { description: 'Sessão ausente, expirada ou revogada.' };
 const forbidden = { description: 'Operação não permitida.' };
+const invalidQuery = { description: 'Parâmetros de consulta inválidos.' };
+const invalidPage = { description: 'Parâmetros de consulta inválidos ou cursor fora dos resultados.' };
 const id = (name) => ({ name, in: 'path', required: true, schema: string });
 const lookup = (summary, parameters, content) => ({ summary, security: secured, parameters, responses: { 200: { description: 'Consulta autorizada.', ...content }, 401: unauthorized, 404: { description: 'Recurso não encontrado.' } } });
 const pagination = [
@@ -22,7 +35,7 @@ const reportWrite = (summary, required, properties, responses) => ({
 const statusFilter = { name: 'status', in: 'query', schema: { type: 'string', enum: ['SENT', 'UNDER_REVIEW', 'IN_PROGRESS', 'RESOLVED', 'REJECTED', 'CANCELED'] } };
 const categoryFilter = { name: 'category', in: 'query', schema: string, description: 'Identificador retornado por GET /categories.' };
 const queueFilters = [categoryFilter, { name: 'status', in: 'query', schema: { type: 'string', enum: [...statusFilter.schema.enum, 'pending'] } }, { name: 'q', in: 'query', schema: { type: 'string', maxLength: 160 } }, ...['de', 'ate'].map((name) => ({ name, in: 'query', schema: { type: 'string', format: 'date' }, description: 'Dia inclusivo em America/Sao_Paulo.' })), { name: 'ordem', in: 'query', schema: { type: 'string', enum: ['prioridade', 'antigas', 'recentes'] } }];
-const participation = (summary) => ({ summary, security: secured, parameters: [id('id')], responses: { 200: { description: 'Estado de confirmação pelo cidadão e total da denúncia.' }, 401: unauthorized, 403: forbidden, 404: { description: 'Denúncia não encontrada.' }, 409: { description: 'Alteração indisponível neste estado.' } } });
+const participation = (summary, confirmed) => ({ summary, security: secured, parameters: [id('id')], responses: { 200: { description: 'Estado de confirmação pelo cidadão e total da denúncia.', content: dataContent(object({ confirmed: { ...boolean, enum: [confirmed] }, confirmationCount: count })) }, 401: unauthorized, 403: forbidden, 404: { description: 'Denúncia não encontrada.' }, 409: { description: 'Alteração indisponível neste estado.' } } });
 const reports = prefix + '/reports';
 export function addBusinessPaths(doc) {
     const limited = {
@@ -53,12 +66,35 @@ export function addBusinessPaths(doc) {
     const category = { type: 'object', required: ['id', 'name', 'archived'], properties: { id: string, name: string, icon, reportCount: { type: 'integer', minimum: 0, description: 'Contagem no catálogo do gestor.' }, archived: { type: 'boolean' } } };
     const categoryName = { type: 'object', required: ['name'], additionalProperties: false, properties: { icon, name: { type: 'string', minLength: 1, maxLength: 80 } } };
     const archiveCategory = { type: 'object', required: ['archived'], additionalProperties: false, properties: { archived: { type: 'boolean' } } };
-    const count = { type: 'integer', minimum: 0 };
+    const location = object({ latitude, longitude, source: { ...string, enum: ['GPS', 'MANUAL'] } });
+    const reportFields = { id: string, category: string, categoryName: string, status: statusFilter.schema, confirmationCount: count };
+    const summaryFields = {
+        ...reportFields,
+        description: string,
+        location,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+        confirmedByMe: boolean,
+        isMine: boolean,
+        showIdentity: boolean,
+    };
+    Object.assign(doc.components.schemas, {
+        ReportPhoto: object({ id: string, position: count, width: positiveInteger, height: positiveInteger, byteSize: positiveInteger, contentPath: string }),
+        ReportSummary: object({ ...summaryFields, coverPhoto: ref('ReportPhoto'), author: object({ name: string, photoUrl: string }) }, Object.keys(summaryFields)),
+        ReportDetail: { allOf: [ref('ReportSummary'), object({ version: positiveInteger, photos: { ...array(ref('ReportPhoto')), minItems: 1, maxItems: 3 }, allowedActions: array(string) })] },
+        ReportMarker: object({ ...reportFields, latitude, longitude }),
+        ReportEvent: object({ id: string, type: { ...string, enum: ['CREATED', 'STATUS_CHANGED', 'REPLY'] }, actorRole: { ...string, enum: ['CITIZEN', 'MANAGER'] }, fromStatus: statusFilter.schema, toStatus: statusFilter.schema, text: publicText, createdAt: timestamp }, ['id', 'type', 'actorRole', 'createdAt']),
+        ReportStatusCounts: object(Object.fromEntries(statusFilter.schema.enum.map((status) => [status, count]))),
+        ManagementQueueRow: object({ ...reportFields, description: string, latitude, longitude, createdAt: timestamp, coverPhotoId: { ...string, nullable: true } }),
+    });
+    const reportDetailContent = dataContent(ref('ReportDetail'));
+    const reportEventContent = dataContent(ref('ReportEvent'));
+    const queuePage = object({ data: array(ref('ManagementQueueRow')), total: count, counts: ref('ReportStatusCounts'), page: positiveInteger });
     const overview = {
         type: 'object',
         required: ['counts', 'oldest', 'categories', 'priorities'],
         properties: {
-            counts: { type: 'object', required: statusFilter.schema.enum, properties: Object.fromEntries(statusFilter.schema.enum.map((s) => [s, count])) },
+            counts: ref('ReportStatusCounts'),
             oldest: { type: 'object', nullable: true, required: ['id', 'createdAt'], properties: { id: string, createdAt: { type: 'string', format: 'date-time' } } },
             categories: { type: 'array', items: { ...category, required: [...category.required, 'count'], properties: { ...category.properties, icon: string, count } } },
             priorities: { type: 'array', maxItems: 3, items: { type: 'object', required: ['id', 'category', 'description', 'status', 'confirmationCount'], properties: { id: string, category: string, description: string, status: statusFilter.schema, confirmationCount: count, photoPath: string } } },
@@ -67,18 +103,18 @@ export function addBusinessPaths(doc) {
     const alert = { $ref: '#/components/schemas/WeatherAlert' };
     Object.assign(doc.paths, {
         [prefix + '/sessions']: { post: { summary: 'Iniciar sessão por CPF e senha', requestBody: { required: true, content: json({ type: 'object', required: ['cpf', 'password', 'transport'], properties: { cpf: string, password: { type: 'string', format: 'password' }, transport: { type: 'string', enum: ['cookie', 'bearer'] } } }) }, responses: { 201: { description: 'Identidade e expiresAt. O transporte bearer também retorna token.' }, 400: { description: 'Entrada inválida.' }, 401: unauthorized, 403: forbidden, 429: limited } } },
-        [prefix + '/me']: { get: lookup('Consultar identidade da sessão', [], { headers: { 'X-Session-Expires-At': { description: 'Fim da validade original da sessão, em UTC.', schema: { type: 'string', format: 'date-time' } } } }) },
+        [prefix + '/me']: { get: { summary: 'Consultar identidade da sessão', security: secured, responses: { 200: { description: 'Identidade da sessão.', headers: { 'X-Session-Expires-At': { description: 'Fim da validade original da sessão, em UTC.', schema: { type: 'string', format: 'date-time' } } } }, 401: unauthorized } } },
         [prefix + '/sessions/current']: { delete: { summary: 'Revogar a sessão atual', security: secured, responses: { 204: { description: 'Sessão revogada.' }, 401: unauthorized, 403: forbidden } } },
         [reports]: {
             get: {
                 ...lookup('Consultar feed, denúncias próprias, resolvidas ou fila de gestão', [{ name: 'scope', in: 'query', required: true, schema: { type: 'string', enum: ['management', 'mine', 'resolved', 'feed'] } }, statusFilter, categoryFilter, { name: 'sort', in: 'query', schema: { type: 'string', enum: ['priority', 'newest'] } }, ...pagination], {}),
-                responses: { 200: { description: 'Lista paginada com page.nextCursor.' }, 401: unauthorized, 403: forbidden },
+                responses: { 200: { description: 'Lista paginada com page.nextCursor.', content: cursorContent(ref('ReportSummary')) }, 400: invalidPage, 401: unauthorized, 403: forbidden },
             },
-            post: { summary: 'Publicar denúncia como cidadão', security: secured, requestBody: { required: true, content: { 'multipart/form-data': { schema: { type: 'object', required: ['metadata', 'photos'], properties: { metadata: { type: 'string', description: 'JSON com category, description, location, clientRequestId e showIdentity.' }, photos: { type: 'array', minItems: 1, maxItems: 3, items: { type: 'string', format: 'binary' } } } } } } }, responses: { 201: { description: 'Denúncia criada.' }, 200: { description: 'Reenvio da mesma denúncia.' }, 401: unauthorized, 403: forbidden, 409: { description: 'Chave reutilizada com outro conteúdo, perfil indisponível ou categoria arquivada (CATEGORY_ARCHIVED).' }, 413: { description: 'Limite de tamanho excedido.' }, 415: { description: 'Tipo de mídia inválido.' }, 422: { description: 'Dados inválidos.' }, 429: { description: 'Limite de envio atingido.' }, 507: { description: 'Espaço insuficiente para armazenar as fotos.' } } },
+            post: { summary: 'Publicar denúncia como cidadão', security: secured, requestBody: { required: true, content: { 'multipart/form-data': { schema: { type: 'object', required: ['metadata', 'photos'], properties: { metadata: { type: 'string', description: 'JSON com category, description, location, clientRequestId e showIdentity.' }, photos: { type: 'array', minItems: 1, maxItems: 3, items: { type: 'string', format: 'binary' } } } } } } }, responses: { 201: { description: 'Denúncia criada.', content: reportDetailContent }, 200: { description: 'Reenvio da mesma denúncia.', content: reportDetailContent }, 401: unauthorized, 403: forbidden, 409: { description: 'Chave reutilizada com outro conteúdo, perfil indisponível ou categoria arquivada (CATEGORY_ARCHIVED).' }, 413: { description: 'Limite de tamanho excedido.' }, 415: { description: 'Tipo de mídia inválido.' }, 422: { description: 'Dados inválidos.' }, 429: { description: 'Limite de envio atingido.' }, 507: { description: 'Espaço insuficiente para armazenar as fotos.' } } },
         },
-        [reports + '/{id}']: { get: lookup('Consultar detalhes da denúncia', [id('id')], {}) },
+        [reports + '/{id}']: { get: lookup('Consultar detalhes da denúncia', [id('id')], { content: reportDetailContent }) },
         [reports + '/{id}/photos/{photoId}']: { get: lookup('Ler foto vinculada à denúncia', [id('id'), id('photoId')], { content: { 'image/jpeg': { schema: { type: 'string', format: 'binary' } } } }) },
-        [reports + '/{id}/history']: { get: lookup('Consultar histórico da denúncia', [id('id'), ...pagination, { name: 'order', in: 'query', schema: { type: 'string', enum: ['oldest', 'newest'], default: 'oldest' } }], {}) },
+        [reports + '/{id}/history']: { get: { ...lookup('Consultar histórico da denúncia', [id('id'), ...pagination, { name: 'order', in: 'query', schema: { type: 'string', enum: ['oldest', 'newest'], default: 'oldest' } }], {}), responses: { 200: { description: 'Eventos paginados com page.nextCursor.', content: cursorContent(ref('ReportEvent')) }, 400: invalidPage, 401: unauthorized, 404: { description: 'Denúncia não encontrada.' } } } },
         [reports + '/{id}/transitions']: {
             post: reportWrite(
                 'Alterar o status da denúncia',
@@ -88,19 +124,19 @@ export function addBusinessPaths(doc) {
                     expectedVersion: { type: 'integer', minimum: 1 },
                     reason: { ...publicText, description: 'Obrigatória para rejeição.' },
                 },
-                { 200: { description: 'Detalhe atualizado, evento e aviso persistidos.' }, 409: { description: 'Versão desatualizada ou transição inválida.' } },
+                { 200: { description: 'Detalhe atualizado, evento e aviso persistidos.', content: reportDetailContent }, 409: { description: 'Versão desatualizada ou transição inválida.' } },
             ),
         },
-        [reports + '/{id}/replies']: { post: reportWrite('Publicar resposta no histórico, inclusive após encerramento', ['text', 'clientRequestId'], { text: publicText, clientRequestId: { type: 'string', minLength: 1, maxLength: 128 } }, { 201: { description: 'Resposta registrada.' }, 200: { description: 'Mesmo evento em reenvio idêntico.' }, 409: { description: 'A chave já foi usada com outro texto.' } }) },
+        [reports + '/{id}/replies']: { post: reportWrite('Publicar resposta no histórico, inclusive após encerramento', ['text', 'clientRequestId'], { text: publicText, clientRequestId: { type: 'string', minLength: 1, maxLength: 128 } }, { 201: { description: 'Resposta registrada.', content: reportEventContent }, 200: { description: 'Mesmo evento em reenvio idêntico.', content: reportEventContent }, 409: { description: 'A chave já foi usada com outro texto.' } }) },
         [prefix + '/notifications']: { get: { ...lookup('Consultar avisos do cidadão', [{ name: 'unreadOnly', in: 'query', schema: { type: 'boolean', default: false } }, ...pagination], {}), responses: { 200: { description: 'Avisos pessoais em ordem decrescente.', content: json({ type: 'object', required: ['data', 'page'], properties: { data: { type: 'array', items: notification }, page: { type: 'object', required: ['nextCursor'], properties: { nextCursor: { type: 'string', nullable: true } } } } }) }, 400: { description: 'Filtro ou cursor inválido.' }, 401: unauthorized, 403: forbidden } } },
         [prefix + '/notifications/{id}/read']: { put: { summary: 'Marcar aviso próprio como lido', security: secured, parameters: [id('id')], responses: { 200: { description: 'Aviso com a data da primeira leitura.', content: json({ type: 'object', required: ['data'], properties: { data: notification } }) }, 401: unauthorized, 403: forbidden, 404: { description: 'Aviso não encontrado.' } } } },
-        [reports + '/map']: { get: lookup('Consultar marcadores na área do mapa', [{ name: 'bbox', in: 'query', schema: string, description: 'west,south,east,north' }, statusFilter, categoryFilter, ...pagination], {}) },
+        [reports + '/map']: { get: { ...lookup('Consultar marcadores na área do mapa', [{ name: 'bbox', in: 'query', schema: string, description: 'west,south,east,north' }, statusFilter, categoryFilter, ...pagination], {}), responses: { 200: { description: 'Marcadores paginados com page.nextCursor.', content: cursorContent(ref('ReportMarker')) }, 400: invalidPage, 401: unauthorized } } },
         [reports + '/overview']: { get: { summary: 'Consultar a visão geral de atendimento', security: secured, responses: { 200: { description: 'Indicadores e prioridades da mesma leitura do banco.', content: json({ type: 'object', required: ['data'], properties: { data: overview } }) }, 400: { description: 'Parâmetros de consulta não aceitos.' }, 401: unauthorized, 403: forbidden } } },
-        [reports + '/queue']: { get: { summary: 'Consultar a fila filtrada do gestor', security: secured, parameters: [...queueFilters, { name: 'pagina', in: 'query', schema: { type: 'integer', minimum: 1, maximum: 2147483647, default: 1 } }, { name: 'limit', in: 'query', schema: { type: 'integer', minimum: 1, maximum: 100, default: 5 } }], responses: { 200: { description: 'data, total, counts por situação antes do filtro de situação e page efetiva.' }, 400: { description: 'Consulta inválida.' }, 401: unauthorized, 403: forbidden } } },
+        [reports + '/queue']: { get: { summary: 'Consultar a fila filtrada do gestor', security: secured, parameters: [...queueFilters, { name: 'pagina', in: 'query', schema: { type: 'integer', minimum: 1, maximum: 2147483647, default: 1 } }, { name: 'limit', in: 'query', schema: { type: 'integer', minimum: 1, maximum: 100, default: 5 } }], responses: { 200: { description: 'Contagens antes do filtro de situação, total filtrado e página efetiva.', content: json(queuePage) }, 400: { description: 'Consulta inválida.' }, 401: unauthorized, 403: forbidden } } },
         [reports + '/queue.csv']: { get: { summary: 'Exportar a fila completa no formato CSV', security: secured, parameters: queueFilters, responses: { 200: { description: 'Mesma consulta e ordenação sem paginação.', content: { 'text/csv': { schema: { type: 'string' } } } }, 400: { description: 'Consulta inválida.' }, 401: unauthorized, 403: forbidden } } },
-        [reports + '/summary']: { get: { ...lookup('Contar denúncias por estado em todas as páginas', [categoryFilter], {}), responses: { 200: { description: 'Objeto com contagem para cada um dos seis estados.' }, 401: unauthorized, 403: forbidden } } },
-        [reports + '/{id}/confirmation']: { put: participation('Confirmar uma ocorrência'), delete: participation('Retirar a própria confirmação') },
-        [reports + '/{id}/cancellation']: { post: reportWrite('Cancelar denúncia própria', ['expectedVersion'], { expectedVersion: { type: 'integer', minimum: 1 } }, { 200: { description: 'Detalhe cancelado, histórico e aviso persistidos.' }, 409: { description: 'Versão desatualizada ou estado incompatível.' } }) },
+        [reports + '/summary']: { get: { ...lookup('Contar denúncias por estado em todas as páginas', [categoryFilter], {}), responses: { 200: { description: 'Objeto com contagem para cada um dos seis estados.', content: dataContent(ref('ReportStatusCounts')) }, 400: invalidQuery, 401: unauthorized, 403: forbidden } } },
+        [reports + '/{id}/confirmation']: { put: participation('Confirmar uma ocorrência', true), delete: participation('Retirar a própria confirmação', false) },
+        [reports + '/{id}/cancellation']: { post: reportWrite('Cancelar denúncia própria', ['expectedVersion'], { expectedVersion: { type: 'integer', minimum: 1 } }, { 200: { description: 'Detalhe cancelado, histórico e aviso persistidos.', content: reportDetailContent }, 409: { description: 'Versão desatualizada ou estado incompatível.' } }) },
         [prefix + '/weather-alerts']: {
             get: {
                 summary: 'Listar cenários climáticos simulados',

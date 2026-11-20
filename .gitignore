@@ -7,6 +7,7 @@ node_modules/
 !.env.example
 !.env.test.example
 apps/api/src/generated/
+/apps/mobile/android/
 *.log
 *.apk
 *.aab

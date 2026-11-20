@@ -2,6 +2,8 @@
 
 Repositório: [Duck1201/MyCity](https://github.com/Duck1201/MyCity), público, conforme escolha explícita do responsável. O código do projeto é licenciado sob Apache 2.0.
 
+A seção de CD descreve a demonstração deste repositório. Para publicar em outro servidor, siga o [guia de hospedagem própria](runbook.md#hospedar-uma-instância-própria).
+
 ## Colaboração
 
 - Commits e títulos de PR seguem Conventional Commits, verificados por `scripts/check-commits.mjs` e testes em `scripts/tests/`.
@@ -16,6 +18,7 @@ Repositório: [Duck1201/MyCity](https://github.com/Duck1201/MyCity), público, c
 - Jobs de validação têm apenas `contents: read`.
 - Somente publicação após push aprovado na `main` recebe `packages: write`.
 - Deploy recebe `contents: read`, `actions: read` e `packages: read`.
+- O job de limpeza do Android recebe `actions: write` para remover o APK intermediário.
 - Environment `demonstration` aceita somente a branch `main`.
 - Chave SSH exclusiva da automação, sem encaminhamento de portas/PTY, armazenada nos secrets do environment. A chave original da EC2 permanece local.
 
@@ -23,7 +26,7 @@ Repositório: [Duck1201/MyCity](https://github.com/Duck1201/MyCity), público, c
 
 Workflow: `.github/workflows/ci.yml`.
 
-1. Em PR/push de `main`, validar títulos convencionais.
+1. Em PR/push de `main`, validar as mensagens dos commits e, para PRs, o título.
 2. Instalar pelo lockfile e gerar Prisma.
 3. Verificar formatação, lint, tipos, todos os testes e builds.
 4. Usar PostgreSQL real de teste como service do runner; sem credenciais de demonstração.
@@ -43,8 +46,8 @@ Destino: EC2 Debian x86_64, usuário `admin`, diretório `/opt/mycity`. Configur
 
 1. Sob lock, valida o manifesto e reserva atomicamente a sequência da CI antes de alterar serviços. Uma execução mais antiga é recusada mesmo após falha parcial da mais recente. Repetir a mesma tentativa exige um manifesto idêntico.
 2. Recebe o token efêmero de leitura do GHCR por stdin, usando um diretório temporário de autenticação removido ao sair.
-3. Baixa API, web e ferramentas pelos digests registrados, sobe o banco, aplica migrações e provisiona o acesso da API.
-4. Executa seed apenas na preparação inicial, marcada por `.seeded`; não redefine senha em atualizações.
+3. Valida e aplica a configuração de runtime, baixa API, web e ferramentas pelos digests registrados, sobe o banco, aplica migrações e provisiona o acesso da API.
+4. Executa o seed na preparação inicial, marcada por `.seeded`. Em atualizações, sincroniza as senhas das contas habilitadas e revoga as sessões das contas cuja senha mudou. Uma rotação explícita das contas legadas depende do [marcador de rotação](runbook.md#rotação-das-senhas-de-demonstração).
 5. Atualiza API, web e proxy, espera saúde e confere a API pela porta local 8090.
 6. Registra release atual/anterior. Não faz rollback automático de schema; falhas devem ser diagnosticadas preservando volumes.
 
@@ -52,7 +55,7 @@ O workflow verifica também o endpoint HTTPS externo. Uma falha externa marca o 
 
 ## Domínio e porta
 
-URL escolhida: **https://mycity.private-gateway.site:8080**. O responsável informou que DNS e TCP 8080 no Security Group estão configurados; o acesso será confirmado no deploy.
+O endereço da demonstração é **https://mycity.private-gateway.site:8080**. A [primeira implantação](#primeira-implantação-verificada) confirmou o acesso por HTTPS.
 
 O MyCity tem um Caddy separado, publicado apenas na porta 8080. O Caddy existente mantém suas portas 80/443 e os outros sistemas. Foi adicionada somente uma rota HTTP para o host do MyCity encaminhando a `mycity-edge:80`, para o desafio ACME HTTP-01 e redirecionamento. A validação TLS-ALPN na 443 está desativada no Caddy do MyCity.
 
@@ -72,7 +75,7 @@ Backup do Caddyfile anterior: `/home/admin/discord-stream/deploy/Caddyfile.befor
 | Variável do environment     | DEPLOY_DIR         | `/opt/mycity`                                          |
 | Arquivo somente no servidor | `/opt/mycity/.env` | Senhas aleatórias do PostgreSQL e das contas demo      |
 
-Para atualizar a configuração da demonstração, edite `.env.production.local` privado na raiz e execute `node scripts/publish-runtime-env.mjs`. O comando envia por stdin ao secret `EC2_RUNTIME_ENV` de `Duck1201/MyCity` (environment `demonstration`) somente `POSTGRES_PASSWORD`, `API_DATABASE_PASSWORD`, `DEMO_CITIZEN_A_PASSWORD`, `DEMO_CITIZEN_B_PASSWORD`, `DEMO_MANAGER_PASSWORD` e `WEB_ORIGIN`. O próximo deploy de uma CI aprovada na main utiliza essa configuração. Maps, URL do app e assinatura pertencem ao build Android. O arquivo local permanece fora do Git. As duas credenciais do PostgreSQL já instaladas precisam coincidir com as do servidor. A troca dessas credenciais requer manutenção coordenada do banco e da API.
+Para atualizar a configuração da demonstração, edite `.env.production.local` privado na raiz, com permissão `0600` e ignorado pelo Git, e execute `node scripts/publish-runtime-env.mjs`. O comando envia por stdin ao secret `EC2_RUNTIME_ENV` de `Duck1201/MyCity` (environment `demonstration`) somente `POSTGRES_PASSWORD`, `API_DATABASE_PASSWORD`, `DEMO_CITIZEN_A_PASSWORD`, `DEMO_CITIZEN_B_PASSWORD`, `DEMO_MANAGER_PASSWORD` e `WEB_ORIGIN`. O próximo deploy de uma CI aprovada na main utiliza essa configuração. Maps, URL do app e assinatura pertencem ao build Android. As duas credenciais do PostgreSQL já instaladas precisam coincidir com as do servidor. A troca dessas credenciais requer manutenção coordenada do banco e da API.
 
 Tokens/segredos não entram nos comandos impressos, arquivos versionados ou imagens. A chave de host é fixada; não usar `StrictHostKeyChecking=no` nem buscar uma nova chave de host sem validação a cada execução.
 
@@ -82,7 +85,7 @@ Para verificar sem imprimir segredos:
 
 ```bash
 gh run list --repo Duck1201/MyCity
-gh run view <run-id> --repo Duck1201/MyCity
+gh run view --repo Duck1201/MyCity
 curl --fail https://mycity.private-gateway.site:8080/api/v1/health/ready
 ```
 
@@ -91,11 +94,10 @@ No servidor, usar `--env-file /opt/mycity/.env --env-file /opt/mycity/current/im
 ## Evidências
 
 - Repositório tornado público por escolha explícita do responsável após o GitHub recusar proteção de branch no plano privado.
-- Proteção da `main` aplicada e conferida pela API: PR, três checks obrigatórios, branch atualizada, histórico linear e bloqueio de force push/exclusão, inclusive para administradores.
+- Na fundação, a proteção inicial da `main` foi conferida pela API. A [política de colaboração](#colaboração) lista os checks exigidos atualmente.
 - Secrets/variáveis do environment `demonstration` configurados; chave exclusiva de CI testada por SSH.
 - Caddy existente validado e recarregado após adicionar somente a rota HTTP do MyCity. DNS A aponta para a EC2.
 - A primeira CI do commit inicial foi cancelada para evitar deploy na porta anterior (3443), substituída por 8080 por solicitação do responsável.
-- As execuções que publicarem e implantarem a versão final serão verificadas no GitHub; esta lista não declara sucesso antecipado.
 
 O edge tem um healthcheck HTTPS limitado para aguardar a emissão inicial do certificado e a API saudável antes de concluir o Compose. A verificação pública no workflow usa timeout explícito; falha não é ignorada.
 

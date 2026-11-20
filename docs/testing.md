@@ -69,7 +69,11 @@ Mocks/stubs são permitidos nas fronteiras não avaliadas, como câmera/GPS no t
 
 Usar relógio controlado para polling, dados com IDs/datas estáveis e diretório temporário para fotos. Asserções de leitura usam identidade diferente quando necessário para detectar vazamento. O ambiente não deve ganhar regras de produção especiais por estar em teste.
 
-Runners configurados: Vitest para contratos/API/web e Jest com jest-expo para mobile. O [README](../README.md#testes-e-qualidade) distingue as verificações locais das executadas pela CI.
+Os contratos, a API, o painel e os scripts de infraestrutura usam Vitest. O app usa Jest com `jest-expo`. O [README](../README.md#testes-e-qualidade) mostra como rodar as verificações em conjunto.
+
+Para rodar só a integração HTTP, mantenha o serviço `test-db` ativo e execute `npm run test:integration` na raiz. O runner aplica as migrações em `mycity_test` e usa a porta local 55433 por padrão. Ele aceita `TEST_DATABASE_URL` para outro destino local com o mesmo nome de banco. Use o banco de desenvolvimento para ensaios manuais.
+
+O job **Quality checks** exporta o bundle Android após os testes. Para repetir localmente, execute `npm run export:android -w @mycity/mobile`. O build assinado segue em um [workflow próprio](../.github/workflows/android-release.yml) após uma CI aprovada de push na `main). Para rodar a checagem de segredos da CI localmente, use Linux x86-64, a plataforma validada pelo instalador do Gitleaks.
 
 ## Alertas simulados e revisão visual
 
@@ -88,6 +92,8 @@ A etapa 3 cobriu testes de concorrência, rollback, respostas públicas, acesso 
 O fluxo no proxy usa HTTP real com cookie e Bearer. As interfaces nativas de câmera, galeria, GPS e mapa são simuladas nos testes de componentes. A homologação física e hospedada foi dispensada pelo responsável nesta entrega.
 
 ## Aceite por critério
+
+Depois do aceite, siga a [política de descarte dos dados fictícios da homologação](runbook.md#descartar-os-dados-da-homologação).
 
 | Critérios              | Jornada                                                  | Ambiente e limite                                                                                                                                                                              |
 | ---------------------- | -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -131,4 +137,18 @@ Os testes locais cobrem inicialização conjunta, Ctrl+C, persistência e reexec
 
 No Galaxy M32, o ensaio do app integrado cobriu Voltar, teclado, fonte ampliada, movimento reduzido, câmera, galeria, GPS e envio à API local.
 
+A exportação de produção do Android exclui as fotos demonstrativas usadas só na prévia. A instalação do APK desta alteração segue pendente porque o ADB não encontrou aparelho conectado.
+
 O ensaio de configuração local cobriu a troca de senha no reinício, a preservação de sessões e o login pelo proxy em portas personalizadas. Falta verificar em Android físico na mesma LAN que o app conecta à API após mudar `PORT` e reiniciar o Metro. O ADB não listou dispositivo durante o ensaio.
+
+## Atualizar as capturas do README
+
+Os arquivos ficam em [`docs/images/`](images/). Para trocar as capturas, substitua os PNGs pelos mesmos nomes. Se mudar a tela mostrada, atualize também a legenda e o texto alternativo na [apresentação do README](../README.md#veja-como-funciona).
+
+| Arquivo                 | Tela e enquadramento                                                                           |
+| ----------------------- | ---------------------------------------------------------------------------------------------- |
+| `manager-dashboard.png` | **Atendimento** no painel local com o banco semeado. Use uma janela de cerca de 1440 × 860 px. |
+| `citizen-app.png`       | **Início** no `npm run dev:mobile:web`. Selecione 390 px na prévia e capture só a tela do app. |
+| `citizen-feed.png`      | **Feed → Ativas** na mesma prévia, com o mesmo enquadramento e altura da tela **Início**.      |
+
+Capture somente a interface com dados fictícios. Abra o README renderizado em largura de desktop e de celular para conferir o enquadramento, a legibilidade e o texto junto de cada imagem.
