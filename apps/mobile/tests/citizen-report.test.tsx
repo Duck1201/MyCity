@@ -48,7 +48,9 @@ it('preserva o formulário após perda da resposta e reenvia fotos e metadados i
         await fireEvent.press(screen.getByText('Enviar denúncia'));
         expect(await screen.findByText(/dados foram preservados/)).toBeTruthy();
         await fireEvent.press(screen.getByText('Enviar denúncia'));
-        expect(await screen.findByText('protocolo-77')).toBeTruthy();
+        expect(await screen.findByText('Denúncia enviada')).toBeVisible();
+        expect(screen.getByText('Via com buraco')).toBeVisible();
+        expect(screen.queryByText('protocolo-77')).toBeNull();
         const bodies = upload.mock.calls.map(([, init]) => init.body);
         expect(bodies[1].get('metadata')).toBe(bodies[0].get('metadata'));
         for (const body of bodies) {
@@ -118,7 +120,8 @@ it('consulta o catálogo autenticado, recupera uma falha e envia o identificador
         expect(screen.getByLabelText('Descrição')).toHaveProp('value', 'Rascunho preservado');
         await fireEvent.press(await screen.findByRole('radio', { name: option.name }));
         await fireEvent.press(screen.getByText('Enviar denúncia'));
-        expect(await screen.findByText('caso-novo')).toBeVisible();
+        expect(await screen.findByText('Rascunho preservado')).toBeVisible();
+        expect(screen.queryByText('caso-novo')).toBeNull();
         expect(screen.getByText(option.name)).toBeVisible();
         expect(post).toHaveBeenCalledWith(expect.objectContaining({ category: option.id, description: 'Rascunho preservado' }));
     } finally {
@@ -148,7 +151,8 @@ it('limita a três fotos e envia o multipart na ordem visível depois de remover
         jest.mocked(pickReportPhoto).mockResolvedValueOnce(uri(4));
         await fireEvent.press(screen.getByRole('button', { name: 'Galeria' }));
         await fireEvent.press(screen.getByRole('button', { name: 'Enviar denúncia' }));
-        expect(await screen.findByText('registro-multifoto')).toBeVisible();
+        expect(await screen.findByText('Relato demonstrativo')).toBeVisible();
+        expect(screen.queryByText('registro-multifoto')).toBeNull();
         expect(files).toEqual([uri(1), uri(3), uri(4)]);
     } finally {
         fetcher.mockRestore();
@@ -214,7 +218,8 @@ it('retoma o rascunho no mapa, publica e volta do acompanhamento para a lista pe
         await fireEvent.press(screen.getByRole('button', { name: 'Continuar rascunho' }));
         expect(screen.getByLabelText('Descrição')).toHaveProp('value', draft.description);
         await fireEvent.press(screen.getByRole('button', { name: 'Enviar denúncia' }));
-        expect(await screen.findByText(report.id)).toBeVisible();
+        expect(await screen.findByText(report.description)).toBeVisible();
+        expect(screen.queryByText(report.id)).toBeNull();
         expect(screen.getByText('Histórico do atendimento')).toBeVisible();
         expect(draftRef.current).toBeNull();
         await fireEvent.press(screen.getByRole('button', { name: 'Voltar aos meus registros' }));
@@ -246,13 +251,14 @@ it.each([403, 404])('preserva o comprovante do envio durante falha de rede e o o
         await fireEvent.press(screen.getByRole('button', { name: 'Continuar rascunho' }));
         await fireEvent.press(screen.getByRole('button', { name: 'Enviar denúncia' }));
         expect(await screen.findByText('Não foi possível atualizar. Confira sua conexão.')).toBeVisible();
-        expect(screen.getByText(report.id)).toBeVisible();
+        expect(screen.getByText(report.description)).toBeVisible();
+        expect(screen.queryByText(report.id)).toBeNull();
         expect(screen.getByText('Status: Enviado')).toBeVisible();
         expect(screen.getByLabelText('Foto 1 da denúncia')).toBeVisible();
         offline = false;
         await fireEvent.press(screen.getByRole('button', { name: 'Tentar novamente' }));
         expect(await screen.findByText('Esta denúncia não está disponível para sua conta.')).toBeVisible();
-        expect(screen.queryByText(report.id)).toBeNull();
+        expect(screen.queryByText(report.description)).toBeNull();
         expect(screen.queryByLabelText('Foto 1 da denúncia')).toBeNull();
     } finally {
         fetcher.mockRestore();

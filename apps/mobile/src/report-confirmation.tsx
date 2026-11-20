@@ -70,7 +70,7 @@ export function ApiConfirmation({ report, request, update, refresh, allowedActio
         const { data } = await request<{ data: { confirmed: boolean; confirmationCount: number } }>('/reports/' + encodeURIComponent(report.id) + '/confirmation', signal, confirmed ? 'PUT' : 'DELETE');
         if (!signal.aborted) update({ confirmedByMe: data.confirmed, confirmationCount: data.confirmationCount });
     }
-    return <ReportConfirmation report={report} onChange={change} refresh={refresh} {...(onError && { onError })} {...(allowedActions ? { allowedActions } : { context: 'protocolo ' + report.id })} />;
+    return <ReportConfirmation report={report} onChange={change} refresh={refresh} {...(onError && { onError })} {...(allowedActions ? { allowedActions } : { context: report.description })} />;
 }
 const styles = StyleSheet.create({
     section: { gap: 4 },

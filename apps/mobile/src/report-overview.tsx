@@ -13,10 +13,6 @@ export function ReportOverview({ detail, apiBase, token }: { detail: ReportDetai
             <Text style={mobileStyles.heading}>{categoryLabel(detail)}</Text>
             <Text style={mobileStyles.body}>{detail.description}</Text>
             <Text style={[mobileStyles.status, statusTint(detail.status)]}>Status: {statusLabels[detail.status]}</Text>
-            <Text style={styles.label}>Protocolo</Text>
-            <Text selectable style={mobileStyles.meta}>
-                {detail.id}
-            </Text>
             <View style={styles.author}>
                 {detail.author && <Image source={{ uri: detail.author.photoUrl }} accessibilityLabel="Foto do autor" style={styles.avatar} />}
                 <Text style={mobileStyles.body}>Autor: {detail.author?.name ?? 'Anônimo'}</Text>
@@ -30,4 +26,4 @@ export function ReportOverview({ detail, apiBase, token }: { detail: ReportDetai
         </>
     );
 }
-const styles = StyleSheet.create({ label: mobileStyles.label, author: { flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' }, avatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.line } });
+const styles = StyleSheet.create({ author: { flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' }, avatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.line } });
