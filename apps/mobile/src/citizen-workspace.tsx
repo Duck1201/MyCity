@@ -93,12 +93,12 @@ function ReportList({ request, feed, open, pages, setPages, scope, filters, onCh
             <QueryFeedback failed={query.failed} loading={!query.data} retry={query.retry} />
             {voteError && !query.data?.data.some((row) => row.id === voteError.id) && (
                 <Text accessibilityLiveRegion="polite" style={styles.message}>
-                    Protocolo {voteError.id} · {voteError.message}
+                    {voteError.message}
                 </Text>
             )}
             {query.data?.data.length === 0 && <Text>{scope === 'mine' && !filters.status && !filters.category ? 'Você ainda não registrou denúncias.' : 'Nenhuma denúncia encontrada.'}</Text>}
             {query.data?.data.map((report) => (
-                <ReportCard key={report.id} feed={scope === 'feed'} protocol={report.id} category={categoryLabel(report)} description={report.description} status={report.status} when={date(report.createdAt)} photo={report.coverPhoto && reportPhotoSource(report.coverPhoto.contentPath, apiBase, token)} onPress={() => open({ id: report.id })}>
+                <ReportCard key={report.id} feed={scope === 'feed'} category={categoryLabel(report)} description={report.description} status={report.status} when={date(report.createdAt)} photo={report.coverPhoto && reportPhotoSource(report.coverPhoto.contentPath, apiBase, token)} onPress={() => open({ id: report.id })}>
                     {scope === 'feed' ? <ApiConfirmation report={report} onError={(message) => setVoteError({ id: report.id, message })} request={request} update={(vote) => query.replace((previous) => previous && { ...previous, data: previous.data.map((row) => (row.id === report.id ? { ...row, ...vote } : row)) })} refresh={query.retry} /> : <Text style={styles.meta}>{confirmationLabel(report.confirmationCount)}</Text>}
                 </ReportCard>
             ))}
@@ -121,7 +121,6 @@ function Notifications({ request, open, pages, setPages }: ListProps) {
             {query.data?.data.map((n) => (
                 <Pressable accessibilityRole="button" style={styles.card} key={n.id} onPress={() => open({ id: n.reportId, ...(!n.readAt && { noticeId: n.id }) })}>
                     <Text style={styles.label}>{transitionLabel(n.fromStatus, n.status) ?? 'Status atualizado: ' + statusLabels[n.status]}</Text>
-                    <Text>Protocolo {n.reportId}</Text>
                     <Text style={styles.status}>{n.readAt ? 'Lida' : 'Não lida'}</Text>
                     <Text>{date(n.createdAt)}</Text>
                 </Pressable>

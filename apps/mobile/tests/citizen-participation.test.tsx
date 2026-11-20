@@ -78,8 +78,10 @@ it('carrega todas as páginas da área visível do mapa e abre a denúncia pelo 
     await fireEvent.press(screen.getByRole('tab', { name: 'Mapa' }));
     await fireEvent(screen.getByTestId('community-map'), 'regionChangeComplete', { latitude: 0, longitude: 0, latitudeDelta: 2, longitudeDelta: 2 });
     expect(await screen.findByText('2 denúncias nesta área')).toBeVisible();
+    expect(screen.queryByText(/map-2/)).toBeNull();
     await fireEvent.press(screen.getByTestId('report-marker-map-2'));
-    expect(await screen.findByText('map-2')).toBeVisible();
+    expect(await screen.findByText(report.description)).toBeVisible();
+    expect(screen.queryByText('map-2')).toBeNull();
     expect(bounds.filter((v) => v === '-1,-1,1,1')).toHaveLength(2);
 });
 
@@ -144,7 +146,8 @@ it('mostra a foto de capa do feed com a sessão do cidadão apenas na origem da 
     jest.spyOn(globalThis, 'fetch').mockImplementation(async (input) => (String(input).endsWith('/categories') ? categoryResponse() : response(page(rows))));
     await openApp();
     await fireEvent.press(screen.getByRole('tab', { name: 'Feed' }));
-    expect(await screen.findByText('p-4')).toBeVisible();
+    expect(await screen.findByText(report.description)).toBeVisible();
+    expect(screen.queryByText(report.id)).toBeNull();
     const cover = await screen.findByLabelText('Foto da ocorrência: Pista quebrada');
     expect(cover).toHaveProp('source', { uri: 'https://demo.test' + path, headers: { Authorization: 'Bearer sintetico' } });
     expect(screen.queryByLabelText('Foto da ocorrência: Outra rua')).toBeNull();
@@ -191,14 +194,14 @@ it('confirma pelo cartão, mantém o total da API no detalhe e permite desfazer 
     });
     await openApp();
     await fireEvent.press(screen.getByRole('tab', { name: 'Feed' }));
-    await fireEvent.press(await screen.findByRole('button', { name: 'Também vi isso, protocolo p-4' }));
+    await fireEvent.press(await screen.findByRole('button', { name: 'Também vi isso, Pista quebrada' }));
     expect(await screen.findByText('10 confirmações')).toBeVisible();
     expect(screen.queryByRole('header', { name: 'Detalhes da denúncia' })).toBeNull();
     await fireEvent.press(screen.getByText('Pista quebrada'));
     expect(await screen.findByText('10 confirmações')).toBeVisible();
     await fireEvent.press(screen.getByRole('button', { name: 'Voltar ao feed' }));
-    await fireEvent.press(await screen.findByRole('button', { name: 'Retirar confirmação, protocolo p-4' }));
-    expect(await screen.findByRole('button', { name: 'Também vi isso, protocolo p-4' })).toBeVisible();
+    await fireEvent.press(await screen.findByRole('button', { name: 'Retirar confirmação, Pista quebrada' }));
+    expect(await screen.findByRole('button', { name: 'Também vi isso, Pista quebrada' })).toBeVisible();
     expect(screen.getAllByText('9 confirmações')).toHaveLength(3);
     expect(api.mock.calls.filter(([url]) => String(url).endsWith('/confirmation')).map(([, init]) => init?.method)).toEqual(['PUT', 'DELETE']);
 });
@@ -219,7 +222,7 @@ it('não aumenta a contagem quando a confirmação falha e remove a ação se a 
     });
     await openApp();
     await fireEvent.press(screen.getByRole('tab', { name: 'Feed' }));
-    const action = 'Também vi isso, protocolo p-4';
+    const action = 'Também vi isso, Pista quebrada';
     await fireEvent.press(await screen.findByRole('button', { name: action }));
     expect(await screen.findByText('Não foi possível confirmar a operação. Confira a denúncia antes de tentar novamente.')).toBeVisible();
     expect(screen.getByText('7 confirmações')).toBeVisible();
@@ -244,7 +247,8 @@ it('mantém o aviso de conflito se a denúncia desaparecer do feed durante a con
     });
     await openApp();
     await fireEvent.press(screen.getByRole('tab', { name: 'Feed' }));
-    await fireEvent.press(await screen.findByRole('button', { name: 'Também vi isso, protocolo p-4' }));
+    await fireEvent.press(await screen.findByRole('button', { name: 'Também vi isso, Pista quebrada' }));
     expect(await screen.findByText('Nenhuma denúncia encontrada.')).toBeVisible();
-    expect(screen.getByText('Protocolo p-4 · A situação da denúncia mudou. Consulte a atualização.')).toBeVisible();
+    expect(screen.getByText('A situação da denúncia mudou. Consulte a atualização.')).toBeVisible();
+    expect(screen.queryByText(/p-4/)).toBeNull();
 });

@@ -46,7 +46,7 @@ Status: requisitos do recorte confirmados; decisões ainda propostas apontam par
 - **AC18:** APK instalado acessa a API HTTPS do servidor sem depender do bundler de desenvolvimento. Web e APK observam o mesmo fluxo real.
 - **AC19:** somente contas provisionadas podem autenticar; não existe cadastro público. Sem sessão válida, dados protegidos e uploads são negados. Conta de cidadão não acessa operações administrativas, mesmo chamando a API diretamente. Autenticação e autorização antecedem o processamento de multipart; tentativas não autorizadas não gravam arquivos. Fotos não são expostas diretamente pelo servidor estático. Login, saúde e documentação habilitada têm cotas por IP. Ao excedê-las, a API retorna HTTP 429 com `Retry-After` antes de processar a operação. Detalhes em [segurança de acesso](security.md), cenários T30–T32 e T37.
 
-Os critérios de criação da etapa 2 incluem descrição de até 1.000 caracteres, coordenadas GPS ou manuais e uma a três fotos JPEG de até 5 MiB e 1.600 px cada. O painel deve mostrar o mesmo protocolo após atualização, com anonimato inclusive para o gestor quando solicitado.
+Os critérios de criação da etapa 2 incluem descrição de até 1.000 caracteres, coordenadas GPS ou manuais e uma a três fotos JPEG de até 5 MiB e 1.600 px cada. O painel deve mostrar o mesmo protocolo após atualização, com anonimato inclusive para o gestor quando solicitado. No app do cidadão, os textos e rótulos de acessibilidade omitem o UUID interno da denúncia.
 
 ## Requisitos não funcionais conciliados
 

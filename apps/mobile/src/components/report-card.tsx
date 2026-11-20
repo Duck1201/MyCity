@@ -8,7 +8,7 @@ import { Text } from './typography';
 
 type Props = {
     feed: boolean;
-    protocol: string;
+    protocol?: string;
     category: string;
     description: string;
     status: ReportStatus;
@@ -29,7 +29,7 @@ export function ReportCard({ feed, protocol, category, description, status, when
     ) : null;
     return (
         <View style={styles.card}>
-            <Pressable accessibilityRole="button" accessibilityLabel={'Abrir ' + category} accessibilityHint={['Protocolo ' + protocol, statusLabels[status], description, update].filter(Boolean).join('. ')} onPress={onPress} style={({ pressed }) => pressed && styles.pressed}>
+            <Pressable accessibilityRole="button" accessibilityLabel={'Abrir ' + category} accessibilityHint={[protocol && 'Protocolo ' + protocol, statusLabels[status], description, update].filter(Boolean).join('. ')} onPress={onPress} style={({ pressed }) => pressed && styles.pressed}>
                 {feed && image}
                 <View style={styles.body}>
                     <View style={styles.topline}>
@@ -37,9 +37,11 @@ export function ReportCard({ feed, protocol, category, description, status, when
                             <View style={[styles.dot, { backgroundColor: tint.color }]} />
                             <Text style={[styles.statusText, { color: tint.color }]}>{statusLabels[status]}</Text>
                         </View>
-                        <Text numberOfLines={1} ellipsizeMode="middle" style={styles.protocol}>
-                            {protocol}
-                        </Text>
+                        {protocol && (
+                            <Text numberOfLines={1} ellipsizeMode="middle" style={styles.protocol}>
+                                {protocol}
+                            </Text>
+                        )}
                     </View>
                     <View style={styles.details}>
                         {!feed && image}

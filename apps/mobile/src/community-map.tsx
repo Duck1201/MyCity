@@ -84,7 +84,6 @@ export function CommunityMap({ request, filters, setFilters, region, setRegion, 
                     <Text>
                         {statusLabels[m.status]} · {confirmationLabel(m.confirmationCount)}
                     </Text>
-                    <Text style={mobileStyles.meta}>Protocolo {m.id}</Text>
                 </Pressable>
             ))}
         </ScrollView>

@@ -10,7 +10,7 @@ jest.mock('react-native-maps', () => ({ __esModule: true, default: 'MapView', Ma
 jest.mock('../src/report-photos', () => ({ pickReportPhoto: jest.fn() }));
 jest.mock('expo-crypto', () => ({ randomUUID: () => 'request-test' }));
 const base = 'http://192.168.2.19:3000/api/v1';
-const report = { id: 'protocolo-3', category: 'LIGHTING', description: 'Poste da praça', status: 'REJECTED', location: { source: 'GPS', latitude: -20, longitude: -42 }, photos: [], createdAt: '2026-11-01T12:00:00Z' };
+const report = { id: '9a8bcd73-e49e-478a-b976-76c0186af640', category: 'LIGHTING', description: 'Poste da praça', status: 'REJECTED', location: { source: 'GPS', latitude: -20, longitude: -42 }, photos: [], createdAt: '2026-11-01T12:00:00Z' };
 const event = { id: 'e-1', type: 'STATUS_CHANGED', actorRole: 'MANAGER', fromStatus: 'UNDER_REVIEW', toStatus: 'REJECTED', text: 'Manutenção já realizada', createdAt: report.createdAt };
 const notice = { id: 'n-1', reportId: report.id, status: 'REJECTED', createdAt: report.createdAt, readAt: null };
 const page = (data: unknown[], nextCursor: string | null = null) => ({ data, page: { nextCursor } });
@@ -35,9 +35,9 @@ it('preserva o rascunho ao acompanhar o histórico da própria denúncia e as re
         if (path === '/categories') return categoryResponse();
         if (path === '/me') return ok({ data: { id: 'autor', role: 'CITIZEN' } });
         if (path === '/reports?scope=mine') return ok(page([report]));
-        if (path === '/reports/protocolo-3') return ok({ data: report });
-        if (path === '/reports/protocolo-3/history') return ok(page([event], 'pagina-2'));
-        if (path === '/reports/protocolo-3/history?cursor=pagina-2') return ok(page([{ ...event, id: 'e-2', type: 'REPLY', text: 'Resposta complementar' }]));
+        if (path === '/reports/' + report.id) return ok({ data: report });
+        if (path === '/reports/' + report.id + '/history') return ok(page([event], 'pagina-2'));
+        if (path === '/reports/' + report.id + '/history?cursor=pagina-2') return ok(page([{ ...event, id: 'e-2', type: 'REPLY', text: 'Resposta complementar' }]));
         throw Error('Rota inesperada');
     });
     await render(<App />);
@@ -45,9 +45,13 @@ it('preserva o rascunho ao acompanhar o histórico da própria denúncia e as re
     await fireEvent.press(screen.getByRole('button', { name: 'Nova denúncia' }));
     await fireEvent.changeText(await screen.findByLabelText('Descrição'), 'Rascunho preservado');
     await fireEvent.press(screen.getByRole('button', { name: 'Voltar' }));
-    await fireEvent.press(await screen.findByText('Poste da praça'));
+    expect(await screen.findByText('Poste da praça')).toBeVisible();
+    expect(screen.queryByText(new RegExp(report.id))).toBeNull();
+    expect(screen.getByRole('button', { name: 'Abrir Iluminação pública' }).props.accessibilityHint).not.toContain(report.id);
+    await fireEvent.press(screen.getByText('Poste da praça'));
     expect(await screen.findByText('Manutenção já realizada')).toBeVisible();
-    expect(screen.getByText('protocolo-3')).toBeVisible();
+    expect(screen.getByText(report.description)).toBeVisible();
+    expect(screen.queryByText(new RegExp(report.id))).toBeNull();
     await fireEvent.press(screen.getByText('Próxima página'));
     expect(await screen.findByText('Resposta complementar')).toBeVisible();
     await fireEvent.press(screen.getByText('Voltar aos meus registros'));
@@ -63,8 +67,8 @@ it('abre o aviso, permite repetir uma leitura que falhou e exibe o estado confir
         if (path === '/categories') return categoryResponse();
         if (path === '/me') return ok({ data: { id: 'autor', role: 'CITIZEN' } });
         if (path === '/notifications') return ok(page([{ ...notice, readAt: readAttempts > 1 ? report.createdAt : null }]));
-        if (path === '/reports/protocolo-3') return ok({ data: report });
-        if (path === '/reports/protocolo-3/history') return ok(page([event]));
+        if (path === '/reports/' + report.id) return ok({ data: report });
+        if (path === '/reports/' + report.id + '/history') return ok(page([event]));
         if (path === '/notifications/n-1/read' && init?.method === 'PUT') {
             if (++readAttempts === 1) throw Error('Sem conexão');
             return ok({ data: { ...notice, readAt: report.createdAt } });
@@ -73,7 +77,9 @@ it('abre o aviso, permite repetir uma leitura que falhou e exibe o estado confir
     });
     await render(<App />);
     await fireEvent.press(await screen.findByText('Notificações'));
-    await fireEvent.press(await screen.findByText('Não lida'));
+    expect(await screen.findByText('Não lida')).toBeVisible();
+    expect(screen.queryByText(new RegExp(report.id))).toBeNull();
+    await fireEvent.press(screen.getByText('Não lida'));
     expect(await screen.findByText('Manutenção já realizada')).toBeVisible();
     await fireEvent.press(await screen.findByText('Tentar marcar como lida'));
     await fireEvent.press(screen.getByText('Voltar às notificações'));
@@ -136,8 +142,8 @@ it.each(['RESOLVED', 'REJECTED', 'CANCELED'])('identifica reabertura de %s no av
         if (path === '/categories') return categoryResponse();
         if (path === '/me') return ok({ data: { id: 'autor', role: 'CITIZEN' } });
         if (path === '/notifications') return ok(page([{ ...notice, readAt: notice.createdAt, status: 'UNDER_REVIEW', fromStatus }]));
-        if (path === '/reports/protocolo-3') return ok({ data: { ...report, status: 'UNDER_REVIEW' } });
-        if (path === '/reports/protocolo-3/history') return ok(page([reopened, closure]));
+        if (path === '/reports/' + report.id) return ok({ data: { ...report, status: 'UNDER_REVIEW' } });
+        if (path === '/reports/' + report.id + '/history') return ok(page([reopened, closure]));
         throw Error('Rota inesperada');
     });
     await render(<App />);
@@ -155,13 +161,14 @@ it('apresenta uma ocorrência pública no Início mesmo sem registros pessoais e
         if (path === '/me') return ok({ data: { id: 'autor', role: 'CITIZEN' } });
         if (path === '/categories') return categoryResponse();
         if (path === '/reports?scope=feed&limit=1') return ok(page([publicReport]));
-        if (path === '/reports/protocolo-3') return ok({ data: publicReport });
+        if (path === '/reports/' + report.id) return ok({ data: publicReport });
         return ok(page([]));
     });
     await render(<App />);
     expect(await screen.findByText('Você ainda não registrou denúncias.')).toBeVisible();
     await fireEvent.press(await screen.findByRole('button', { name: 'Abrir ocorrência: Semáforo em manutenção' }));
-    expect(await screen.findByText('protocolo-3')).toBeVisible();
+    expect(await screen.findByText(publicReport.description)).toBeVisible();
+    expect(screen.queryByText(new RegExp(report.id))).toBeNull();
     await fireEvent.press(screen.getByText('Voltar aos meus registros'));
     await fireEvent.press(await screen.findByRole('button', { name: 'Ver feed' }));
     expect(await screen.findByRole('header', { name: 'Denúncias da comunidade' })).toBeVisible();
