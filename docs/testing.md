@@ -1,11 +1,11 @@
 # Estratégia de testes e evidências
 
-Status: estratégia definida e 50 testes executados (fundação e tooling de segurança). Os IDs T01–T29 abaixo continuam sendo cenários do MVP; não devem ser marcados como concluídos pela existência de testes parciais. Resultados concretos em [evidência da fundação](evidence/foundation.md).
+A matriz abaixo relaciona os critérios aprovados às jornadas locais e às provas reservadas ao destino.
 
 ## Interfaces aprovadas
 
 - Unitários: funções ou interfaces públicas das regras do domínio, especialmente transições, cancelamento, prioridade e validação.
-- Integração: API HTTP com PostgreSQL real isolado e armazenamento temporário de teste.
+- Integração: painel e API do desenvolvimento com seu PostgreSQL e volume de fotos.
 - Interface: ações e estados observáveis do app e da web.
 - Ponta a ponta: criar como cidadão, atender como gestor e consultar retorno como cidadão.
 - Manual no destino: APK instalado, permissões reais, câmera, galeria, mapas e servidor hospedado.
@@ -24,16 +24,16 @@ Regressão acompanha a mesma alteração de feature/bug. Não apagar casos, redu
 | --- | ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
 | T01 | Integração/interface           | Login válido, inválido e logout; hash nunca retornado; sessão revogada deixa de autorizar. AC01, RNF01.                          |
 | T02 | Unitário/integração            | Criar com 1, 2 e 3 fotos válidas; status inicial Enviado e autor correto; 0/4 fotos falham. AC02.                                |
-| T03 | Integração                     | JPEG inválido, tipo disfarçado e limite em bytes; rejeitar sem publicação parcial. Valores dependem de C06.                      |
+| T03 | Integração                     | JPEG inválido, tipo disfarçado e limite em bytes; rejeitar sem publicação parcial. Até 5 MiB por JPEG e 16 MiB por envio.        |
 | T04 | Interface/integração           | Falha de envio mantém formulário; repetição idempotente não cria outra denúncia. AC02, C15.                                      |
 | T05 | Unitário/interface/dispositivo | Coordenadas válidas e inválidas; GPS permitido, negado e indisponível; negar não envia ponto fictício. AC03.                     |
 | T06 | Interface/dispositivo          | Selecionar ponto manual e consultar o mesmo ponto salvo; mapa e seleção funcionam no APK. AC03/AC08.                             |
 | T07 | Integração/interface           | Feed/mapa/filtros e paginação obedecem visibilidade; canceladas não vazam, inclusive por foto direta. AC04/AC08, C04.            |
 | T08 | Integração                     | B confirma A; repetir em paralelo mantém uma confirmação e uma contagem. AC05.                                                   |
 | T09 | Unitário/integração            | Autor não confirma; estados finais bloqueiam novas confirmações. AC05.                                                           |
-| T10 | Integração                     | Retirada afeta só a confirmação do solicitante; repetir é consistente; estado final depende de C08. AC05.                        |
+| T10 | Integração                     | Retirada afeta só a confirmação do solicitante; repetir é consistente; estado final preserva as confirmações. AC05.              |
 | T11 | Unitário/integração            | Fixture conhecida: 3 confirmações precedem 2, empate favorece mais antiga; desempate por ID é estável. AC06.                     |
-| T12 | Unitário/integração            | Todas as transições permitidas; saltos, regressões e reabertura falham sem efeito. AC07.                                         |
+| T12 | Unitário/integração            | Testar avanço, um único desfazer e reabertura pelo gestor; saltos inválidos e versão defasada falham sem efeito. AC07.           |
 | T13 | Unitário/integração/interface  | Rejeitar apenas Em análise com justificativa não branca; demais combinações falham. AC07.                                        |
 | T14 | Integração                     | Mudança de status aparece com evento e aviso; falha transacional não deixa apenas parte desses efeitos. AC07/AC13.               |
 | T15 | Integração/interface           | Resposta do gestor aparece no histórico; cidadão não publica resposta de gestor; repetição não duplica. AC07.                    |
@@ -56,32 +56,51 @@ Regressão acompanha a mesma alteração de feature/bug. Não apagar casos, redu
 
 ### Cenários adicionais de acesso restrito
 
+- **T37 — AC19, rotas públicas:** verificar a última requisição permitida, a rejeição seguinte com HTTP 429 e `Retry-After`, a recuperação após a janela e o isolamento por IP e grupo. Validar readiness com PostgreSQL, os recursos do Swagger quando habilitado e o IP encaminhado pelos proxies.
 - **T30 — AC19, integração:** sem token ou com token inválido, expirado ou revogado, enviar multipart real para a rota de criação. Verificar acesso negado, ausência de denúncia e nenhum arquivo criado no diretório temporário de upload/staging do teste.
 - **T31 — AC11/AC19, integração e interface:** cidadão tenta entrar no painel e chamar diretamente endpoints de gestão, incluindo adulteração do papel no corpo. A API nega dados/ações administrativas e mantém o estado anterior.
 - **T32 — AC19, integração:** requisitar uma foto diretamente por ID/URL sem autorização, incluindo caminhos estáticos e combinações de foto/denúncia incompatíveis. Nenhum arquivo protegido é entregue. Login não cria contas nem aceita senha de exemplo como credencial de demonstração.
 
-Esses cenários estão planejados; não foram implementados nem executados. Usar PostgreSQL e diretório de arquivos reais e isolados, sem mockar as regras de autorização.
+Os testes de sessões, primeira denúncia e acesso a fotos exercitam essas fronteiras com PostgreSQL e arquivos isolados.
 
-PostgreSQL de teste deve usar banco/credenciais separados da demonstração. Aplicar migrações reais e limpar somente o alvo de teste. Não executar testes destrutivos com a URL de produção. Não substituir banco por mock se estiver indisponível: reportar bloqueio antes de mudar a estratégia.
+Na validação local, confira o destino da API e use registros fictícios da tarefa. Preserve os demais usuários, denúncias e fotos. Migração, reset e restauração exigem autorização específica para o destino.
 
 Mocks/stubs são permitidos nas fronteiras não avaliadas, como câmera/GPS no teste da tela e transporte HTTP no teste de interação visual. O teste de integração usa a API e o banco reais. Simular condições de armazenamento por dependência substituível ou falha controlada não autoriza mockar as regras de negócio. Conferir efeitos de rollback pela interface pública, não por asserção sobre chamada privada do Prisma.
 
 Usar relógio controlado para polling, dados com IDs/datas estáveis e diretório temporário para fotos. Asserções de leitura usam identidade diferente quando necessário para detectar vazamento. O ambiente não deve ganhar regras de produção especiais por estar em teste.
 
-Runners configurados: Vitest para contratos/API/web e Jest com jest-expo para mobile. C11 foi resolvido na fundação. Após escolher, documentar comandos reais no runbook e usar as pastas existentes. Não declarar uma ferramenta instalada antes de criar/verificar o workspace.
+Runners configurados: Vitest para contratos/API/web e Jest com jest-expo para mobile. O [README](../README.md#testes-e-qualidade) distingue as verificações locais das executadas pela CI.
 
-## Evidências e pendências manuais
+## Alertas simulados e revisão visual
 
-| Verificação                           | Estado atual                           | Evidência exigida                                                                      |
-| ------------------------------------- | -------------------------------------- | -------------------------------------------------------------------------------------- |
-| Suítes unitárias/integração/interface | Parcial: 50 testes de fundação/tooling | Comando, versão/alteração, resultado e falhas sem ocultação                            |
-| Cenário integrado                     | Não executado                          | Registro das ações e IDs da denúncia/eventos sem segredos                              |
-| Android real                          | Pendente                               | Modelo/versão, APK usado, GPS negado/aceito, câmera, galeria, mapa e retorno do gestor |
-| Qualidade das fotos                   | Pendente                               | Dimensões/tamanho antes/depois e inspeção das fotos no painel                          |
-| Servidor/HTTPS/volumes                | Pendente                               | URL, configuração revisada e persistência após recriação                               |
-| Visual e acessibilidade               | Aguardando referências                 | Telas e estados relevantes revisados, incluindo vazio/erro/foco                        |
+A etapa 5 cobriu o cenário T17 nos clientes e a expiração da sessão do painel offline.
 
-Antes da entrega, executar lint, typecheck, builds aplicáveis e a suíte completa disponível. Uma falha pendente ou verificação manual ausente deve aparecer no relatório como limitação, não como sucesso presumido.
+## Participação e consulta
+
+A etapa 4 cobriu a integração com as duas contas, a ordenação na web e os critérios de visibilidade de feed, mapa, link e histórico.
+
+## Atendimento
+
+A etapa 3 cobriu testes de concorrência, rollback, respostas públicas, acesso pessoal aos avisos e persistência da leitura, além do percurso gestor–cidadão. A etapa 4 acrescenta a corrida entre cancelamento e avanço pelo gestor sobre a mesma versão.
+
+## Primeira denúncia
+
+O fluxo no proxy usa HTTP real com cookie e Bearer. As interfaces nativas de câmera, galeria, GPS e mapa são simuladas nos testes de componentes. A homologação física e hospedada foi dispensada pelo responsável nesta entrega.
+
+## Aceite por critério
+
+| Critérios              | Jornada                                                          | Ambiente e limite                                                                                                                                                                                                               |
+| ---------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| AC01, AC11, AC19, AC20 | Sessão, upload autenticado, fotos protegidas e anonimato         | API, PostgreSQL e painel locais; componentes Android. HTTPS e SecureStore no dispositivo aguardam etapa 6.                                                                                                                      |
+| AC02, AC04             | Criação, catálogo e filtros                                      | Gestor no Chrome, cidadão em componente e integração com HTTP real.                                                                                                                                                             |
+| AC03, AC08, AC17       | GPS negado, seleção manual, marcador e JPEG                      | No Galaxy M32 com API local, câmera, galeria, GPS, ponto manual e dimensões persistidas conferidos. Pendente conferir orientação e legibilidade visual da foto no painel e correspondência exata do marcador no APK de entrega. |
+| AC05, AC06, AC09, AC12 | Confirmação, prioridade, resolvidas e cancelamento               | API e PostgreSQL com duas contas, painel no Chrome e componente mobile.                                                                                                                                                         |
+| AC07, AC13, AC15       | Atendimento, retorno e polling                                   | Escritas reais e componente cidadão; testes com relógio controlado cobrem o ciclo de atualização.                                                                                                                               |
+| AC14                   | Acesso da gestão                                                 | Consulta e atendimento globais por papel; região e geocodificação adiadas.                                                                                                                                                      |
+| AC10                   | Lista e detalhe dos cenários                                     | Componente com HTTP local, catálogo de simulação.                                                                                                                                                                               |
+| AC16                   | Seed, persistência e restauração                                 | PostgreSQL e arquivos descartáveis; a restauração hospedada pertence à etapa 6.                                                                                                                                                 |
+| AC18                   | APK independente, API HTTPS, painel e retorno no mesmo protocolo | Pendente na etapa 6. Registrar APK, aparelho, URL e percurso sem Metro.                                                                                                                                                         |
+| AC21                   | Swagger, opt-in e contrato gerado                                | Suíte de documentação e verificação de drift no check local.                                                                                                                                                                    |
 
 ## QA independente após cada fase
 
@@ -89,11 +108,19 @@ O gate definido em [agents/readme.md](../agents/readme.md) é obrigatório. Sol 
 
 Comandos automáticos: `npm run security:check`, além da suíte funcional. Esses comandos não executam os modelos nem substituem seus relatórios. O principal aciona os agentes, aguarda os resultados e bloqueia avanço quando necessário.
 
-## Cenários aprovados para CPF e identificação por denúncia (a implementar)
+## Cenários aprovados para CPF e identificação por denúncia
 
 - **T33:** autenticar por CPF normalizado e senha própria, sem e-mail, com contas fictícias e credenciais distintas; não consultar gov.br.
 - **T34:** formulário inicia “Quero mostrar minha cara” marcado; envio explícito true exibe nome e foto de perfil a leitores autorizados.
 - **T35:** envio false oculta nome, foto, CPF, identificadores e URLs de perfil em feed, mapa, detalhes, histórico e painel do gestor. Vínculo interno continua garantindo propriedade e notificações.
 - **T36:** omissão de showIdentity é rejeitada; anonimato não dispensa login nem permite que outro cidadão cancele a denúncia.
 
-Esses casos são requisitos planejados, não testes executados nesta alteração. Os testes adicionados agora cobrem Swagger local, bloqueio em produção, bind, validade/drift do OpenAPI e configuração Dependabot.
+A suíte cobre CPF, escolha de identificação e projeção dos dados do autor. A suíte de documentação cobre Swagger local, bloqueio em produção, bind e atualização do OpenAPI.
+
+## Desenvolvimento e ciclo do banco
+
+Os testes locais cobrem inicialização conjunta, Ctrl+C, persistência e reexecução do seed, recuperação de falhas e reset em PostgreSQL descartável. O banco usado para desenvolvimento fica fora dos testes destrutivos.
+
+No Galaxy M32, o ensaio do app integrado cobriu Voltar, teclado, fonte ampliada, movimento reduzido, câmera, galeria, GPS e envio à API local.
+
+O ensaio de configuração local cobriu a troca de senha no reinício, a preservação de sessões e o login pelo proxy em portas personalizadas. Falta verificar em Android físico na mesma LAN que o app conecta à API após mudar `PORT` e reiniciar o Metro. O ADB não listou dispositivo durante o ensaio.

@@ -24,7 +24,7 @@ it('mapeia users/user_role e mantém createdAt ao atualizar modifiedAt', async (
         expect(updated.createdAt).toEqual(original.createdAt);
         expect(updated.modifiedAt.getTime()).toBeGreaterThan(original.modifiedAt.getTime());
         const columns = await pool.query("SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name='users' ORDER BY ordinal_position");
-        expect(columns.rows.map((row) => row.column_name)).toEqual(['id', 'cpf', 'password', 'role', 'created_at', 'modified_at']);
+        expect(columns.rows.map((row) => row.column_name)).toEqual(['id', 'cpf', 'password', 'role', 'created_at', 'modified_at', 'login_enabled']);
         const persisted = await pool.query('SELECT role::text AS role FROM users WHERE id=$1', [original.id]);
         expect(persisted.rows[0].role).toBe('manager');
     } finally {

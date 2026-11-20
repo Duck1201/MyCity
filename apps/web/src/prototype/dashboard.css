@@ -1,0 +1,366 @@
+.civic-overview {
+    --civic-ink: #132f45;
+    --civic-rule: #cad5df;
+    --civic-blue: #236997;
+    color: var(--civic-ink);
+    display: grid;
+    gap: clamp(22px, 2vw, 30px);
+}
+.civic-cover {
+    isolation: isolate;
+    position: relative;
+    overflow: hidden;
+    min-height: 245px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    border-radius: 5px 5px 0 0;
+    color: white;
+    background: #183a55;
+    padding: 22px clamp(18px, 3vw, 46px) 25px;
+}
+.civic-cover::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: linear-gradient(95deg, rgba(10, 35, 57, 0.98) 0%, rgba(13, 45, 69, 0.91) 29%, rgba(12, 44, 69, 0.28) 67%, rgba(13, 40, 62, 0.12) 100%);
+}
+.civic-grid {
+    position: absolute;
+    inset: 0;
+    z-index: -2;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center 52%;
+}
+.console .civic-cover h1 {
+    font: 600 clamp(44px, 4.8vw, 72px)/1.04 var(--mycity-font);
+    letter-spacing: -0.04em;
+    color: inherit;
+    margin: 5px 0 18px;
+}
+.civic-metrics {
+    display: flex;
+    align-items: stretch;
+    gap: 20px;
+}
+.console .civic-metrics a {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    color: #fff;
+    text-decoration: none;
+    font-weight: 500;
+}
+.console .civic-metrics a + a {
+    padding-inline-start: 20px;
+    border-inline-start: 1px solid #afc3d2;
+}
+.civic-metrics strong {
+    font: 650 clamp(28px, 2.4vw, 42px)/1.05 var(--mycity-font);
+    letter-spacing: -0.04em;
+}
+.civic-metrics small {
+    font-size: 0.5em;
+    letter-spacing: -0.01em;
+}
+.civic-metrics a > span {
+    display: flex;
+    gap: 5px;
+    align-items: center;
+    font-size: 13px;
+    line-height: 1.5;
+    margin-top: 4px;
+}
+.console .civic-metrics a:hover > span {
+    text-decoration: underline;
+}
+.civic-charts {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    gap: clamp(20px, 3vw, 45px);
+}
+.civic-charts > section {
+    border-top: 2px solid var(--civic-ink);
+    padding-top: 13px;
+}
+.console .civic-charts h2,
+.console .civic-priority h2 {
+    color: var(--civic-ink);
+    font: 700 clamp(20px, 1.6vw, 25px)/1.2 var(--mycity-font);
+    letter-spacing: -0.04em;
+}
+.civic-case span {
+    color: #465f71;
+    font-size: 13px;
+}
+.civic-priority ol {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+.civic-priority-heading {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    border-top: 2px solid var(--civic-ink);
+    padding: 13px 0 12px;
+}
+.console .civic-priority-heading a {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+}
+.civic-priority li {
+    border-top: 1px solid var(--civic-rule);
+}
+.console .civic-priority li a {
+    display: grid;
+    grid-template-columns: 58px minmax(0, 1fr) minmax(95px, auto) 46px 20px;
+    align-items: center;
+    gap: 14px;
+    padding: 10px 4px;
+    color: var(--civic-ink);
+    font-weight: 500;
+}
+.console .civic-priority li a:hover {
+    background: #eaf0f5;
+    text-decoration: none;
+}
+.civic-priority img {
+    object-fit: cover;
+    border-radius: 3px;
+    background: #dce5eb;
+    width: 58px;
+    height: 48px;
+}
+.civic-case {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    display: grid;
+    gap: 2px;
+}
+.civic-case .category-symbol {
+    vertical-align: -2px;
+}
+.civic-case strong {
+    font-weight: 630;
+}
+.civic-priority .status {
+    justify-self: start;
+}
+.civic-confirmations,
+.civic-priority > p {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+}
+.console .civic-cover a:focus-visible {
+    outline-color: #c8e7ff;
+}
+@media (max-width: 1020px) {
+    .civic-metrics a > span {
+        font-size: 12px;
+    }
+    .civic-charts {
+        gap: 20px;
+    }
+}
+@media (max-width: 850px) {
+    .civic-charts {
+        grid-template-columns: 1fr;
+    }
+    .civic-cover {
+        min-height: 218px;
+    }
+    .console .civic-priority li a {
+        grid-template-columns: 48px minmax(0, 1fr) auto;
+        gap: 6px 10px;
+    }
+    .civic-priority img {
+        width: 48px;
+        height: 44px;
+        grid-row: span 2;
+    }
+    .civic-priority .status {
+        grid-column: 2;
+        grid-row: 2;
+    }
+    .civic-priority li a > svg {
+        grid-column: 3;
+        grid-row: 1;
+    }
+    .civic-confirmations {
+        grid-column: 3;
+        grid-row: 2;
+    }
+}
+@media (max-width: 550px) {
+    .civic-cover {
+        min-height: 225px;
+        justify-content: flex-end;
+        padding: 20px 15px;
+    }
+    .civic-cover::before {
+        background: linear-gradient(20deg, #0c2a43 0%, rgba(12, 42, 67, 0.92) 30%, rgba(10, 35, 56, 0.43) 73%, rgba(10, 35, 56, 0.25));
+    }
+    .civic-metrics {
+        gap: 10px;
+    }
+    .console .civic-metrics a + a {
+        padding-inline-start: 10px;
+    }
+    .civic-metrics a > span {
+        align-items: flex-start;
+        gap: 2px;
+    }
+    .civic-metrics a > span svg {
+        flex-shrink: 0;
+    }
+}
+.console .civic-priority li a:hover,
+.console .civic-priority li a:focus-visible {
+    background: #eaf1f6;
+}
+@media (prefers-reduced-motion: no-preference) {
+    .civic-priority li a {
+        transition: background-color 150ms ease-out;
+    }
+    .civic-metrics a svg,
+    .civic-priority li a > svg {
+        transition: transform 150ms ease-out;
+    }
+    .civic-metrics a:hover svg,
+    .civic-priority li a:hover > svg {
+        transform: translate(1px, -1px);
+    }
+}
+@media (pointer: coarse) {
+    .console .civic-priority-heading a {
+        min-height: 44px;
+    }
+}
+
+.civic-priority-heading .priority-order {
+    font-size: 13px;
+    color: #485e74;
+    line-height: 1.4;
+    margin-top: 4px;
+}
+
+.priority-photo-fallback {
+    display: grid;
+    place-items: center;
+    align-self: stretch;
+    background: #e5edf4;
+    color: #41647d;
+    border-radius: 4px;
+    min-height: 42px;
+}
+@media (max-width: 850px) {
+    .priority-photo-fallback {
+        grid-row: span 2;
+    }
+}
+
+.queue-clear {
+    display: inline-flex;
+    align-self: center;
+    align-items: center;
+    gap: 8px;
+    padding-inline-start: 18px;
+    border-inline-start: 1px solid #94aec2;
+    color: #eff9f6;
+    font-weight: 650;
+}
+.queue-clear svg {
+    color: #a4decd;
+    flex-shrink: 0;
+}
+.overview-first-use {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 22px;
+    background: white;
+    border: 1px solid var(--civic-rule);
+    border-radius: 8px;
+}
+.overview-first-use > svg {
+    color: var(--civic-blue);
+    flex-shrink: 0;
+}
+.overview-first-use p {
+    margin: 6px 0 14px;
+}
+.console .overview-first-use a,
+.console .overview-recent header a {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.overview-recent header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+.overview-recent header a {
+    font-size: 13px;
+}
+.overview-recent ul {
+    list-style: none;
+    padding: 0;
+    margin: 12px 0 0;
+}
+.overview-recent li + li {
+    border-top: 1px solid var(--civic-rule);
+}
+.console .overview-recent li a {
+    color: var(--civic-ink);
+    display: grid;
+    grid-template-columns: 48px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 2px;
+    text-decoration: none;
+}
+.overview-recent li a:is(:hover, :focus-visible) strong {
+    text-decoration: underline;
+}
+.overview-recent li img,
+.recent-symbol {
+    width: 48px;
+    height: 48px;
+    border-radius: 5px;
+    object-fit: cover;
+}
+.recent-symbol {
+    display: grid;
+    place-items: center;
+    background: #e5edf4;
+}
+.recent-summary {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+.recent-summary strong {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.recent-summary > span {
+    font-size: 13px;
+    color: #465f71;
+}

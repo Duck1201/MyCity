@@ -1,126 +1,158 @@
 {
     "openapi": "3.0.3",
-    "info": {
-        "title": "MyCity API",
-        "version": "0.1.0",
-        "description": "Contrato gerado das rotas implementadas. CPF/senha, denúncias e gestão ainda estão em especificação. Esta interface só é habilitada no desenvolvimento local."
-    },
-    "servers": [
-        {
-            "url": "/",
-            "description": "Mesma origem da documentação"
-        }
-    ],
-    "tags": [
-        {
-            "name": "Saúde",
-            "description": "Verificações operacionais públicas sem dados pessoais."
-        }
-    ],
+    "info": { "title": "MyCity API", "version": "0.1.0", "description": "Contrato gerado das rotas implementadas. Sessões, denúncias, atendimento, notificações e alertas climáticos simulados. Esta interface só é habilitada no desenvolvimento local." },
+    "servers": [{ "url": "/", "description": "Mesma origem da documentação" }],
+    "tags": [{ "name": "Saúde", "description": "Verificações operacionais públicas sem dados pessoais." }],
     "paths": {
-        "/api/v1/health/live": {
+        "/api/v1/health/live": { "get": { "tags": ["Saúde"], "summary": "Verificar se o processo está ativo", "description": "", "responses": { "200": { "description": "Processo ativo; não consulta o banco.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Liveness" } } } }, "429": { "description": "Cota por origem atingida. Aguarde o intervalo indicado em segundos.", "headers": { "Retry-After": { "schema": { "type": "integer", "minimum": 1 } } }, "content": { "application/json": { "schema": { "type": "object", "required": ["error"], "properties": { "error": { "type": "object", "required": ["code", "message"], "properties": { "code": { "type": "string", "enum": ["TOO_MANY_REQUESTS"] }, "message": { "type": "string" } } } } } } } } } } },
+        "/api/v1/health/ready": { "get": { "tags": ["Saúde"], "summary": "Verificar disponibilidade do banco e da migração", "description": "", "responses": { "200": { "description": "API pronta.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Readiness" } } } }, "429": { "description": "Cota por origem atingida. Aguarde o intervalo indicado em segundos.", "headers": { "Retry-After": { "schema": { "type": "integer", "minimum": 1 } } }, "content": { "application/json": { "schema": { "type": "object", "required": ["error"], "properties": { "error": { "type": "object", "required": ["code", "message"], "properties": { "code": { "type": "string", "enum": ["TOO_MANY_REQUESTS"] }, "message": { "type": "string" } } } } } } } }, "503": { "description": "Dependência indisponível; sem detalhes internos.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Unavailable" } } } } } } },
+        "/api/v1/sessions": { "post": { "summary": "Iniciar sessão por CPF e senha", "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["cpf", "password", "transport"], "properties": { "cpf": { "type": "string" }, "password": { "type": "string", "format": "password" }, "transport": { "type": "string", "enum": ["cookie", "bearer"] } } } } } }, "responses": { "201": { "description": "Identidade e expiresAt. O transporte bearer também retorna token." }, "400": { "description": "Entrada inválida." }, "401": { "description": "Sessão ausente, expirada ou revogada." }, "403": { "description": "Operação não permitida." }, "429": { "description": "Cota por origem atingida. Aguarde o intervalo indicado em segundos.", "headers": { "Retry-After": { "schema": { "type": "integer", "minimum": 1 } } }, "content": { "application/json": { "schema": { "type": "object", "required": ["error"], "properties": { "error": { "type": "object", "required": ["code", "message"], "properties": { "code": { "type": "string", "enum": ["TOO_MANY_REQUESTS"] }, "message": { "type": "string" } } } } } } } } } } },
+        "/api/v1/me": { "get": { "summary": "Consultar identidade da sessão", "security": [{ "WebSession": [] }, { "AndroidSession": [] }], "parameters": [], "responses": { "200": { "description": "Consulta autorizada.", "headers": { "X-Session-Expires-At": { "description": "Fim da validade original da sessão, em UTC.", "schema": { "type": "string", "format": "date-time" } } } }, "401": { "description": "Sessão ausente, expirada ou revogada." }, "404": { "description": "Recurso não encontrado." } } } },
+        "/api/v1/sessions/current": { "delete": { "summary": "Revogar a sessão atual", "security": [{ "WebSession": [] }, { "AndroidSession": [] }], "responses": { "204": { "description": "Sessão revogada." }, "401": { "description": "Sessão ausente, expirada ou revogada." }, "403": { "description": "Operação não permitida." } } } },
+        "/api/v1/reports": {
             "get": {
-                "tags": ["Saúde"],
-                "summary": "Verificar se o processo está ativo",
-                "description": "",
-                "responses": {
-                    "200": {
-                        "description": "Processo ativo; não consulta o banco.",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Liveness"
-                                }
-                            }
-                        }
-                    }
-                }
+                "summary": "Consultar feed, denúncias próprias, resolvidas ou fila de gestão",
+                "security": [{ "WebSession": [] }, { "AndroidSession": [] }],
+                "parameters": [
+                    { "name": "scope", "in": "query", "required": true, "schema": { "type": "string", "enum": ["management", "mine", "resolved", "feed"] } },
+                    { "name": "status", "in": "query", "schema": { "type": "string", "enum": ["SENT", "UNDER_REVIEW", "IN_PROGRESS", "RESOLVED", "REJECTED", "CANCELED"] } },
+                    { "name": "category", "in": "query", "schema": { "type": "string" }, "description": "Identificador retornado por GET /categories." },
+                    { "name": "sort", "in": "query", "schema": { "type": "string", "enum": ["priority", "newest"] } },
+                    { "name": "limit", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 20 } },
+                    { "name": "cursor", "in": "query", "schema": { "type": "string" } }
+                ],
+                "responses": { "200": { "description": "Lista paginada com page.nextCursor." }, "401": { "description": "Sessão ausente, expirada ou revogada." }, "403": { "description": "Operação não permitida." } }
+            },
+            "post": { "summary": "Publicar denúncia como cidadão", "security": [{ "WebSession": [] }, { "AndroidSession": [] }], "requestBody": { "required": true, "content": { "multipart/form-data": { "schema": { "type": "object", "required": ["metadata", "photos"], "properties": { "metadata": { "type": "string", "description": "JSON com category, description, location, clientRequestId e showIdentity." }, "photos": { "type": "array", "minItems": 1, "maxItems": 3, "items": { "type": "string", "format": "binary" } } } } } } }, "responses": { "200": { "description": "Reenvio da mesma denúncia." }, "201": { "description": "Denúncia criada." }, "401": { "description": "Sessão ausente, expirada ou revogada." }, "403": { "description": "Operação não permitida." }, "409": { "description": "Chave reutilizada com outro conteúdo, perfil indisponível ou categoria arquivada (CATEGORY_ARCHIVED)." }, "413": { "description": "Limite de tamanho excedido." }, "415": { "description": "Tipo de mídia inválido." }, "422": { "description": "Dados inválidos." }, "429": { "description": "Limite de envio atingido." }, "507": { "description": "Espaço insuficiente para armazenar as fotos." } } }
+        },
+        "/api/v1/reports/{id}": { "get": { "summary": "Consultar detalhes da denúncia", "security": [{ "WebSession": [] }, { "AndroidSession": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }], "responses": { "200": { "description": "Consulta autorizada." }, "401": { "description": "Sessão ausente, expirada ou revogada." }, "404": { "description": "Recurso não encontrado." } } } },
+        "/api/v1/reports/{id}/photos/{photoId}": {
+            "get": {
+                "summary": "Ler foto vinculada à denúncia",
+                "security": [{ "WebSession": [] }, { "AndroidSession": [] }],
+                "parameters": [
+                    { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } },
+                    { "name": "photoId", "in": "path", "required": true, "schema": { "type": "string" } }
+                ],
+                "responses": { "200": { "description": "Consulta autorizada.", "content": { "image/jpeg": { "schema": { "type": "string", "format": "binary" } } } }, "401": { "description": "Sessão ausente, expirada ou revogada." }, "404": { "description": "Recurso não encontrado." } }
             }
         },
-        "/api/v1/health/ready": {
+        "/api/v1/reports/{id}/history": {
             "get": {
-                "tags": ["Saúde"],
-                "summary": "Verificar disponibilidade do banco e da migração",
-                "description": "",
-                "responses": {
-                    "200": {
-                        "description": "API pronta.",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Readiness"
-                                }
-                            }
-                        }
-                    },
-                    "503": {
-                        "description": "Dependência indisponível; sem detalhes internos.",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Unavailable"
-                                }
+                "summary": "Consultar histórico da denúncia",
+                "security": [{ "WebSession": [] }, { "AndroidSession": [] }],
+                "parameters": [
+                    { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } },
+                    { "name": "limit", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 20 } },
+                    { "name": "cursor", "in": "query", "schema": { "type": "string" } },
+                    { "name": "order", "in": "query", "schema": { "type": "string", "enum": ["oldest", "newest"], "default": "oldest" } }
+                ],
+                "responses": { "200": { "description": "Consulta autorizada." }, "401": { "description": "Sessão ausente, expirada ou revogada." }, "404": { "description": "Recurso não encontrado." } }
+            }
+        },
+        "/api/v1/reports/{id}/transitions": { "post": { "summary": "Alterar o status da denúncia", "security": [{ "WebSession": [] }, { "AndroidSession": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }], "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "additionalProperties": false, "required": ["targetStatus", "expectedVersion"], "properties": { "targetStatus": { "type": "string", "enum": ["SENT", "UNDER_REVIEW", "IN_PROGRESS", "REJECTED", "RESOLVED"], "description": "Destino permitido em allowedActions: avançar, desfazer o último avanço comprovado no histórico ou reabrir em análise." }, "expectedVersion": { "type": "integer", "minimum": 1 }, "reason": { "type": "string", "minLength": 1, "maxLength": 2000, "description": "Obrigatória para rejeição." } } } } } }, "responses": { "200": { "description": "Detalhe atualizado, evento e aviso persistidos." }, "401": { "description": "Sessão ausente, expirada ou revogada." }, "403": { "description": "Operação não permitida." }, "404": { "description": "Denúncia não encontrada." }, "409": { "description": "Versão desatualizada ou transição inválida." }, "422": { "description": "Campos inválidos." } } } },
+        "/api/v1/reports/{id}/replies": { "post": { "summary": "Publicar resposta no histórico, inclusive após encerramento", "security": [{ "WebSession": [] }, { "AndroidSession": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }], "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "additionalProperties": false, "required": ["text", "clientRequestId"], "properties": { "text": { "type": "string", "minLength": 1, "maxLength": 2000 }, "clientRequestId": { "type": "string", "minLength": 1, "maxLength": 128 } } } } } }, "responses": { "200": { "description": "Mesmo evento em reenvio idêntico." }, "201": { "description": "Resposta registrada." }, "401": { "description": "Sessão ausente, expirada ou revogada." }, "403": { "description": "Operação não permitida." }, "404": { "description": "Denúncia não encontrada." }, "409": { "description": "A chave já foi usada com outro texto." }, "422": { "description": "Campos inválidos." } } } },
+        "/api/v1/notifications": {
+            "get": {
+                "summary": "Consultar avisos do cidadão",
+                "security": [{ "WebSession": [] }, { "AndroidSession": [] }],
+                "parameters": [
+                    { "name": "unreadOnly", "in": "query", "schema": { "type": "boolean", "default": false } },
+                    { "name": "limit", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 20 } },
+                    { "name": "cursor", "in": "query", "schema": { "type": "string" } }
+                ],
+                "responses": { "200": { "description": "Avisos pessoais em ordem decrescente.", "content": { "application/json": { "schema": { "type": "object", "required": ["data", "page"], "properties": { "data": { "type": "array", "items": { "$ref": "#/components/schemas/ReportNotification" } }, "page": { "type": "object", "required": ["nextCursor"], "properties": { "nextCursor": { "type": "string", "nullable": true } } } } } } } }, "400": { "description": "Filtro ou cursor inválido." }, "401": { "description": "Sessão ausente, expirada ou revogada." }, "403": { "description": "Operação não permitida." } }
+            }
+        },
+        "/api/v1/notifications/{id}/read": { "put": { "summary": "Marcar aviso próprio como lido", "security": [{ "WebSession": [] }, { "AndroidSession": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }], "responses": { "200": { "description": "Aviso com a data da primeira leitura.", "content": { "application/json": { "schema": { "type": "object", "required": ["data"], "properties": { "data": { "$ref": "#/components/schemas/ReportNotification" } } } } } }, "401": { "description": "Sessão ausente, expirada ou revogada." }, "403": { "description": "Operação não permitida." }, "404": { "description": "Aviso não encontrado." } } } },
+        "/api/v1/reports/map": {
+            "get": {
+                "summary": "Consultar marcadores na área do mapa",
+                "security": [{ "WebSession": [] }, { "AndroidSession": [] }],
+                "parameters": [
+                    { "name": "bbox", "in": "query", "schema": { "type": "string" }, "description": "west,south,east,north" },
+                    { "name": "status", "in": "query", "schema": { "type": "string", "enum": ["SENT", "UNDER_REVIEW", "IN_PROGRESS", "RESOLVED", "REJECTED", "CANCELED"] } },
+                    { "name": "category", "in": "query", "schema": { "type": "string" }, "description": "Identificador retornado por GET /categories." },
+                    { "name": "limit", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 20 } },
+                    { "name": "cursor", "in": "query", "schema": { "type": "string" } }
+                ],
+                "responses": { "200": { "description": "Consulta autorizada." }, "401": { "description": "Sessão ausente, expirada ou revogada." }, "404": { "description": "Recurso não encontrado." } }
+            }
+        },
+        "/api/v1/reports/overview": { "get": { "summary": "Consultar a visão geral de atendimento", "security": [{ "WebSession": [] }, { "AndroidSession": [] }], "responses": { "200": { "description": "Indicadores e prioridades da mesma leitura do banco.", "content": { "application/json": { "schema": { "type": "object", "required": ["data"], "properties": { "data": { "type": "object", "required": ["counts", "oldest", "categories", "priorities"], "properties": { "counts": { "type": "object", "required": ["SENT", "UNDER_REVIEW", "IN_PROGRESS", "RESOLVED", "REJECTED", "CANCELED"], "properties": { "SENT": { "type": "integer", "minimum": 0 }, "UNDER_REVIEW": { "type": "integer", "minimum": 0 }, "IN_PROGRESS": { "type": "integer", "minimum": 0 }, "RESOLVED": { "type": "integer", "minimum": 0 }, "REJECTED": { "type": "integer", "minimum": 0 }, "CANCELED": { "type": "integer", "minimum": 0 } } }, "oldest": { "type": "object", "nullable": true, "required": ["id", "createdAt"], "properties": { "id": { "type": "string" }, "createdAt": { "type": "string", "format": "date-time" } } }, "categories": { "type": "array", "items": { "type": "object", "required": ["id", "name", "archived", "count"], "properties": { "id": { "type": "string" }, "name": { "type": "string" }, "icon": { "type": "string" }, "reportCount": { "type": "integer", "minimum": 0, "description": "Contagem no catálogo do gestor." }, "archived": { "type": "boolean" }, "count": { "type": "integer", "minimum": 0 } } } }, "priorities": { "type": "array", "maxItems": 3, "items": { "type": "object", "required": ["id", "category", "description", "status", "confirmationCount"], "properties": { "id": { "type": "string" }, "category": { "type": "string" }, "description": { "type": "string" }, "status": { "type": "string", "enum": ["SENT", "UNDER_REVIEW", "IN_PROGRESS", "RESOLVED", "REJECTED", "CANCELED"] }, "confirmationCount": { "type": "integer", "minimum": 0 }, "photoPath": { "type": "string" } } } } } } } } } } }, "400": { "description": "Parâmetros de consulta não aceitos." }, "401": { "description": "Sessão ausente, expirada ou revogada." }, "403": { "description": "Operação não permitida." } } } },
+        "/api/v1/reports/queue": {
+            "get": {
+                "summary": "Consultar a fila filtrada do gestor",
+                "security": [{ "WebSession": [] }, { "AndroidSession": [] }],
+                "parameters": [
+                    { "name": "category", "in": "query", "schema": { "type": "string" }, "description": "Identificador retornado por GET /categories." },
+                    { "name": "status", "in": "query", "schema": { "type": "string", "enum": ["SENT", "UNDER_REVIEW", "IN_PROGRESS", "RESOLVED", "REJECTED", "CANCELED", "pending"] } },
+                    { "name": "q", "in": "query", "schema": { "type": "string", "maxLength": 160 } },
+                    { "name": "de", "in": "query", "schema": { "type": "string", "format": "date" }, "description": "Dia inclusivo em America/Sao_Paulo." },
+                    { "name": "ate", "in": "query", "schema": { "type": "string", "format": "date" }, "description": "Dia inclusivo em America/Sao_Paulo." },
+                    { "name": "ordem", "in": "query", "schema": { "type": "string", "enum": ["prioridade", "antigas", "recentes"] } },
+                    { "name": "pagina", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 2147483647, "default": 1 } },
+                    { "name": "limit", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 5 } }
+                ],
+                "responses": { "200": { "description": "data, total, counts por situação antes do filtro de situação e page efetiva." }, "400": { "description": "Consulta inválida." }, "401": { "description": "Sessão ausente, expirada ou revogada." }, "403": { "description": "Operação não permitida." } }
+            }
+        },
+        "/api/v1/reports/queue.csv": {
+            "get": {
+                "summary": "Exportar a fila completa no formato CSV",
+                "security": [{ "WebSession": [] }, { "AndroidSession": [] }],
+                "parameters": [
+                    { "name": "category", "in": "query", "schema": { "type": "string" }, "description": "Identificador retornado por GET /categories." },
+                    { "name": "status", "in": "query", "schema": { "type": "string", "enum": ["SENT", "UNDER_REVIEW", "IN_PROGRESS", "RESOLVED", "REJECTED", "CANCELED", "pending"] } },
+                    { "name": "q", "in": "query", "schema": { "type": "string", "maxLength": 160 } },
+                    { "name": "de", "in": "query", "schema": { "type": "string", "format": "date" }, "description": "Dia inclusivo em America/Sao_Paulo." },
+                    { "name": "ate", "in": "query", "schema": { "type": "string", "format": "date" }, "description": "Dia inclusivo em America/Sao_Paulo." },
+                    { "name": "ordem", "in": "query", "schema": { "type": "string", "enum": ["prioridade", "antigas", "recentes"] } }
+                ],
+                "responses": { "200": { "description": "Mesma consulta e ordenação sem paginação.", "content": { "text/csv": { "schema": { "type": "string" } } } }, "400": { "description": "Consulta inválida." }, "401": { "description": "Sessão ausente, expirada ou revogada." }, "403": { "description": "Operação não permitida." } }
+            }
+        },
+        "/api/v1/reports/summary": { "get": { "summary": "Contar denúncias por estado em todas as páginas", "security": [{ "WebSession": [] }, { "AndroidSession": [] }], "parameters": [{ "name": "category", "in": "query", "schema": { "type": "string" }, "description": "Identificador retornado por GET /categories." }], "responses": { "200": { "description": "Objeto com contagem para cada um dos seis estados." }, "401": { "description": "Sessão ausente, expirada ou revogada." }, "403": { "description": "Operação não permitida." } } } },
+        "/api/v1/reports/{id}/confirmation": { "put": { "summary": "Confirmar uma ocorrência", "security": [{ "WebSession": [] }, { "AndroidSession": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }], "responses": { "200": { "description": "Estado de confirmação pelo cidadão e total da denúncia." }, "401": { "description": "Sessão ausente, expirada ou revogada." }, "403": { "description": "Operação não permitida." }, "404": { "description": "Denúncia não encontrada." }, "409": { "description": "Alteração indisponível neste estado." } } }, "delete": { "summary": "Retirar a própria confirmação", "security": [{ "WebSession": [] }, { "AndroidSession": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }], "responses": { "200": { "description": "Estado de confirmação pelo cidadão e total da denúncia." }, "401": { "description": "Sessão ausente, expirada ou revogada." }, "403": { "description": "Operação não permitida." }, "404": { "description": "Denúncia não encontrada." }, "409": { "description": "Alteração indisponível neste estado." } } } },
+        "/api/v1/reports/{id}/cancellation": { "post": { "summary": "Cancelar denúncia própria", "security": [{ "WebSession": [] }, { "AndroidSession": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }], "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "additionalProperties": false, "required": ["expectedVersion"], "properties": { "expectedVersion": { "type": "integer", "minimum": 1 } } } } } }, "responses": { "200": { "description": "Detalhe cancelado, histórico e aviso persistidos." }, "401": { "description": "Sessão ausente, expirada ou revogada." }, "403": { "description": "Operação não permitida." }, "404": { "description": "Denúncia não encontrada." }, "409": { "description": "Versão desatualizada ou estado incompatível." }, "422": { "description": "Campos inválidos." } } } },
+        "/api/v1/weather-alerts": {
+            "get": {
+                "summary": "Listar cenários climáticos simulados",
+                "security": [{ "WebSession": [] }, { "AndroidSession": [] }],
+                "parameters": [
+                    { "name": "limit", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 20 } },
+                    { "name": "cursor", "in": "query", "schema": { "type": "string" } }
+                ],
+                "responses": { "200": { "description": "Cenários em ordem de gravidade para a data fictícia da demonstração.", "content": { "application/json": { "schema": { "type": "object", "required": ["data", "page"], "properties": { "data": { "type": "array", "items": { "$ref": "#/components/schemas/WeatherAlert" } }, "page": { "type": "object", "required": ["nextCursor"], "properties": { "nextCursor": { "type": "string", "nullable": true } } } } } } } }, "400": { "description": "Parâmetros ou cursor inválidos." }, "401": { "description": "Sessão ausente, expirada ou revogada." } }
+            }
+        },
+        "/api/v1/weather-alerts/{id}": { "get": { "summary": "Consultar um cenário climático simulado", "security": [{ "WebSession": [] }, { "AndroidSession": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }], "responses": { "200": { "description": "Consulta autorizada.", "content": { "application/json": { "schema": { "type": "object", "required": ["data"], "properties": { "data": { "$ref": "#/components/schemas/WeatherAlert" } } } } } }, "401": { "description": "Sessão ausente, expirada ou revogada." }, "404": { "description": "Recurso não encontrado." } } } },
+        "/api/v1/categories": { "get": { "summary": "Consultar as categorias disponíveis", "security": [{ "WebSession": [] }, { "AndroidSession": [] }], "responses": { "200": { "description": "Catálogo completo, incluindo categorias arquivadas e categorias sem denúncias.", "content": { "application/json": { "schema": { "type": "object", "properties": { "data": { "type": "array", "items": { "type": "object", "required": ["id", "name", "archived"], "properties": { "id": { "type": "string" }, "name": { "type": "string" }, "icon": { "type": "string", "enum": ["road", "lighting", "waste", "water", "debris", "trees", "access", "cycling", "transit", "works", "walkway", "signs", "drainage", "energy"] }, "reportCount": { "type": "integer", "minimum": 0, "description": "Contagem no catálogo do gestor." }, "archived": { "type": "boolean" } } } } } } } } }, "401": { "description": "Sessão ausente, expirada ou revogada." } } }, "post": { "summary": "Cadastrar categoria como gestor", "security": [{ "WebSession": [] }, { "AndroidSession": [] }], "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["name"], "additionalProperties": false, "properties": { "icon": { "type": "string", "enum": ["road", "lighting", "waste", "water", "debris", "trees", "access", "cycling", "transit", "works", "walkway", "signs", "drainage", "energy"] }, "name": { "type": "string", "minLength": 1, "maxLength": 80 } } } } } }, "responses": { "201": { "description": "Categoria cadastrada e ativa.", "content": { "application/json": { "schema": { "type": "object", "required": ["data"], "properties": { "data": { "type": "object", "required": ["id", "name", "archived"], "properties": { "id": { "type": "string" }, "name": { "type": "string" }, "icon": { "type": "string", "enum": ["road", "lighting", "waste", "water", "debris", "trees", "access", "cycling", "transit", "works", "walkway", "signs", "drainage", "energy"] }, "reportCount": { "type": "integer", "minimum": 0, "description": "Contagem no catálogo do gestor." }, "archived": { "type": "boolean" } } } } } } } }, "401": { "description": "Sessão ausente, expirada ou revogada." }, "403": { "description": "Operação não permitida." }, "409": { "description": "Nome já cadastrado." }, "422": { "description": "Nome inválido." } } } },
+        "/api/v1/categories/{id}": {
+            "patch": {
+                "summary": "Renomear, arquivar ou reativar categoria como gestor",
+                "security": [{ "WebSession": [] }, { "AndroidSession": [] }],
+                "parameters": [
+                    { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } },
+                    { "in": "header", "name": "Origin", "schema": { "type": "string" }, "description": "Origem do painel, obrigatória com sessão por cookie." },
+                    { "in": "header", "name": "X-MyCity-Client", "schema": { "type": "string", "enum": ["web"] }, "description": "Obrigatório com sessão por cookie." }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "oneOf": [
+                                    { "type": "object", "required": ["name"], "additionalProperties": false, "properties": { "icon": { "type": "string", "enum": ["road", "lighting", "waste", "water", "debris", "trees", "access", "cycling", "transit", "works", "walkway", "signs", "drainage", "energy"] }, "name": { "type": "string", "minLength": 1, "maxLength": 80 } } },
+                                    { "type": "object", "required": ["archived"], "additionalProperties": false, "properties": { "archived": { "type": "boolean" } } }
+                                ]
                             }
                         }
                     }
-                }
+                },
+                "responses": { "200": { "description": "Categoria atualizada com o mesmo identificador.", "content": { "application/json": { "schema": { "type": "object", "required": ["data"], "properties": { "data": { "type": "object", "required": ["id", "name", "archived"], "properties": { "id": { "type": "string" }, "name": { "type": "string" }, "icon": { "type": "string", "enum": ["road", "lighting", "waste", "water", "debris", "trees", "access", "cycling", "transit", "works", "walkway", "signs", "drainage", "energy"] }, "reportCount": { "type": "integer", "minimum": 0, "description": "Contagem no catálogo do gestor." }, "archived": { "type": "boolean" } } } } } } } }, "401": { "description": "Sessão ausente, expirada ou revogada." }, "403": { "description": "Operação não permitida." }, "404": { "description": "Categoria não encontrada." }, "409": { "description": "Nome já cadastrado." }, "422": { "description": "Nome inválido." } }
             }
         }
     },
-    "components": {
-        "schemas": {
-            "Liveness": {
-                "type": "object",
-                "required": ["data"],
-                "properties": {
-                    "data": {
-                        "type": "object",
-                        "required": ["status"],
-                        "properties": {
-                            "status": {
-                                "type": "string",
-                                "enum": ["alive"]
-                            }
-                        }
-                    }
-                }
-            },
-            "Readiness": {
-                "type": "object",
-                "required": ["data"],
-                "properties": {
-                    "data": {
-                        "type": "object",
-                        "required": ["status"],
-                        "properties": {
-                            "status": {
-                                "type": "string",
-                                "enum": ["ready"]
-                            }
-                        }
-                    }
-                }
-            },
-            "Unavailable": {
-                "type": "object",
-                "required": ["error"],
-                "properties": {
-                    "error": {
-                        "type": "object",
-                        "required": ["code", "message"],
-                        "properties": {
-                            "code": {
-                                "type": "string",
-                                "enum": ["UNAVAILABLE"]
-                            },
-                            "message": {
-                                "type": "string",
-                                "example": "Serviço temporariamente indisponível."
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
+    "components": { "schemas": { "Liveness": { "type": "object", "required": ["data"], "properties": { "data": { "type": "object", "required": ["status"], "properties": { "status": { "type": "string", "enum": ["alive"] } } } } }, "Readiness": { "type": "object", "required": ["data"], "properties": { "data": { "type": "object", "required": ["status"], "properties": { "status": { "type": "string", "enum": ["ready"] } } } } }, "Unavailable": { "type": "object", "required": ["error"], "properties": { "error": { "type": "object", "required": ["code", "message"], "properties": { "code": { "type": "string", "enum": ["UNAVAILABLE"] }, "message": { "type": "string", "example": "Serviço temporariamente indisponível." } } } } }, "WeatherAlert": { "type": "object", "required": ["id", "level", "title", "message", "regionLabel", "issuedAt", "expiresAt", "simulated"], "properties": { "id": { "type": "string" }, "level": { "type": "string", "enum": ["ATTENTION", "ALERT", "EMERGENCY"] }, "title": { "type": "string" }, "message": { "type": "string" }, "regionLabel": { "type": "string" }, "issuedAt": { "type": "string", "format": "date-time" }, "expiresAt": { "type": "string", "format": "date-time" }, "simulated": { "type": "boolean", "enum": [true] } } }, "ReportNotification": { "type": "object", "required": ["id", "reportId", "reportEventId", "type", "status", "createdAt", "readAt"], "properties": { "id": { "type": "string" }, "reportId": { "type": "string" }, "reportEventId": { "type": "string" }, "type": { "type": "string", "enum": ["STATUS_CHANGED"] }, "fromStatus": { "type": "string", "enum": ["SENT", "UNDER_REVIEW", "IN_PROGRESS", "RESOLVED", "REJECTED", "CANCELED"] }, "status": { "type": "string", "enum": ["SENT", "UNDER_REVIEW", "IN_PROGRESS", "RESOLVED", "REJECTED", "CANCELED"] }, "createdAt": { "type": "string", "format": "date-time" }, "readAt": { "type": "string", "format": "date-time", "nullable": true } } } }, "securitySchemes": { "WebSession": { "type": "apiKey", "in": "cookie", "name": "__Host-mycity" }, "AndroidSession": { "type": "http", "scheme": "bearer" } } }
 }

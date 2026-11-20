@@ -2,7 +2,7 @@
 
 O desenho, a implementação e a revisão destes fluxos seguem as [10 heurísticas de Nielsen aplicadas ao MyCity](usability.md), como boa prática aprovada para app e web.
 
-Regras aprovadas estão descritas como confirmadas. A matriz de visibilidade e as políticas de encerramento abaixo são propostas para revisão (C04/C08), não decisões silenciosas de produto.
+Regras aprovadas estão descritas como confirmadas. A matriz de visibilidade e a preservação de confirmações após o encerramento foram aprovadas na etapa 4 (C04/C08).
 
 ## Estados confirmados
 
@@ -15,12 +15,14 @@ stateDiagram-v2
     EmAnalise --> Rejeitado: gestor com justificativa
     Enviado --> Cancelado: autor
     EmAnalise --> Cancelado: autor
-    Resolvido --> [*]
-    Rejeitado --> [*]
-    Cancelado --> [*]
+    EmAnalise --> Enviado: gestor corrige análise
+    EmAndamento --> EmAnalise: gestor corrige atendimento
+    Resolvido --> EmAnalise: gestor reabre
+    Rejeitado --> EmAnalise: gestor reabre
+    Cancelado --> EmAnalise: gestor reabre
 ```
 
-Não existem regressões, saltos ou reabertura. Estados finais são Resolvido, Rejeitado e Cancelado. A criação registra o evento inicial; notificações são geradas nas mudanças posteriores, inclusive cancelamento, conforme o requisito de cada mudança de status.
+Resolvido, Rejeitado e Cancelado são estados encerrados. Só o gestor pode reabri-los em Em análise, inclusive após cancelamento pelo autor. Só é possível desfazer o último avanço de situação: uma resposta não consome essa possibilidade, mas uma correção ou reabertura impede outro recuo até um novo avanço. Corrigir ou reabrir acrescenta um evento com origem e destino e preserva o evento anterior, a justificativa e as respostas. A criação registra o evento inicial; notificações são geradas nas mudanças posteriores, inclusive cancelamento, conforme o requisito de cada mudança de status.
 
 ## Jornadas
 
@@ -30,22 +32,22 @@ Usuário informa CPF e senha próprios do MyCity, recebe sua identidade e acessa
 
 ### Registrar denúncia
 
-1. Selecionar uma das seis categorias e preencher descrição.
+1. Abrir Nova denúncia pelo Início, Feed ou Mapa, selecionar uma categoria ativa e preencher a descrição. O gestor pode acrescentar, arquivar e reativar grupos em Categorias. Ocorrências anteriores mantêm seus vínculos e filtros.
 2. Escolher de uma a três fotos via câmera/galeria e apresentar prévias/remover antes do envio.
 3. Solicitar GPS em contexto; se negado ou indisponível, oferecer mapa para selecionar o ponto.
 4. Revisar “Quero mostrar minha cara”, marcado por padrão: nome e foto de perfil ficam visíveis aos leitores autorizados; desmarcado, a denúncia é apresentada como “Anônimo”, inclusive ao gestor. Confirmar o ponto e os dados. Comprimir fotos e enviar uma operação de criação.
 5. Durante o envio, impedir disparos duplicados pela interface; servidor também trata repetições.
-6. No sucesso, abrir detalhes em Enviado. Na falha, manter campos e fotos enquanto o formulário estiver aberto, permitindo reenvio controlado.
+6. Ao voltar do formulário, retornar à origem e manter o rascunho na sessão. Se a categoria tiver sido arquivada, pedir uma nova seleção e preservar relato, fotos e ponto. Após publicar, abrir o acompanhamento e voltar ao Início em Meus registros.
 
 Não prometer manutenção de rascunho após encerrar o processo do app; essa capacidade não foi aprovada. Não enviar ponto padrão como se fosse GPS real. Falha de geocodificação não deve ser confundida com falta de coordenadas; a política proposta está em C03.
 
 ### Consultar e confirmar
 
-Abrir feed ou mapa, filtrar, selecionar denúncia e consultar detalhes. Outro cidadão confirma; autor não recebe ação habilitada. API repete a checagem. Atualizar contagem com resultado confirmado pelo backend; falha não mantém incremento falso. Retirada em estado final está pendente (C08).
+No Início, **Na cidade** apresenta uma ocorrência ativa do feed, mesmo quando Meus registros está vazio. Tocar no relato abre o detalhe; **Ver feed** abre a lista. No feed ou mapa, filtrar, selecionar a denúncia e consultar os detalhes. Outro cidadão confirma; autor não recebe ação habilitada. API repete a checagem. Atualizar contagem com resultado confirmado pelo backend; falha não mantém incremento falso. Ao encerrar, as confirmações ficam congeladas. As consultas do feed e do mapa usam filtros de categoria e status; o mapa pagina os marcadores dentro da área visível.
 
 ### Atender e responder
 
-Gestor usa lista/filtros e abre detalhes com fotos, ponto e histórico. Somente transições válidas são oferecidas. Rejeição apresenta campo obrigatório de justificativa. Uma resposta textual gera evento público, sem chat; não gera aviso de mudança de status por si só. Novas notificações específicas de resposta não foram aprovadas.
+O gestor entra na Visão geral, abre a fila por indicador ou categoria e seleciona uma denúncia pelo relato. Quando todas as ocorrências estão encerradas, a Visão geral apresenta o total encerrado e os três registros mais recentes com acesso ao detalhe. No detalhe, o relato e a galeria aparecem juntos. O editor de resposta e os quatro eventos mais recentes ficam logo abaixo, com acesso aos registros anteriores. Ao voltar, recupera os filtros e a página da fila. Somente transições válidas são oferecidas. Rejeição apresenta campo obrigatório de justificativa. O gestor pode responder inclusive após resolução, rejeição ou cancelamento. Respostas e justificativas admitem até 2.000 caracteres após trim. Uma resposta textual gera evento público, sem chat; não gera aviso de mudança de status por si só. Novas notificações específicas de resposta não foram aprovadas.
 
 Se outro comando alterar a denúncia antes da gravação, mostrar conflito e atualizar os detalhes. Não reaplicar automaticamente uma intenção sobre o estado novo.
 
@@ -57,9 +59,13 @@ Autor abre sua denúncia ainda Enviado/Em análise e confirma o cancelamento. El
 
 Tela ativa consulta a cada cinco segundos, sem sobreposição, e consulta ao retornar. Lista de notificações mostra lidas/não lidas; abrir aviso acessa a denúncia e solicita marcação de leitura. Não presumir leitura quando a operação falha. Desativar polling ao desmontar tela, sair da conta ou enviar app ao segundo plano.
 
-## Visibilidade proposta — C04
+### Consultar alertas climáticos
 
-Decisão aprovada: denúncias, fotos, mapa e histórico exigem login. “Público” significa compartilhado entre usuários autenticados; não haverá consulta anônima desses conteúdos. A identificação do autor é opcional conforme o checkbox aprovado. A matriz de visibilidade por status abaixo ainda precisa de aprovação.
+Na navegação principal do app, abrir **Alertas** apresenta os três cenários de 25/11/2026. Selecionar um deles mostra o nível por texto, a área ilustrativa e o período fictício no horário de Brasília. Voltar retorna à página de origem. Se a consulta falhar, o cidadão pode tentar novamente. A aba **Notificações** continua reservada às mudanças de status das denúncias.
+
+## Visibilidade aprovada — C04
+
+Decisão aprovada: denúncias, fotos, mapa e histórico exigem login. “Público” significa compartilhado entre usuários autenticados; não haverá consulta anônima desses conteúdos. A identificação do autor é opcional conforme o checkbox aprovado. A matriz abaixo se aplica também ao acesso por link, fotos e histórico de cada denúncia. O app abre detalhes pelo link autenticado `mycity://reports/<id>`.
 
 | Estado       | Feed/mapa geral                             | Minhas denúncias do autor | Lista do gestor | Histórico de resolvidas |
 | ------------ | ------------------------------------------- | ------------------------- | --------------- | ----------------------- |

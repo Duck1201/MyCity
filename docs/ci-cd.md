@@ -15,7 +15,7 @@ Repositório: [Duck1201/MyCity](https://github.com/Duck1201/MyCity), público, c
 - Actions limitadas às do GitHub e `docker/*`, com referências fixadas por SHA completo.
 - Jobs de validação têm apenas `contents: read`.
 - Somente publicação após push aprovado na `main` recebe `packages: write`.
-- Deploy recebe `contents: read` e `packages: read`.
+- Deploy recebe `contents: read`, `actions: read` e `packages: read`.
 - Environment `demonstration` aceita somente a branch `main`.
 - Chave SSH exclusiva da automação, sem encaminhamento de portas/PTY, armazenada nos secrets do environment. A chave original da EC2 permanece local.
 
@@ -29,21 +29,21 @@ Workflow: `.github/workflows/ci.yml`.
 4. Usar PostgreSQL real de teste como service do runner; sem credenciais de demonstração.
 5. Exportar o bundle Android, sem afirmar geração de APK.
 6. Construir imagens de API, ferramentas e web.
-7. Somente em push para `main`, publicar imagens aprovadas no GHCR com tag `sha-<commit>`.
+7. Somente em push para `main`, publicar imagens aprovadas no GHCR com tag `sha-<commit>`. Cada publicação consulta o GHCR pelo digest produzido pelo Buildx e registra esse digest em um artefato identificado por imagem e tentativa da CI.
 
 Imagens: `ghcr.io/duck1201/mycity-api`, `mycity-tools` e `mycity-web`. O runtime da API não leva ferramentas mobile/testes. Migrações/seed usam a imagem tools.
 
 ## CD
 
-Workflow: `.github/workflows/deploy.yml`. Dispara após uma CI concluída com sucesso, originada por push na `main` deste mesmo repositório. PRs não disparam deploy. Checkout e imagens usam o SHA daquela execução, não a ponta da branch no momento posterior.
+Workflow: `.github/workflows/deploy.yml`. Dispara após uma CI concluída com sucesso, originada por push na `main` deste mesmo repositório. PRs não disparam deploy. O checkout usa o SHA da execução. Antes da transferência, o workflow confere se esse SHA continua na ponta da main e valida os três digests obtidos dos artefatos daquela execução e tentativa. Uma repetição parcial da CI que não produza os três artefatos exige reexecutar a CI completa.
 
-Destino: EC2 Debian x86_64, usuário `admin`, diretório `/opt/mycity`. Configuração de cada release fica em `releases/<sha>`. Volumes Docker de banco, fotos e certificados permanecem independentes da release.
+Destino: EC2 Debian x86_64, usuário `admin`, diretório `/opt/mycity`. Configuração de cada release fica em `releases/<sha>-<número-da-CI>-<tentativa>`. Volumes Docker de banco, fotos e certificados permanecem independentes da release.
 
 `scripts/deploy.sh`:
 
-1. Valida argumentos e usa lock contra deploy concorrente.
+1. Sob lock, valida o manifesto e reserva atomicamente a sequência da CI antes de alterar serviços. Uma execução mais antiga é recusada mesmo após falha parcial da mais recente. Repetir a mesma tentativa exige um manifesto idêntico.
 2. Recebe o token efêmero de leitura do GHCR por stdin, usando um diretório temporário de autenticação removido ao sair.
-3. Baixa imagens, sobe o banco e aplica migrações explicitamente.
+3. Baixa API, web e ferramentas pelos digests registrados, sobe o banco, aplica migrações e provisiona o acesso da API.
 4. Executa seed apenas na preparação inicial, marcada por `.seeded`; não redefine senha em atualizações.
 5. Atualiza API, web e proxy, espera saúde e confere a API pela porta local 8090.
 6. Registra release atual/anterior. Não faz rollback automático de schema; falhas devem ser diagnosticadas preservando volumes.
@@ -83,7 +83,7 @@ gh run view <run-id> --repo Duck1201/MyCity
 curl --fail https://mycity.private-gateway.site:8080/api/v1/health/ready
 ```
 
-No servidor, usar o SHA de `current-release` como `RELEASE_SHA`, o arquivo `/opt/mycity/.env` e `/opt/mycity/current/compose.deploy.yaml` nos comandos Compose. Não remover volumes para atualizar. Antes de uma migração destrutiva, preparar backup consistente de banco/fotos e estratégia de restauração.
+No servidor, usar `--env-file /opt/mycity/.env --env-file /opt/mycity/current/images.env -f /opt/mycity/current/compose.deploy.yaml` nos comandos Compose para carregar as credenciais e os digests da release ativa. Não remover volumes para atualizar. Antes de uma migração destrutiva, preparar backup consistente de banco/fotos e estratégia de restauração.
 
 ## Evidências
 
@@ -101,7 +101,7 @@ O edge tem um healthcheck HTTPS limitado para aguardar a emissão inicial do cer
 - [CI da main aprovada](https://github.com/Duck1201/MyCity/actions/runs/44442729128), com 40 testes, builds e publicação de API/tools/web para o commit `b8e5758e84d8ac0128d58123e4923bb440a63188`.
 - [Deploy aprovado](https://github.com/Duck1201/MyCity/actions/runs/44443203779): conexão SSH, imagens do GHCR, migração, seed inicial e verificação HTTPS externa concluídos.
 - `https://mycity.private-gateway.site:8080/api/v1/health/ready` respondeu HTTP 200 com `{ "data": { "status": "ready" } }`, validado novamente por curl com verificação TLS habilitada.
-- [Tela inicial na EC2](evidence/ec2-foundation.png) aberta e inspecionada no navegador. A entrega hospedada é a fundação; login, painel e denúncias ainda serão implementados.
+- A tela inicial da fundação foi verificada no navegador nessa primeira implantação.
 - Containers de banco/API/edge saudáveis, web em loopback 8090 e edge público 8080. Serviços anteriores da EC2 permaneceram ativos.
 - Secret scanning e push protection habilitados. Nenhuma chave privada, senha local ou token foi versionado.
 
@@ -109,7 +109,7 @@ As execuções acima são evidência do commit identificado. Para releases poste
 
 ## Diagnósticos de build
 
-O upload automático de arquivos `.dockerbuild` fica desativado por `DOCKER_BUILD_RECORD_UPLOAD=false`. Esses diagnósticos podem incluir metadados temporários de downloads de terceiros; imagens e logs normais continuam disponíveis. A política é verificada por teste e foi motivada pela [auditoria de segredos](evidence/secret-audit.md).
+O upload automático de arquivos `.dockerbuild` fica desativado por `DOCKER_BUILD_RECORD_UPLOAD=false`. Esses diagnósticos podem incluir metadados temporários de downloads de terceiros; imagens e logs normais continuam disponíveis. A política é verificada por teste.
 
 ## Gate automático de segurança
 
@@ -119,4 +119,4 @@ O gate de modelos por fase está em `agents/readme.md`; Actions não executa Sol
 
 ## Dependabot
 
-`.github/dependabot.yml` cobre o lockfile npm na raiz, workflows e imagens Docker/Compose. Atualizações de versão são semanais, até cinco PRs abertos por ecossistema; dependências acopladas Expo/React e Prisma são agrupadas. Alertas e PRs de correção de segurança estão habilitados no GitHub. Nenhuma atualização é mesclada automaticamente; PRs passam pelos checks da main. Não aceitar downgrade de Expo ou quebra de schema apenas para zerar a auditoria.
+`.github/dependabot.yml` cobre o lockfile npm na raiz, workflows e imagens Docker/Compose. A verificação de novas versões é mensal, até cinco PRs abertos por ecossistema; dependências acopladas Expo/React e Prisma são agrupadas. Alertas e PRs de correção de segurança estão habilitados no GitHub. Nenhuma atualização é mesclada automaticamente; PRs passam pelos checks da main. Não aceitar downgrade de Expo ou quebra de schema apenas para zerar a auditoria.

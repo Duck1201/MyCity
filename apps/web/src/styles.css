@@ -1,18 +1,27 @@
 @import 'tailwindcss';
 
-:root {
-    --background: #f8fafc;
-    --foreground: #0f172a;
-    --primary: #155e75;
-    --primary-foreground: #ffffff;
-    --muted: #f1f5f9;
-    --muted-foreground: #475569;
-    --border: #e2e8f0;
-    --ring: #155e75;
-    --radius: 0.625rem;
+@font-face {
+    font-family: Nunito;
+    src: url('/fonts/nunito-latin-wght-normal.woff2') format('woff2');
+    font-style: normal;
+    font-weight: 200 1000;
+    font-display: swap;
 }
-
+:root {
+    --background: #f8fafd;
+    --foreground: #182e4a;
+    --primary: #23568e;
+    --primary-foreground: #fff;
+    --muted: #eaf2f5;
+    --muted-foreground: #526571;
+    --border: #d4dfe3;
+    --ring: #356eab;
+    --rail: #103d4a;
+    --mycity-font: Nunito, system-ui, sans-serif;
+    font-family: var(--mycity-font);
+}
 @theme inline {
+    --font-sans: var(--mycity-font);
     --color-background: var(--background);
     --color-foreground: var(--foreground);
     --color-primary: var(--primary);
@@ -22,10 +31,32 @@
     --color-border: var(--border);
     --color-ring: var(--ring);
 }
-
 body {
     margin: 0;
     background: var(--background);
     color: var(--foreground);
-    font-family: system-ui, sans-serif;
+    font: 1rem/1.5 var(--mycity-font);
+}
+button,
+select {
+    cursor: pointer;
+}
+button:disabled {
+    cursor: default;
+}
+:where(button, a, select, input, textarea, [tabindex]):focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 1px;
+}
+
+.preview-category-label,
+.occurrence-category-title {
+    display: inline-flex;
+    gap: 0.4em;
+    align-items: center;
+    overflow-wrap: anywhere;
+    min-width: 0;
+}
+.category-symbol {
+    flex-shrink: 0;
 }

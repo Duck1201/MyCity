@@ -18,11 +18,16 @@ describe('documentação OpenAPI local', () => {
         const response = await request(app).get('/api/openapi.json');
         expect(response.status).toBe(200);
         const spec = await SwaggerParser.validate(response.body);
-        expect(Object.keys(spec.paths!)).toEqual(['/api/v1/health/live', '/api/v1/health/ready']);
+        expect(Object.keys(spec.paths!)).toEqual(['/api/v1/health/live', '/api/v1/health/ready', '/api/v1/sessions', '/api/v1/me', '/api/v1/sessions/current', '/api/v1/reports', '/api/v1/reports/{id}', '/api/v1/reports/{id}/photos/{photoId}', '/api/v1/reports/{id}/history', '/api/v1/reports/{id}/transitions', '/api/v1/reports/{id}/replies', '/api/v1/notifications', '/api/v1/notifications/{id}/read', '/api/v1/reports/map', '/api/v1/reports/overview', '/api/v1/reports/queue', '/api/v1/reports/queue.csv', '/api/v1/reports/summary', '/api/v1/reports/{id}/confirmation', '/api/v1/reports/{id}/cancellation', '/api/v1/weather-alerts', '/api/v1/weather-alerts/{id}', '/api/v1/categories', '/api/v1/categories/{id}']);
+        expect(Object.keys(response.body.paths['/api/v1/categories/{id}'].patch.responses)).toEqual(['200', '401', '403', '404', '409', '422']);
+        const alert = response.body.components.schemas.WeatherAlert;
+        expect(alert.required).toContain('simulated');
+        expect(alert.properties.simulated.enum).toEqual([true]);
+        expect(alert.properties.level.enum).toEqual(['ATTENTION', 'ALERT', 'EMERGENCY']);
         expect(response.body.components.schemas.Liveness.required).toEqual(['data']);
         expect(response.body.components.schemas.Liveness.properties.data.properties.status.enum).toEqual(['alive']);
         expect(Object.keys(response.body.paths['/api/v1/health/ready'].get.responses['503'].content)).toEqual(['application/json']);
-        for (const path of Object.keys(spec.paths!)) expect((await request(app).get(path)).status).toBe(200);
+        for (const path of ['/api/v1/health/live', '/api/v1/health/ready']) expect((await request(app).get(path)).status).toBe(200);
         const bundle = await request(app).get('/api/docs/swagger-ui-bundle.js');
         expect(bundle.status).toBe(200);
         expect(bundle.headers['content-type']).toContain('javascript');

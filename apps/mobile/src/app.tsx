@@ -1,29 +1,78 @@
+import { useCallback, useEffect, useRef, useState } from 'react';
+import Constants from 'expo-constants';
+import { resolveApiBase } from './api-base';
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+import { SafeAreaProvider, SafeAreaView, initialWindowMetrics } from 'react-native-safe-area-context';
+import { Linking, StyleSheet } from 'react-native';
+import { AppFonts } from './components/app-fonts';
+import { CitizenPrototype } from './prototype/citizen-prototype';
+import { CitizenAccess } from './citizen-access';
+import { CitizenWorkspace } from './citizen-workspace';
+import { type CitizenDraft } from './citizen-report';
+
+const apiBase = resolveApiBase({ development: __DEV__, configuredUrl: process.env.EXPO_PUBLIC_API_URL, developmentPort: process.env.EXPO_PUBLIC_API_PORT, metroHostUri: Constants.expoConfig?.hostUri });
 
 export default function App() {
     return (
-        <View style={styles.container}>
-            <StatusBar style="dark" />
-            <Text style={styles.title}>MyCity</Text>
-            <Text style={styles.subtitle}>Sua cidade, sua voz.</Text>
-        </View>
+        <AppFonts>
+            <Application />
+        </AppFonts>
     );
 }
 
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: '#f8fafc',
-        padding: 24,
-    },
-    title: {
-        fontSize: 40,
-        fontWeight: '700',
-        color: '#155e75',
-        letterSpacing: -1,
-    },
-    subtitle: { fontSize: 18, color: '#475569', marginTop: 12 },
-});
+function Application() {
+    if (__DEV__ && process.env.EXPO_PUBLIC_MY_CITY_PROTOTYPE === '1') {
+        return (
+            <SafeAreaProvider initialMetrics={initialWindowMetrics}>
+                <SafeAreaView style={styles.preview}>
+                    <StatusBar style="dark" />
+                    <CitizenPrototype />
+                </SafeAreaView>
+            </SafeAreaProvider>
+        );
+    }
+    return <ConnectedApp />;
+}
+function ConnectedApp() {
+    const [linkedReport, setLinkedReport] = useState<{ id: string } | null>(null);
+    const clearLink = useCallback(() => setLinkedReport(null), []);
+    useEffect(() => {
+        let mounted = true;
+        let received = false;
+        function receive(url: string | null | undefined) {
+            const id = url?.match(/^mycity:\/\/reports\/([A-Za-z0-9_-]{1,128})$/)?.[1];
+            if (mounted && id) setLinkedReport({ id });
+        }
+        const handler = Linking.addEventListener('url', (event) => {
+            received = true;
+            receive(event.url);
+        });
+        void Linking.getInitialURL().then(
+            (url) => {
+                if (!received) receive(url);
+            },
+            () => {},
+        );
+        return () => {
+            mounted = false;
+            handler.remove();
+        };
+    }, []);
+    const owner = useRef<string | null>(null);
+    const draft = useRef<CitizenDraft | null>(null);
+    const selectOwner = useCallback((id: string | null) => {
+        if (owner.current !== id) draft.current = null;
+        owner.current = id;
+    }, []);
+    return (
+        <SafeAreaProvider initialMetrics={initialWindowMetrics}>
+            <SafeAreaView style={styles.container}>
+                <StatusBar style="dark" />
+                <CitizenAccess apiBase={apiBase} onSignedOut={() => selectOwner(null)} onAuthenticated={selectOwner}>
+                    {(token, onSessionExpired) => <CitizenWorkspace linkedReport={linkedReport} clearLink={clearLink} draftRef={draft} apiBase={apiBase} token={token} onSessionExpired={onSessionExpired} />}
+                </CitizenAccess>
+            </SafeAreaView>
+        </SafeAreaProvider>
+    );
+}
+const styles = StyleSheet.create({ container: { flex: 1, backgroundColor: '#fff' }, preview: { flex: 1, backgroundColor: '#fff' } });

@@ -1,0 +1,16 @@
+cidade.webp
+
+Vista lateral da lagoa da Universidade Federal de Viçosa
+Viçosa, Minas Gerais, Brasil
+Fotografia de Vitor Cunha Baia, registrada em 29/01/2024.
+Fonte: https://www.flickr.com/photos/200730983@N02/53744442294/
+O autor identificou a fotografia como de domínio público (Public Domain Mark 1.0):
+https://creativecommons.org/publicdomain/mark/1.0/
+Adaptação técnica para o MyCity: redimensionamento e conversão para WebP.
+
+praca-silviano-brandao.webp
+
+Praça Silviano Brandão com o Santuário Santa Rita de Cássia ao fundo, Viçosa MG.
+Fotografia de HVL, CC BY 4.0. Licença: https://creativecommons.org/licenses/by/4.0/
+Fonte: https://commons.wikimedia.org/wiki/File:Pra%C3%A7a_Silviano_Brand%C3%A3o_com_o_Santu%C3%A1rio_Santa_Rita_de_C%C3%A1ssia_ao_fundo,_Vi%C3%A7osa_MG.JPG
+Adaptação: redimensionamento e conversão para WebP.

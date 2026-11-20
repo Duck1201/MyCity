@@ -1,0 +1,134 @@
+.queue-tools {
+    padding: 1rem 1.25rem;
+}
+.filter-toolbar {
+    display: flex;
+    align-items: end;
+    flex-wrap: wrap;
+    gap: 0.85rem 1rem;
+}
+.filter-toolbar label {
+    display: grid;
+    min-width: 0;
+    max-width: 100%;
+    gap: 0.27rem;
+    color: #52667d;
+    font-size: 0.76rem;
+    font-weight: 600;
+}
+.filter-toolbar select {
+    min-height: 2.5rem;
+    width: clamp(11rem, 16vw, 16rem);
+    max-width: 100%;
+    padding: 0.43rem 0.65rem;
+    color: #243e5a;
+    background: #fff;
+    border: 1px solid #bbc9d8;
+    border-radius: 0.45rem;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    font: 500 0.88rem/1.35 var(--mycity-font);
+    cursor: pointer;
+}
+.filter-toolbar .reset-control {
+    color: #20558c;
+    border-radius: 0.4rem;
+    min-height: 2.5rem;
+    padding: 0.3rem 0.5rem;
+    min-width: 6.5rem;
+    text-align: center;
+    font-size: 0.84rem;
+    font-weight: 600;
+}
+.filter-toolbar .reset-control:disabled {
+    color: #66788b;
+    opacity: 0.75;
+}
+.management-reports .filter-toolbar :is(select, button):focus-visible {
+    outline: 1.5px solid #356faa;
+    outline-offset: 2px;
+}
+@media (hover: hover) and (pointer: fine) {
+    .filter-toolbar select:hover {
+        border-color: #718aa5;
+    }
+    .filter-toolbar .reset-control:not(:disabled):hover {
+        background: #edf4fb;
+    }
+}
+@media (prefers-reduced-motion: no-preference) {
+    .filter-toolbar select,
+    .filter-toolbar .reset-control {
+        transition:
+            background-color 140ms ease,
+            border-color 140ms ease;
+    }
+}
+@container (max-width:38rem) {
+    .queue-tools {
+        padding: 0.85rem;
+    }
+    .filter-toolbar {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.45rem 0.65rem;
+    }
+    .filter-toolbar select {
+        width: 100%;
+        min-height: 2.75rem;
+    }
+    .filter-toolbar .reset-control {
+        justify-self: start;
+        min-width: 0;
+        padding-inline: 0;
+    }
+}
+@supports (appearance: base-select) {
+    .filter-toolbar select,
+    .filter-toolbar select::picker(select) {
+        appearance: base-select;
+    }
+    .filter-toolbar select::picker(select) {
+        padding: 0.25rem;
+        margin-top: 0.3rem;
+        max-height: min(19rem, 50dvh);
+        border: 1px solid #bcccdc;
+        border-radius: 0.55rem;
+        background: #fff;
+        color: #243e5a;
+        box-shadow: 0 0.6rem 1.3rem #20364f1a;
+    }
+    .filter-toolbar option {
+        padding: 0.55rem 0.72rem;
+        border-radius: 0.28rem;
+    }
+    .filter-toolbar option:checked {
+        background: #edf4fc;
+    }
+    @media (hover: hover) and (pointer: fine) {
+        .filter-toolbar option:hover {
+            background: #f2f6fa;
+        }
+    }
+    @media (prefers-reduced-motion: no-preference) {
+        .filter-toolbar select::picker(select) {
+            opacity: 0;
+            transform: translateY(-0.16rem);
+            transition:
+                opacity 145ms ease,
+                transform 160ms var(--ease-desk),
+                display 160ms allow-discrete,
+                overlay 160ms allow-discrete;
+        }
+        .filter-toolbar select:open::picker(select) {
+            opacity: 1;
+            transform: none;
+        }
+        @starting-style {
+            .filter-toolbar select:open::picker(select) {
+                opacity: 0;
+                transform: translateY(-0.16rem);
+            }
+        }
+    }
+}

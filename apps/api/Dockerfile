@@ -7,8 +7,13 @@ COPY apps/web/package.json apps/web/package.json
 COPY apps/mobile/package.json apps/mobile/package.json
 COPY packages/contracts/package.json packages/contracts/package.json
 RUN npm ci --workspace @mycity/api --workspace @mycity/contracts --include-workspace-root
-COPY . .
-RUN npm run db:generate && npm run build:contracts && npm run build -w @mycity/api
+COPY tsconfig.base.json ./
+COPY packages/contracts/tsconfig.json packages/contracts/
+COPY packages/contracts/src packages/contracts/src
+COPY apps/api/tsconfig*.json apps/api/prisma.config.ts apps/api/
+COPY apps/api/prisma apps/api/prisma
+COPY apps/api/src apps/api/src
+RUN npm run db:generate -w @mycity/api && npm run build:contracts && npm run build -w @mycity/api
 RUN mkdir -p /app/uploads && chown node:node /app/uploads
 USER node
 EXPOSE 3000

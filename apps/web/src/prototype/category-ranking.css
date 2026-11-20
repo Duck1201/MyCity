@@ -1,0 +1,98 @@
+.category-ranking ol {
+    list-style: none;
+    padding: 0;
+    margin: 12px 0 0;
+}
+.category-ranking li + li {
+    border-top: 1px solid #d8e1e9;
+}
+.console .category-ranking a {
+    display: grid;
+    grid-template-columns: 24px minmax(0, 1fr) auto 16px;
+    align-items: center;
+    gap: 12px;
+    min-height: 44px;
+    padding: 4px 3px;
+    color: var(--civic-ink);
+    font-size: 15px;
+    font-weight: 600;
+    text-decoration: none;
+}
+.category-ranking a > svg {
+    color: #496679;
+}
+.category-ranking strong {
+    font-size: 19px;
+    font-weight: 750;
+    font-variant-numeric: tabular-nums;
+}
+.console .category-ranking a:is(:hover, :focus-visible) {
+    color: #174e7b;
+    background: #e6eef5;
+}
+@media (prefers-reduced-motion: no-preference) {
+    .rank-expand svg {
+        transition: transform 160ms var(--desk-ease, ease-out);
+    }
+    .category-ranking a {
+        transition: background-color 150ms ease-out;
+    }
+}
+
+.console .rank-expand {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: transparent;
+    color: #245a86;
+    padding: 4px 3px;
+    min-height: 44px;
+    border: 0;
+    font-weight: 700;
+}
+.rank-expand[aria-expanded='true'] svg {
+    transform: rotate(180deg);
+}
+.category-ranking small {
+    display: block;
+    color: #52697d;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.category-ranking {
+    container-type: inline-size;
+}
+@container (min-width:25rem) {
+    .category-ranking ol[data-expanded] {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        column-gap: 16px;
+    }
+    .category-ranking ol[data-expanded] li {
+        border-top: 1px solid #d8e1e9;
+    }
+    .console .category-ranking ol[data-expanded] a {
+        grid-template-columns: 21px minmax(0, 1fr) auto 12px;
+        gap: 6px;
+    }
+}
+.rank-pages {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    font-size: 13px;
+    margin-top: 7px;
+}
+
+.rank-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px 8px;
+}
+.rank-controls .rank-pages {
+    margin: 0;
+}

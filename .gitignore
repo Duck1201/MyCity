@@ -14,3 +14,6 @@ apps/api/src/generated/
 .DS_Store
 
 .playwright-mcp/
+
+# Local development photos
+/apps/api/uploads/

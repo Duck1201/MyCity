@@ -27,6 +27,16 @@ Antes de concluir uma tela ou fluxo:
 2. Exercitar estados normal, carregando, vazio, erro e sucesso; incluir permissões negadas e conflito de atualização quando aplicáveis.
 3. Registrar problemas observados, heurística relacionada, impacto na tarefa e correção necessária. Registrar também quando um item não se aplica, com motivo.
 4. Automatizar os comportamentos verificáveis pela interface pública, seguindo TDD; complementar com inspeção no navegador e no Android real.
-5. Documentar evidências e limitações em `docs/testing.md` ou `docs/evidence/`, sem declarar conformidade apenas porque a diretriz está escrita.
+5. Registrar as limitações verificadas na [matriz de testes](testing.md#aceite-por-critério).
 
 Essas heurísticas orientam decisões e revisões; não substituem testes com usuários, acessibilidade ou os requisitos aprovados. Aplicá-las não autoriza adicionar funcionalidades nem alterar regras de negócio por conta própria.
+
+## Revisão da etapa 5
+
+A revisão do painel e do app na etapa 5 incluiu navegação por teclado, estados vazios e de falha e expiração de sessão.
+
+## Ajustes após o uso do painel
+
+O retorno do responsável motivou os ajustes da lateral, do reset de filtros, do carregamento, do CPF e da identidade visual em azul e cinza.
+
+A tipografia de interface do MyCity é Nunito no painel web e no aplicativo Android. Títulos, valores, campos e textos usam a mesma família, com hierarquia por peso e tamanho. As fontes são distribuídas com cada cliente.

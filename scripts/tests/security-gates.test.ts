@@ -54,3 +54,10 @@ it('impede publicar imagens sem os checks de segurança', () => {
     expect(commands).toContain('npm run security:secrets');
     expect(commands).toContain('npm run security:dependencies');
 });
+
+it.each(['api', 'web'])('limita os arquivos do build de %s aos insumos da imagem', (workspace) => {
+    const recipe = readFileSync('apps/' + workspace + '/Dockerfile', 'utf8');
+    const contextCopies = recipe.split('\n').filter((line) => line.startsWith('COPY ') && !line.startsWith('COPY --from='));
+    expect(contextCopies).not.toContain('COPY . .');
+    expect(contextCopies.some((line) => line.includes('apps/' + workspace + '/src'))).toBe(true);
+});

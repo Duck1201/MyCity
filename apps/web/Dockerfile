@@ -6,7 +6,12 @@ COPY apps/web/package.json apps/web/package.json
 COPY apps/mobile/package.json apps/mobile/package.json
 COPY packages/contracts/package.json packages/contracts/package.json
 RUN npm ci --ignore-scripts --workspace @mycity/web --workspace @mycity/contracts --include-workspace-root
-COPY . .
+COPY tsconfig.base.json ./
+COPY packages/contracts/tsconfig.json packages/contracts/
+COPY packages/contracts/src packages/contracts/src
+COPY apps/web/index.html apps/web/vite.config.ts apps/web/tsconfig.json apps/web/
+COPY apps/web/src apps/web/src
+COPY apps/web/public apps/web/public
 RUN npm run build:contracts && npm run build -w @mycity/web
 
 FROM nginx:1.28-alpine

@@ -1,0 +1,363 @@
+/* The rail stays in the viewport; the working surface can scroll independently of its height. */
+.desk-shell {
+    --desk-nav-surface: #fff;
+
+    --desk-ease: cubic-bezier(0.23, 1, 0.32, 1);
+    display: grid;
+    grid-template-columns: var(--desk-rail-width) minmax(0, 1fr);
+    min-height: 100dvh;
+    align-items: start;
+    overflow-x: clip;
+}
+.desk-workspace {
+    min-width: 0;
+}
+.desk-rail {
+    position: sticky;
+    inset-block-start: 0;
+    align-self: start;
+    height: 100dvh;
+    z-index: 4;
+    isolation: isolate;
+    color: #172f4d;
+}
+.desk-surface {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    transform-origin: left;
+    background: var(--desk-nav-surface);
+    border-inline-end: 1px solid #cbd8e6;
+}
+.desk-rail-interior,
+.desk-drawer {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    padding: 20px 12px 12px;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+.desk-masthead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    min-height: 48px;
+}
+.desk-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    white-space: nowrap;
+    padding-left: 6px;
+}
+.desk-brandmark {
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    width: 38px;
+    height: 42px;
+    background: #316ba9;
+    color: #ffffff;
+    border-radius: 14px 14px 14px 3px;
+}
+.desk-brandmark svg {
+    width: 25px;
+    height: 25px;
+    stroke-width: 2.25;
+}
+.desk-brand-copy {
+    display: grid;
+    gap: 4px;
+}
+.desk-brand-copy strong {
+    font: 700 1.7rem/0.95 var(--mycity-font);
+    letter-spacing: -0.055em;
+}
+.desk-brand-copy > span {
+    color: #566c83;
+    font-size: 0.735rem;
+    line-height: 1.2;
+}
+.desk-icon-button,
+.desk-link {
+    border: 0;
+    color: inherit;
+    font: inherit;
+}
+.desk-icon-button {
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 7px;
+    color: #36516e;
+}
+.desk-icon-button svg {
+    width: 19px;
+    height: 19px;
+    stroke-width: 1.8;
+}
+.desk-links {
+    margin-top: 26px;
+    display: grid;
+    gap: 4px;
+}
+.desk-link {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    min-height: 44px;
+    padding: 0 13px;
+    width: 100%;
+    text-decoration: none;
+    border-radius: 8px;
+    color: #45576f;
+    font-size: 0.94rem;
+    font-weight: 550;
+    transition:
+        background-color 155ms ease,
+        color 155ms ease;
+}
+.desk-link svg {
+    width: 18px;
+    height: 18px;
+    stroke-width: 1.75;
+    flex-shrink: 0;
+}
+.desk-copy {
+    white-space: nowrap;
+}
+.desk-link[aria-current='page'] {
+    color: #174f8b;
+    background: #e8f1fb;
+    font-weight: 650;
+}
+.desk-account {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: auto;
+    padding: 12px 5px 0 12px;
+    border-top: 1px solid #dee7ef;
+}
+.desk-person {
+    font-size: 0.85rem;
+    color: #53677d;
+}
+.desk-exit {
+    width: auto;
+    gap: 7px;
+    padding-inline: 8px;
+    font-size: 0.86rem;
+    color: #3c5471;
+    background: transparent;
+}
+.desk-resizer {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    right: -4px;
+    width: 9px;
+    cursor: col-resize;
+    touch-action: none;
+    z-index: 3;
+}
+.desk-resizer::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 3px;
+    width: 2px;
+    background: #4179bb;
+    opacity: 0;
+    transition: opacity 150ms ease;
+}
+.desk-resizer::after {
+    content: '';
+    display: block;
+    height: 34px;
+    width: 3px;
+    border-radius: 3px;
+    position: absolute;
+    left: -2px;
+    top: calc(50% - 17px);
+    background: #819bb8;
+}
+.desk-resizer:focus-visible::before,
+.desk-shell[data-resizing] .desk-resizer::before {
+    opacity: 1;
+}
+.desk-shell[data-resizing] {
+    cursor: col-resize;
+    user-select: none;
+}
+.desk-shell[data-compact] .desk-rail-interior {
+    padding-inline: 10px;
+}
+.desk-shell[data-compact] .desk-masthead {
+    flex-direction: column;
+    gap: 12px;
+}
+.desk-shell[data-compact] .desk-brand {
+    padding: 0;
+}
+.desk-shell[data-compact] .desk-brand-copy,
+.desk-shell[data-compact] .desk-copy {
+    display: none;
+}
+.desk-shell[data-compact] .desk-links {
+    margin-top: 16px;
+}
+.desk-shell[data-compact] .desk-link,
+.desk-shell[data-compact] .desk-account {
+    justify-content: center;
+    padding: 0;
+}
+.desk-rail :focus-visible,
+.desk-drawer :focus-visible,
+.desk-mobile-bar :focus-visible {
+    outline: 2px solid #316ba9;
+    outline-offset: 1px;
+}
+.desk-mobile-bar {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #fff;
+    color: #172f4d;
+    padding: 5px 10px;
+    min-height: 58px;
+}
+.desk-mobile-bar .desk-brandmark {
+    width: 27px;
+    height: 30px;
+    border-radius: 8px 8px 8px 2px;
+}
+.desk-mobile-bar .desk-brandmark svg {
+    width: 19px;
+    height: 19px;
+}
+.desk-mobile-bar .desk-brand {
+    padding: 0;
+    gap: 8px;
+}
+.desk-mobile-bar .desk-brand-copy {
+    display: block;
+}
+.desk-mobile-bar .desk-brand-copy strong {
+    font-size: 1.4rem;
+}
+.desk-mobile-bar .desk-brand-copy > span {
+    display: none;
+}
+.desk-scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    background: #11263c60;
+}
+.desk-drawer {
+    --desk-ease: cubic-bezier(0.23, 1, 0.32, 1);
+    position: fixed;
+    left: 0;
+    top: 0;
+    z-index: 21;
+    background: #fff;
+    color: #172f4d;
+    width: min(19rem, calc(100vw - 3rem));
+    height: 100dvh;
+    padding-top: max(16px, env(safe-area-inset-top));
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+    box-shadow: 8px 0 32px #0c27451e;
+}
+@media (max-width: 760px) {
+    .desk-shell {
+        display: block;
+    }
+    .desk-shell[data-compact] .desk-mobile-bar .desk-brand-copy {
+        display: block;
+    }
+}
+@keyframes desk-show {
+    from {
+        transform: translateX(-100%);
+    }
+    to {
+        transform: translateX(0);
+    }
+}
+@keyframes desk-fade {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+.desk-drawer[data-state='open'] {
+    animation: desk-show 235ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+.desk-drawer[data-state='closed'] {
+    animation: desk-show 170ms cubic-bezier(0.32, 0.72, 0, 1) reverse;
+}
+.desk-scrim[data-state='open'] {
+    animation: desk-fade 185ms ease both;
+}
+.desk-scrim[data-state='closed'] {
+    animation: desk-fade 155ms ease reverse both;
+}
+@media (hover: hover) and (pointer: fine) {
+    .desk-link:hover,
+    .desk-icon-button:hover {
+        background-color: #d8e6f6;
+        color: #182f4f;
+    }
+    .desk-link[aria-current='page']:hover {
+        color: #174676;
+        background-color: #d7e8f8;
+    }
+    .desk-resizer:hover::before {
+        opacity: 1;
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    .desk-scrim,
+    .desk-drawer,
+    .desk-link,
+    .desk-link::before,
+    .desk-resizer::before {
+        animation: none !important;
+        transition: none;
+    }
+}
+.desk-workspace {
+    min-height: 100dvh;
+    background: #f3f6fa;
+}
+
+.manager-content:focus {
+    outline: none;
+}
+.desk-brand-home {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    border-radius: 8px;
+    color: inherit;
+    text-decoration: none;
+}
+.console.manager-content {
+    min-height: 0;
+}
+@media (max-width: 760px) {
+    .desk-shell .desk-workspace {
+        min-height: calc(100dvh - 58px);
+    }
+}

@@ -59,23 +59,22 @@ modifiedAt DateTime @default(now()) @updatedAt @map("modified_at")
 6. Testar instalação limpa e atualização do schema anterior com PostgreSQL real. Verificar dados preservados e casos de rejeição/rollback.
 7. Fazer backup antes de migração incompatível no ambiente de demonstração. Documentar janela de indisponibilidade e recuperação; trocar somente a imagem da API pode não reverter o schema.
 
-Após aplicar uma migração em um banco de teste durante o desenvolvimento e ainda precisar alterá-la **antes de publicar**, recriar apenas o banco descartável de teste para testar a versão final. `migrate deploy` não reaplica o SQL de uma migração já registrada. Isso não autoriza resetar dados de desenvolvimento ou da EC2.
+Se o esquema precisar de outro ajuste após aplicar a migração, registre o ajuste em uma nova migração. `migrate deploy` não reaplica o SQL de uma migração já registrada.
 
 ## Comandos do projeto
 
 ```bash
 npm exec -w @mycity/api -- prisma format
-npm run db:generate
+npm run db:generate -w @mycity/api
 npm run db:migrate
-npm run test:integration
-npm run check
+npm run typecheck
 npm run format:check
 ```
 
-`db:migrate` usa a configuração do ambiente; confirme o alvo antes de executá-lo. A integração prepara o banco local isolado `mycity_test`. O Prisma Client gerado não é versionado.
+`db:migrate` usa a configuração do ambiente; confirme o alvo antes de executá-lo. O Prisma Client gerado não é versionado.
 
 ## Critério de revisão
 
 Antes de aprovar uma alteração Prisma, conferir: mapeamentos físicos, timestamps, hashes não expostos, compatibilidade do SQL, preservação de dados, recuperação e testes reais. Sol revisa riscos de migração/autorização; Luna e QA de integração verificam cenários e evidências conforme [agents/readme.md](../agents/readme.md).
 
-Exemplo aplicado e evidências: [migração do User para CPF](evidence/user-model-migration.md).
+Consulte o SQL da [migração de usuários para CPF](../apps/api/prisma/migrations/20261119040000_user_cpf_mapping/migration.sql).

@@ -1,65 +1,69 @@
 # Operação e roteiro de demonstração
 
-Status: fundação local executável. Comandos verificados estão no [guia da raiz](../README.md) e resultados na [evidência](evidence/foundation.md). O roteiro de demonstração de denúncias abaixo continua planejado; login HTTP, atendimento e APK ainda não existem.
+Para configurar o `.env`, preparar o banco e iniciar os serviços, siga o [README](../README.md#executar-localmente). Para publicar uma versão, consulte [CI/CD](ci-cd.md).
 
-## Comandos disponíveis
+## Demonstrar os alertas simulados
+
+Entrar no app com uma conta de cidadão e abrir **Alertas**. Conferir os três níveis e selecionar um cenário para consultar a região ilustrativa e o período no horário de Brasília. **Voltar aos alertas** retorna à lista. A data de referência é 25/11/2026 às 12h de Brasília e permanece fixa em qualquer dia de apresentação. Os avisos de atendimento continuam em **Notificações**.
+
+## Cadastrar uma categoria
+
+No painel, abra **Categorias**, preencha **Nome da categoria** e clique em **Adicionar categoria**. O novo nome já pode ser escolhido no filtro da fila e na criação de denúncias pelo app atualizado. O cadastro independe de já existirem ocorrências do grupo. Nomes que diferem apenas em maiúsculas, acentos ou espaços repetidos são tratados como duplicados.
+
+### Atualizar uma instalação anterior ao catálogo
+
+Antes da migração `20261119110000_report_category_catalog`, construa as imagens novas, preserve o arquivo de ambiente e faça backup do PostgreSQL e das fotos. Interrompa a API antiga antes de converter o enum em chave estrangeira, aplique `db:migrate` e inicie API e web atualizadas sobre os mesmos volumes. As seis categorias originais são criadas pela migração. Em caso de reversão para o binário antigo após a migração, recupere também o backup compatível do banco.
+
+## Demonstrar participação
+
+No app, crie uma denúncia com o cidadão A. Entre como cidadão B, abra a ocorrência no Feed ou no Mapa e toque em “Também vi isso”. A fila de gestão prioriza os casos ativos com mais confirmações; os filtros de categoria e status permitem acompanhar o mesmo registro. O cidadão B pode retirar sua confirmação enquanto o caso estiver ativo. Em Minhas denúncias, A pode cancelar em Enviado ou Em análise. O caso cancelado permanece para A e para o gestor e deixa as consultas públicas autenticadas.
+
+## Rotação das senhas de demonstração
+
+Em um ambiente que usava `DEMO_PASSWORD`, configure três novos segredos aleatórios e independentes no arquivo protegido do ambiente. Use `DEMO_CITIZEN_A_PASSWORD` para o CPF com final 01, `DEMO_CITIZEN_B_PASSWORD` para o final 02 e `DEMO_MANAGER_PASSWORD` para o final 03. O setup preserva um arquivo existente.
+
+Confira o banco de destino e execute **uma** das opções abaixo, conforme o ambiente. A rotação exige as três contas já provisionadas e troca as senhas em uma única transação. Entregue cada nova senha apenas ao responsável pela conta e retire a variável legada após a troca. Faça isso antes de habilitar o login HTTP nesse ambiente.
+
+- Execução local: `npm run db:rotate-demo-passwords -w @mycity/api`.
+- Compose local: `docker compose --profile tools run --rm --build seed npm run db:rotate-demo-passwords -w @mycity/api`.
+- Compose de implantação, a partir do diretório da release com a imagem atualizada e o ambiente carregado: `docker compose --env-file /opt/mycity/.env --env-file /opt/mycity/current/images.env -f /opt/mycity/current/compose.deploy.yaml --profile tools run --rm seed npm run db:rotate-demo-passwords -w @mycity/api`.
+
+Para uma instalação vazia, use o seed normal. Se faltar uma conta em uma instalação anterior, o seed cria a conta ausente e preserva as demais. Depois execute a rotação para substituir as credenciais antigas.
+
+## Configuração do Android
+
+Para usar um endereço explícito no app, defina `EXPO_PUBLIC_API_URL` terminando em `/api/v1`. No emulador, `10.0.2.2` aponta para a máquina de desenvolvimento. Para usar o mapa em um build, restrinja `GOOGLE_MAPS_ANDROID_API_KEY` ao pacote `br.edu.mycity.app` e ao SHA-1 do certificado da variante.
+
+### Gerar o APK assinado localmente
+
+Em uma cópia de build da revisão aprovada com as dependências do lockfile instaladas, configure o SDK Android e o JDK compatíveis com o wrapper Gradle da versão do Expo. Exporte a chave restrita em `GOOGLE_MAPS_ANDROID_API_KEY` no ambiente privado. Defina `ANDROID_BUILD_TOOLS` como o diretório dos build-tools instalados, `RELEASE_KEYSTORE` como o caminho absoluto do keystore com alias `mycity-release`, `RELEASE_PASSWORD_FILE` como o arquivo privado com sua senha e `SIGNED_APK` como o caminho absoluto do APK final fora do Git. Guarde o keystore e uma cópia recuperável sob controle do responsável.
 
 ```bash
-npm ci
-npm run setup
-docker compose up -d --wait db
-npm run db:migrate
-npm run db:seed
-docker compose up -d --build --wait api web
-docker compose --profile test up -d --wait test-db
-npm run check
+set -eu
+umask 077
+: "${GOOGLE_MAPS_ANDROID_API_KEY:?Configure a chave restrita antes de gerar o projeto nativo}"
+export EXPO_PUBLIC_API_URL=https://mycity.private-gateway.site:8080/api/v1
+export NODE_ENV=production EXPO_NO_DOTENV=1 EXPO_NO_TELEMETRY=1
+unset EXPO_PUBLIC_MY_CITY_PROTOTYPE
+npm run build:contracts
+cd apps/mobile
+../../node_modules/.bin/expo prebuild --platform android --no-install --template ../../node_modules/expo/template.tgz
+cd android
+./gradlew :app:assembleRelease
+"$ANDROID_BUILD_TOOLS/apksigner" sign --ks "$RELEASE_KEYSTORE" --ks-key-alias mycity-release --ks-pass "file:$RELEASE_PASSWORD_FILE" --out "$SIGNED_APK" app/build/outputs/apk/release/app-release.apk
+"$ANDROID_BUILD_TOOLS/apksigner" verify --verbose --print-certs "$SIGNED_APK"
+"$ANDROID_BUILD_TOOLS/aapt" dump badging "$SIGNED_APK" | sed -n '1p'
+sha256sum "$SIGNED_APK"
 ```
 
-A web local usa `http://localhost:8090`; API operacional em `/api/v1/health/live` e `/api/v1/health/ready`. Servidor, domínio e porta foram configurados conforme [CI/CD](ci-cd.md); a homologação do fluxo completo continua pendente. Testes usam `mycity_test` na porta 55433, separado de `mycity` na porta 55432. Os comandos não configuram uma publicação pública nem login com sessão.
-
-## Informações necessárias
-
-- Servidor: sistema/arquitetura, disponibilidade de Docker Compose, portas, recursos e proxy existente (C09).
-- Domínio e certificado HTTPS, endereço público da API acessível pelo Android.
-- Procedimento de assinatura/build do APK e armazenamento seguro das chaves (C10).
-- Provedor de mapas/geocodificação e configuração de chaves, se necessárias (C02/C03).
-- Ferramentas já fixadas: npm workspaces, Node 24, Vitest e Jest/Expo; C11 resolvido.
-
-Não pedir nem registrar segredos nos documentos. Exemplos de configuração devem conter placeholders; arquivos locais com credenciais devem ficar fora do controle de versão.
-
-## Configuração prevista
-
-| Configuração                   | Finalidade                        | Visibilidade                                                    |
-| ------------------------------ | --------------------------------- | --------------------------------------------------------------- |
-| URL do PostgreSQL da aplicação | Conexão usada por Prisma          | Somente API/rotina de migração                                  |
-| URL do PostgreSQL de teste     | Banco isolado para integração     | Somente ambiente de teste                                       |
-| Origem pública da web          | Origem permitida e encaminhamento | Configuração do servidor                                        |
-| URL pública da API             | Destino de requisições            | Pública; incluída no build do app                               |
-| Diretório/volume de fotos      | Armazenamento durável             | Servidor                                                        |
-| Credenciais de seed            | Contas de demonstração            | Operador e configuração protegida                               |
-| Parâmetros de sessão           | Expiração e mecanismos escolhidos | Conforme C05; segredos nunca no bundle                          |
-| Configuração de mapas          | Exibição/seleção/geocodificação   | Conforme provedor, com restrições próprias para chaves públicas |
-
-As variáveis já utilizadas estão em `.env.example`; `npm run setup` cria `.env` local sem sobrescrever um existente. Sessão e mapas ainda não têm configuração implementada.
-
-## Primeira execução local
-
-1. Conferir versões e instalar dependências pelo lockfile do monorepo.
-2. Preparar configuração local sem incluir credenciais no repositório.
-3. Subir PostgreSQL e criar banco de teste separado.
-4. Aplicar migrações versionadas; executar seed explicitamente.
-5. Iniciar API, web e ambiente de desenvolvimento mobile.
-6. Executar verificações de tipo/lint, unitários, integração e interfaces.
-7. Validar o fluxo local antes da publicação no servidor.
-
-Use os comandos da seção inicial para a fundação atual. Não usar sincronização destrutiva de schema como substituta de migrações no servidor de demonstração.
+Confira o pacote `br.edu.mycity.app` e o SHA-1 do signatário contra a restrição do Maps. Instale o arquivo referenciado por `SIGNED_APK` no Android físico e percorra a jornada com o Metro desligado. Guarde com o resultado o commit, o SHA-256 do APK e o modelo do aparelho.
 
 ## Publicação no servidor
 
 1. Conferir o alvo e preservar aplicações/proxy já existentes.
-2. Preparar configuração e volumes para banco e imagens, sem publicar a porta do banco à internet.
+2. Preparar configuração e volumes para banco e imagens, mantendo a porta do banco na rede privada. No arquivo protegido de ambiente do servidor, manter `POSTGRES_PASSWORD` para administração e definir `API_DATABASE_PASSWORD` com valor aleatório exclusivo, como 32 bytes gerados em hexadecimal. São aceitos letras, dígitos, sublinhado e hífen. Reservar o nome de papel `mycity_api` para o serviço.
 3. Construir imagens e configurar proxy/HTTPS para web e API.
-4. Fazer backup se já existirem dados; aplicar migrações explicitamente.
+4. Fazer backup do banco e das fotos se já existirem dados. O deploy aplica as migrações com o proprietário e executa `provision` em seguida. Tanto no primeiro deploy quanto em volume existente, esse serviço configura a senha e concede ao papel `mycity_api` as operações necessárias nas tabelas do aplicativo. Ao mudar o schema, revisar as concessões em `infra/provision-api.sql`. Para rotacionar a senha da API, atualizar o segredo no destino e reaplicar a release em janela de manutenção.
 5. Executar seed idempotente apenas para preparar os dados necessários.
 6. Iniciar serviços, conferir liveness/readiness e logs sem segredos.
 7. Testar login, upload, leitura das fotos e transição de status pelo domínio público.
@@ -83,7 +87,7 @@ Compose sobe web/API/banco; não instala o aplicativo no celular. APK final não
 | 10    | Usar outra denúncia para rejeitar                   | Exige justificativa em Em análise.                         |
 | 11    | Abrir alertas climáticos                            | Três níveis claramente simulados, sem afirmar envio real.  |
 
-Não tentar reabrir a denúncia resolvida para repetir a demonstração. Criar outra ou usar reset explícito apenas no ambiente correto. Preparar fotos apropriadas sem expor terceiros.
+Para demonstrar a correção, use **Voltar para análise** após iniciar um atendimento. O gestor só pode desfazer o último avanço. Em uma encerrada, **Reabrir solicitação** retorna a Em análise e mantém o encerramento no histórico. Preparar fotos apropriadas sem expor terceiros.
 
 ## Persistência, backup e recuperação
 
@@ -94,7 +98,7 @@ Não tentar reabrir a denúncia resolvida para repetir a demonstração. Criar o
 - Em falha de deploy, preservar logs e volumes; voltar à versão anterior somente se compatível com as migrações. Não prometer downgrade automático.
 - Limpeza de staging/órfãos deve respeitar uploads em andamento. Guardar evidência do comportamento em T25.
 
-## Diagnóstico operacional previsto
+## Diagnóstico operacional
 
 | Sintoma                  | Verificação inicial                                                      |
 | ------------------------ | ------------------------------------------------------------------------ |
@@ -105,4 +109,13 @@ Não tentar reabrir a denúncia resolvida para repetir a demonstração. Criar o
 | Status não atualiza      | Tela ativa, sessão válida, polling e eventual conflito de versão.        |
 | Mapa não aparece         | Provedor, chave/configuração de build, rede e erros do mapa.             |
 
-Após existir código, substituir hipóteses pelos comandos e logs efetivos. Consultar [concerns](../concerns.md) e [testes](testing.md) antes de classificar a entrega como pronta.
+## Reconciliação offline das fotos
+
+Uma interrupção entre a escrita das fotos e a confirmação da denúncia pode deixar um diretório privado no volume. Para inventariar resíduos, faça backup consistente de banco e fotos, interrompa a API em uma janela de manutenção e mantenha o PostgreSQL disponível. Confira que `DATABASE_URL` e o volume montado pertencem à mesma instalação. O serviço de ferramentas `migrate` acessa o mesmo banco do backend com a credencial de migração na hospedagem. Substitua o nome do volume abaixo pelo nome verificado na instalação. Na hospedagem, acrescente `--env-file /opt/mycity/.env --env-file /opt/mycity/current/images.env -f /opt/mycity/current/compose.deploy.yaml` a cada invocação de `docker compose` deste procedimento.
+
+```bash
+docker compose stop api
+docker compose --profile tools run --rm -v mycity_photos:/app/uploads -e UPLOAD_DIR=/app/uploads migrate npm exec -w @mycity/api -- tsx prisma/reconcile-report-files.ts
+```
+
+O inventário lista diretórios com nomes gerados pelo servidor, modificados há pelo menos 24 horas, que contêm somente nomes de fotos esperados e cujo ID está ausente do banco. Após conferir o inventário e o backup, remova individualmente cada ID autorizado acrescentando `--remove ID` ao comando de inventário. A ferramenta verifica novamente o banco e o volume antes de remover. Repita o inventário, reinicie a API com `docker compose up -d --wait api` e confira a leitura de fotos pelo painel.

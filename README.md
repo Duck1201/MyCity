@@ -1,155 +1,63 @@
 # MyCity
 
-**Sua cidade, sua voz.**
+O cidadão registra problemas urbanos pelo app Android e acompanha o histórico. O gestor usa o painel web para analisar denúncias, responder e atualizar o atendimento. Os dois clientes usam a mesma API e o mesmo PostgreSQL. Os alertas climáticos usam cenários simulados.
 
-Aplicativo de participação cidadã para registrar problemas urbanos e acompanhar o atendimento pelo município. Projeto acadêmico com Android para o cidadão e uma interface web para o gestor, desenvolvido com SDD e TDD.
-
-[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
-[![CI](https://github.com/Duck1201/MyCity/actions/workflows/ci.yml/badge.svg)](https://github.com/Duck1201/MyCity/actions/workflows/ci.yml)
-
-[Demonstração da fundação](https://mycity.private-gateway.site:8080) · [Documentação](docs/readme.md) · [Plano](plan.md) · [Pendências](concerns.md) · [Como contribuir](#contribuição)
-
-## Visão do produto
-
-O cidadão registra uma denúncia com fotos e localização; o gestor analisa, responde e atualiza o atendimento; o cidadão acompanha o histórico e recebe avisos no app. Alertas climáticos usam cenários simulados nesta entrega.
-
-![Conceito visual do painel do gestor](mycity-gestor-v2.png)
-
-> Conceito visual em refinamento. A imagem não representa uma interface já implementada.
-
-## Estado atual
-
-- [x] Monorepo TypeScript e contratos compartilhados.
-- [x] Express, Prisma, PostgreSQL e Docker Compose.
-- [x] Seed idempotente com dois cidadãos e um gestor.
-- [x] Testes unitários, integração com banco real e componentes.
-- [x] CI/CD com publicação no GHCR e deploy HTTPS na EC2.
-- [ ] Login com sessão e permissões HTTP.
-- [ ] Denúncias com fotos, GPS e seleção manual no mapa.
-- [ ] Painel de atendimento, histórico e notificações.
-- [ ] APK homologado em Android real.
-
-Web e app exibem a marca inicial. A API expõe saúde do serviço; a validação interna de credenciais ainda não emite sessões. Resultados e limites estão em [evidências](docs/evidence/foundation.md).
-
-## Stack
-
-| Parte     | Tecnologias                                               |
-| --------- | --------------------------------------------------------- |
-| Web       | React, Vite, Tailwind CSS, shadcn/ui                      |
-| Android   | React Native, Expo, StyleSheet                            |
-| API       | Express, Prisma, PostgreSQL                               |
-| Qualidade | TypeScript, ESLint, Prettier, Vitest, Jest/Expo           |
-| Entrega   | Docker Compose, GitHub Actions, GitHub Container Registry |
-
-O backend é um monólito modular: Identidade, Denúncias, Notificações e Alertas se comunicam por interfaces em memória. App e web acessam a API por HTTP. Não há fila nem WebSocket no MVP.
-
-## Estrutura
-
-```text
-apps/
-  api/                 # Backend e módulos de domínio
-  web/                 # Interface do gestor
-  mobile/              # Aplicativo do cidadão
-packages/contracts/    # DTOs e validações compartilháveis
-infra/                 # Proxy e configuração operacional
-scripts/               # Preparação e verificações
-.github/workflows/     # CI e CD
-docs/                 # Especificação, decisões e evidências
-refs/                  # Referências visuais
-```
+[Demonstração hospedada](https://mycity.private-gateway.site:8080)
 
 ## Executar localmente
 
-Requisitos: Node 24, npm 11, Docker e Docker Compose. Versões fixadas nos manifestos, `.nvmrc` e `package-lock.json`.
+Use Node 24 e npm 11. Na raiz do repositório, prepare a instalação:
 
 ```bash
-git clone https://github.com/Duck1201/MyCity.git
-cd MyCity
 npm ci
 npm run setup
-docker compose up -d --wait db
+```
+
+O setup gera o cliente Prisma, compila os contratos e cria o `.env` se ele ainda não existir. Confira `DATABASE_URL`. Para usar o PostgreSQL do projeto, execute `docker compose up -d --wait db`. Com o banco disponível, prepare os dados e inicie o projeto:
+
+```bash
 npm run db:migrate
 npm run db:seed
+npm run dev
+```
+
+Abra o painel em **http://localhost:8090**. Após entrar, a Visão geral abre os indicadores do banco local. Atendimento reúne a busca, os filtros, a exportação CSV e os detalhes; em Categorias, o gestor edita nomes e ícones e arquiva ou reativa grupos. O gestor usa o CPF `00000000003` e a senha `DEMO_MANAGER_PASSWORD` do ambiente. O seed também prepara os cidadãos com CPFs finais 01 e 02 e as respectivas senhas do ambiente. Ctrl+C encerra painel e API. Para abrir o app, execute `npm run dev:mobile` em outro terminal e conecte o celular à mesma rede do Metro. No PC, `npm run dev:mobile:web` abre a [prévia mobile](http://localhost:8093/), com o [login do cidadão](http://localhost:8093/login).
+
+Após editar `packages/contracts` durante a sessão, execute `npm run build:contracts` para atualizar o pacote consumido pela API.
+
+### Alterar o ambiente
+
+- **Portas.** `WEB_PORT` define a porta do painel e `PORT` a da API (padrões 8090 e 3000). Reinicie `npm run dev` após editar o arquivo. Quem usa `dev:api` e `dev:web` separadamente deve reiniciar os dois. Reinicie o Metro se o endereço da API mudar. O app aceita `EXPO_PUBLIC_API_PORT` ou a URL completa em `EXPO_PUBLIC_API_URL`.
+- **Senhas.** Edite a variável da conta e reinicie a API. As três senhas podem ter o mesmo valor no desenvolvimento local. Nas bases locais de desenvolvimento via loopback, a nova senha de uma conta habilitada revoga as sessões daquela conta. Outros destinos e contas legadas exigem [rotação explícita](docs/runbook.md#rotação-das-senhas-de-demonstração). Uma variável exportada no terminal tem precedência sobre a mesma chave no arquivo.
+- **Dados.** Repetir o seed preserva registros e senhas. Para apagar os dados locais, encerre o desenvolvimento e confira o destino antes de usar `npm run db:reset`. O reset reaplica as migrações e termina sem usuários nem denúncias.
+
+### Executar com Docker Compose
+
+Para servir também a API e o painel compilados, encerre o Vite e use:
+
+```bash
+docker compose up -d --wait db
+docker compose --profile tools run --rm --build migrate
+docker compose --profile tools run --rm --build seed
 docker compose up -d --build --wait api web
 ```
 
-Acesse **http://localhost:8090**. A API está no mesmo host em `/api/v1/health/live` e `/api/v1/health/ready`.
-
-`setup` cria `.env` com credenciais aleatórias somente se ele não existir. As contas são `00000000001` (cidadão A), `00000000002` (cidadão B) e `00000000003` (gestor), todos identificadores sintéticos de demonstração; a senha local está em `DEMO_PASSWORD`. Seed repetido preserva IDs e senhas existentes. Nunca versionar `.env`.
-
-Migrações e seed também podem rodar em containers:
-
-```bash
-docker compose --profile tools run --rm --build migrate
-docker compose --profile tools run --rm --build seed
-```
-
-Os volumes guardam banco e fotos. Não use `docker compose down -v` em uma atualização.
-
-## Desenvolvimento
-
-Execute em terminais separados:
-
-```bash
-npm run dev:api
-npm run dev:web
-npm run dev:mobile
-```
-
-Após alterar contratos, execute `npm run build:contracts`. O perfil Expo `preview` prepara a futura distribuição APK; gerar um bundle não equivale a validar um APK instalado.
+Para voltar ao desenvolvimento local, use `docker compose stop web api`. Os volumes guardam o banco e as fotos.
 
 ## Testes e qualidade
 
 ```bash
-docker compose --profile test up -d --wait test-db
-npm run check
+npm run lint
+npm run typecheck
+npm test --workspaces --if-present
+npm run build
 npm run format:check
-npm run security:check
-npm run export:android -w @mycity/mobile
 ```
 
-`check` executa lint, typecheck, todos os testes atuais e builds da API/web. Integração usa exclusivamente o banco local `mycity_test`, separado da demonstração. As regras são testadas pelas interfaces públicas; o banco sob teste é real.
+Valide o fluxo integrado no painel local com a API, o PostgreSQL e as fotos do ambiente já em execução. A CI executa `npm run check`, incluindo OpenAPI, ferramentas e integrações HTTP. O runner automatizado de integração restringe o destino a `mycity_test`; preserve essa proteção e os dados do desenvolvimento. Use `npm run security:check` para a auditoria e `npm run export:android -w @mycity/mobile` para verificar o bundle.
 
-## CI/CD
+## Trabalhar no projeto
 
-A CI verifica Conventional Commits, formatação, lint, tipos, testes, bundle Android e imagens Docker. Na `main`, imagens aprovadas são publicadas no GHCR com tag derivada do SHA. O CD usa essas imagens na EC2, com credenciais em secrets, migrações explícitas e verificação de saúde.
+O [AGENTS.md](AGENTS.md) indica a especificação, o código e os testes de cada área. O [plano](plan.md) registra as fases e [concerns.md](concerns.md) acompanha decisões pendentes. Para operar uma instalação ou recuperar dados, use o [runbook](docs/runbook.md).
 
-Configuração, permissões, operação e limitações: [CI/CD](docs/ci-cd.md).
-
-## Contribuição
-
-Use branches curtas e Pull Requests para `main`. Commits e títulos de PR seguem **Conventional Commits**, preferencialmente em inglês:
-
-```text
-feat(reports): add report creation
-fix(identity): reject expired sessions
-test(reports): cover cancellation conflicts
-docs: clarify demo scope
-chore: update development tooling
-ci: validate Android bundle
-```
-
-Cada feature ou correção inclui testes de regressão. Antes de enviar, execute as verificações acima e siga [AGENTS.md](AGENTS.md). Mudanças de comportamento devem atualizar a especificação e seus critérios de aceitação.
-
-## Licença
-
-Licenciado sob [Apache License 2.0](LICENSE). Atribuições de componentes de terceiros estão em [NOTICE](NOTICE).
-
-## Agentes de qualidade
-
-Cada fase passa por Pentest Sol e Luna; QA de interface e integração complementam a revisão conforme a mudança. Os cenários de QA usam as personas fornecidas. Papéis, modelos, gatilhos e limites estão em [agents/readme.md](agents/readme.md). Os modelos são acionados pelo orquestrador Codex; a CI executa scanners/testes de forma independente.
-
-## Swagger e atualizações de dependências
-
-O contrato das rotas implementadas é gerado com `swagger-autogen` e exibido com `swagger-ui-express`. Ajuste descrições/schemas nas rotas e no gerador, sem editar `apps/api/src/openapi.json` manualmente.
-
-```bash
-npm run docs:generate -w @mycity/api
-API_DOCS_ENABLED=true npm run dev:api
-```
-
-Abra `http://127.0.0.1:3000/api/docs/`. Com Swagger habilitado, a API de desenvolvimento escuta somente no loopback. Em produção, UI/schema/assets ficam desativados mesmo com a flag ligada. O Swagger documenta apenas as rotas de saúde hoje; não comprova implementação do login ou de denúncias. `npm run check` verifica se a geração está atualizada.
-
-Dependabot está configurado para npm (lockfile único), Docker e GitHub Actions, com PRs semanais e commits `build(deps)`. Atualizações de segurança também abrem PRs. Não há merge automático; os checks e a revisão continuam obrigatórios, especialmente em atualizações de Expo/React Native e Prisma.
-
-A decisão atual de identidade é **CPF e senha próprios, sem e-mail/gov.br**, com dados fictícios. O seed e o módulo interno de Identidade já usam CPF. Login HTTP, credenciais distintas e o checkbox de anonimato continuam pendentes da fase funcional correspondente.
+Licença [Apache 2.0](LICENSE). Atribuições em [NOTICE](NOTICE).
