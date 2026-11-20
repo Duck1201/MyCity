@@ -1,6 +1,6 @@
 # MyCity — Plano de entrega
 
-**Etapa 5 concluída no ambiente local.** O responsável aceitou a revisão visual em 20/11/2026. O painel aprovado usa a API e o PostgreSQL de desenvolvimento. A homologação do APK com a API hospedada pertence à etapa 6.
+**Etapa 6 concluída.** O APK assinado, a API HTTPS e o painel hospedado foram homologados no percurso cidadão → gestor → cidadão em 20/11/2026.
 
 O percurso principal liga cidadão, gestor e autor da denúncia. Um cidadão registra o problema com localização e fotos, outro confirma a ocorrência, o gestor atende e o autor acompanha o histórico e as notificações. Os [requisitos](docs/requirements.md) e os [fluxos](docs/flows.md) definem o comportamento. Decisões em aberto ficam em [concerns.md](concerns.md).
 
@@ -14,7 +14,7 @@ O percurso principal liga cidadão, gestor e autor da denúncia. Um cidadão reg
 | 3     | Atendimento, histórico, respostas e avisos ao cidadão            | Percurso local validado.                                                                            |
 | 4     | Feed, mapa, confirmações, prioridade, filtros e cancelamento     | Participação validada localmente.                                                                   |
 | 5     | Alertas simulados e revisão visual                               | Gate local concluído.                                                                               |
-| 6     | Publicação e homologação do APK contra a API hospedada           | API e painel homologados na EC2. Pendente jornada completa no APK com mapa.                         |
+| 6     | Publicação e homologação do APK contra a API hospedada           | APK no Galaxy M32, API e painel na EC2. Gate concluído.                                             |
 
 ## Revisão do frontend — painel administrativo e acompanhamento no Android
 
@@ -38,13 +38,8 @@ A API integrada já permite renomear categorias e desfazer somente o último ava
 
 ## Aceite da entrega hospedada
 
-A preparação local da etapa 6 inclui cotas nas rotas públicas, credencial restrita para a API e deploy por digest. Antes da publicação, fixe a revisão que será homologada: o workspace da etapa 5 contém alterações locais e arquivos novos, incluindo as migrações de arquivamento e ícone de categoria. Confira o conteúdo da release e os checks de CI antes da publicação.
+No Galaxy M32, o cidadão publicou uma ocorrência com fotos da câmera e da galeria e escolheu um ponto público no mapa. Outro cidadão confirmou, o gestor atendeu pelo painel e o autor consultou o histórico e o aviso no APK. A sessão e a leitura persistiram após reiniciar o aplicativo. A [matriz de aceite](docs/testing.md#aceite-por-critério) identifica as revisões e verificações realizadas.
 
-O perfil `preview` em [eas.json](apps/mobile/eas.json) já seleciona o formato APK. O APK terá assinatura local (C10), URL HTTPS da API e chave de mapas restrita ao pacote e ao certificado, conforme o [runbook Android](docs/runbook.md#configuração-do-android). Antes de expor dados da demonstração, aplicar as regras de retenção do ensaio (C12) e conferir os achados de segurança da hospedagem (C28 em [concerns.md](concerns.md)).
-
-- Publicar as imagens com HTTPS, aplicar migrações explicitamente e rotacionar as contas legadas no destino. Preservar dados e fotos conforme o [runbook](docs/runbook.md) e os [procedimentos de implantação](docs/ci-cd.md).
-- Instalar o APK assinado em Android físico. Conferir câmera, compressão e leitura de fotos, permissões, GPS e seleção manual no mapa. Percorrer criação, confirmação, atendimento e notificação contra a API pública.
-- Conferir persistência e recuperação no destino. Remover os dados do ensaio após o aceite conforme C12. Região, bairro e geocodificação foram adiados.
-- Conferir a conciliação final das [fontes acadêmicas](docs/references/) com os critérios e registrar o resultado de cada verificação na [matriz de aceite](docs/testing.md#aceite-por-critério). Distinguir simulações e verificações locais dos resultados obtidos no destino.
+A hospedagem passou pela rotação das contas, restrição do acesso ao banco, deploy por digest e recuperação isolada de banco e foto. Após o aceite, as duas denúncias e os três anexos do ensaio foram removidos. A preparação de uma nova instalação está no [runbook](docs/runbook.md#configuração-do-android). Região, bairro e geocodificação continuam adiados conforme o [escopo aprovado](docs/scope.md).
 
 O fechamento de cada fase segue o [gate de revisão](agents/readme.md). Para desenvolver e testar uma alteração, consulte o [AGENTS.md](AGENTS.md).
