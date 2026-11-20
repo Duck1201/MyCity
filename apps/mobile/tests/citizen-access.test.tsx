@@ -1,4 +1,4 @@
-import { render, screen, userEvent, fireEvent } from '@testing-library/react-native';
+import { act, render, screen, userEvent, fireEvent } from '@testing-library/react-native';
 import { Text } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { CitizenAccess } from '../src/citizen-access';
@@ -101,4 +101,19 @@ it('insere pontos e hífen à medida que os dígitos chegam', async () => {
     expect(input).toHaveProp('value', '012.345.6');
     await user.type(input, '789');
     expect(input).toHaveProp('value', '012.345.678-9');
+});
+
+it('exibe a abertura até concluir a leitura da sessão e então libera o login', async () => {
+    let finish!: (token: string | null) => void;
+    jest.mocked(SecureStore.getItemAsync).mockReturnValueOnce(
+        new Promise((resolve) => {
+            finish = resolve;
+        }),
+    );
+    await render(<CitizenAccess apiBase="https://demo.example/api/v1">{() => <Text>Privado</Text>}</CitizenAccess>);
+    expect(screen.getByRole('progressbar', { name: 'Abrindo MyCity' })).toBeVisible();
+    expect(screen.queryByLabelText('CPF')).toBeNull();
+    await act(async () => finish(null));
+    expect(await screen.findByLabelText('CPF')).toBeVisible();
+    expect(screen.queryByRole('progressbar')).toBeNull();
 });

@@ -19,7 +19,8 @@ import { ApiConfirmation, confirmationLabel } from './report-confirmation';
 import { Participation } from './report-participation';
 import { useCitizenRequest, type CitizenRequest as Request } from './citizen-api';
 import { WeatherAlerts } from './weather-alerts';
-import { CommunityMap, brazilView } from './community-map';
+import { CommunityMap } from './community-map';
+import { cityRegion } from './map-region';
 type Page<T> = { data: T[]; page: { nextCursor: string | null } };
 type Tab = 'mine' | 'notifications' | 'feed' | 'resolved' | 'map' | 'alerts';
 type Selection = { id: string; noticeId?: string; published?: ReportDetail };
@@ -242,7 +243,7 @@ export function CitizenWorkspace({ token, apiBase, onSessionExpired, draftRef, l
     }, [draftRef]);
     const [selection, setSelection] = useState<Selection | null>(null);
     const [pages, setPages] = useState<(string | null)[]>([null]);
-    const [mapRegion, setMapRegion] = useState(brazilView);
+    const [mapRegion, setMapRegion] = useState(cityRegion);
     const [filters, setFilters] = useState<ReportFilters>({});
     const request = useCitizenRequest(apiBase, token, onSessionExpired);
     function selectTab(value: Tab) {

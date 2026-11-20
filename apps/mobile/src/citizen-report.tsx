@@ -2,10 +2,9 @@ import { CategoryCatalog } from './category-catalog';
 import { useCitizenRequest } from './citizen-api';
 import { colors, mobileStyles } from './theme';
 import { useEffect, useRef, useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
+import { Image, Keyboard, Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
 import { Text, TextInput } from './components/typography';
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
-import * as GPS from 'expo-location';
+import { ReportLocationPicker } from './report-location-picker';
 import { File } from 'expo-file-system';
 import { randomUUID } from 'expo-crypto';
 import { type Location, type ReportDetail, type ReportCategory } from '@mycity/contracts';
@@ -25,12 +24,9 @@ export function CitizenReport({ token, apiBase, onSessionExpired, onPublished, d
     const [catalogVersion, setCatalogVersion] = useState(0);
     const [error, setError] = useState('');
     const [mapOpen, setMapOpen] = useState(false);
-    const [candidate, setCandidate] = useState<Location | null>(null);
     const [sending, setSending] = useState(false);
-    const [locating, setLocating] = useState(false);
     const [preparing, setPreparing] = useState(false);
     const [detail, setDetail] = useState<ReportDetail | null>(null);
-    const gpsAttempt = useRef(0);
     const inFlight = useRef(false);
     const mounted = useRef(true);
     const request = useRef<AbortController | null>(null);
@@ -39,7 +35,6 @@ export function CitizenReport({ token, apiBase, onSessionExpired, onPublished, d
         mounted.current = true;
         return () => {
             mounted.current = false;
-            gpsAttempt.current++;
             request.current?.abort();
         };
     }, []);
@@ -50,32 +45,6 @@ export function CitizenReport({ token, apiBase, onSessionExpired, onPublished, d
     function edit(changes: Partial<CitizenDraft>) {
         setError('');
         setDraft((prev) => ({ ...prev, ...changes, requestId: randomUUID() }));
-    }
-    function chooseMap() {
-        gpsAttempt.current++;
-        setLocating(false);
-        setCandidate(draft.location);
-        setMapOpen(true);
-        setError('');
-    }
-    async function locate() {
-        const attempt = ++gpsAttempt.current;
-        setLocating(true);
-        setError('');
-        try {
-            if (!(await GPS.requestForegroundPermissionsAsync()).granted) throw new Error();
-            const { coords } = await GPS.getCurrentPositionAsync({});
-            if (attempt !== gpsAttempt.current) return;
-            setCandidate({ latitude: coords.latitude, longitude: coords.longitude, source: 'GPS' });
-            setMapOpen(true);
-        } catch {
-            if (attempt !== gpsAttempt.current) return;
-            setCandidate(draft.location);
-            setMapOpen(true);
-            setError('GPS indisponível. Toque no mapa e confirme o ponto.');
-        } finally {
-            if (attempt === gpsAttempt.current) setLocating(false);
-        }
     }
     async function addPhoto(source: 'camera' | 'gallery') {
         if (busy || draft.photos.length >= 3) return;
@@ -156,92 +125,81 @@ export function CitizenReport({ token, apiBase, onSessionExpired, onPublished, d
         );
 
     return (
-        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.page}>
-            {onBack && <ActionButton variant="secondary" label="Voltar" onPress={onBack} />}
-            <Text accessibilityRole="header" style={styles.title}>
-                Registrar denúncia
-            </Text>
-            <Text style={styles.label}>Categoria</Text>
-            <CategoryCatalog key={catalogVersion} request={catalogRequest} activeOnly>
-                {(categories) => (
+        <>
+            <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.page}>
+                {onBack && <ActionButton variant="secondary" label="Voltar" onPress={onBack} />}
+                <Text accessibilityRole="header" style={styles.title}>
+                    Registrar denúncia
+                </Text>
+                <Text style={styles.label}>Categoria</Text>
+                <CategoryCatalog key={catalogVersion} request={catalogRequest} activeOnly>
+                    {(categories) => (
+                        <View style={styles.choices}>
+                            {categories.map(({ id: code, name }) => (
+                                <Pressable key={code} accessibilityRole="radio" accessibilityState={{ checked: draft.category === code, disabled: busy }} disabled={busy} style={[styles.choice, code === draft.category && styles.chosen]} onPress={() => edit({ category: code })}>
+                                    <Text style={code === draft.category ? styles.active : styles.text}>{name}</Text>
+                                </Pressable>
+                            ))}
+                        </View>
+                    )}
+                </CategoryCatalog>
+                <Text style={styles.label}>Descrição</Text>
+                <TextInput accessibilityLabel="Descrição" placeholder="Descreva o problema observado" value={draft.description} multiline maxLength={1000} editable={!busy} onChangeText={(description) => edit({ description })} style={styles.input} />
+                <Text style={mobileStyles.meta}>{draft.description.length}/1.000 caracteres</Text>
+                <Text style={styles.label}>Fotos ({draft.photos.length}/3)</Text>
+                <Text style={mobileStyles.meta}>Adicione de uma a três fotos. Cada JPEG pode ter até 5 MiB.</Text>
+                {draft.photos.map((uri, i) => (
+                    <View key={uri}>
+                        <Image source={{ uri }} accessibilityLabel={'Prévia da foto ' + (i + 1)} resizeMode="contain" style={styles.photo} />
+                        <ActionButton variant="secondary" label={'Remover foto ' + (i + 1)} pending={busy} onPress={() => edit({ photos: draft.photos.filter((_, index) => index !== i) })} />
+                    </View>
+                ))}
+                {draft.photos.length < 3 && (
                     <View style={styles.choices}>
-                        {categories.map(({ id: code, name }) => (
-                            <Pressable key={code} accessibilityRole="radio" accessibilityState={{ checked: draft.category === code, disabled: busy }} disabled={busy} style={[styles.choice, code === draft.category && styles.chosen]} onPress={() => edit({ category: code })}>
-                                <Text style={code === draft.category ? styles.active : styles.text}>{name}</Text>
-                            </Pressable>
-                        ))}
+                        <ActionButton variant="secondary" label="Câmera" pending={busy} onPress={() => void addPhoto('camera')} />
+                        <ActionButton variant="secondary" label="Galeria" pending={busy} onPress={() => void addPhoto('gallery')} />
                     </View>
                 )}
-            </CategoryCatalog>
-            <Text style={styles.label}>Descrição</Text>
-            <TextInput accessibilityLabel="Descrição" placeholder="Descreva o problema observado" value={draft.description} multiline maxLength={1000} editable={!busy} onChangeText={(description) => edit({ description })} style={styles.input} />
-            <Text style={mobileStyles.meta}>{draft.description.length}/1.000 caracteres</Text>
-            <Text style={styles.label}>Fotos ({draft.photos.length}/3)</Text>
-            <Text style={mobileStyles.meta}>Adicione de uma a três fotos. Cada JPEG pode ter até 5 MiB.</Text>
-            {draft.photos.map((uri, i) => (
-                <View key={uri}>
-                    <Image source={{ uri }} accessibilityLabel={'Prévia da foto ' + (i + 1)} resizeMode="contain" style={styles.photo} />
-                    <ActionButton variant="secondary" label={'Remover foto ' + (i + 1)} pending={busy} onPress={() => edit({ photos: draft.photos.filter((_, index) => index !== i) })} />
+                {preparing && <Text accessibilityLiveRegion="polite">Preparando foto…</Text>}
+                <Text style={styles.label}>Localização</Text>
+                {draft.location && (
+                    <Text>
+                        Ponto confirmado: {draft.location.latitude}, {draft.location.longitude}
+                    </Text>
+                )}
+                <ActionButton
+                    variant="secondary"
+                    label="Escolher no mapa"
+                    pending={busy}
+                    onPress={() => {
+                        Keyboard.dismiss();
+                        setError('');
+                        setMapOpen(true);
+                    }}
+                />
+                <View style={styles.toggle}>
+                    <Text style={styles.label}>Quero mostrar minha cara</Text>
+                    <Switch accessibilityLabel="Quero mostrar minha cara" disabled={busy} value={draft.showIdentity} onValueChange={(showIdentity) => edit({ showIdentity })} />
                 </View>
-            ))}
-            {draft.photos.length < 3 && (
-                <View style={styles.choices}>
-                    <ActionButton variant="secondary" label="Câmera" pending={busy} onPress={() => void addPhoto('camera')} />
-                    <ActionButton variant="secondary" label="Galeria" pending={busy} onPress={() => void addPhoto('gallery')} />
-                </View>
-            )}
-            {preparing && <Text accessibilityLiveRegion="polite">Preparando foto…</Text>}
-            <Text style={styles.label}>Localização</Text>
-            {draft.location && (
-                <Text>
-                    Ponto confirmado: {draft.location.latitude}, {draft.location.longitude}
-                </Text>
-            )}
-            <View style={styles.choices}>
-                <ActionButton variant="secondary" label={locating ? 'Buscando GPS…' : 'Usar GPS'} pending={busy || locating} onPress={() => void locate()} />
-                <ActionButton variant="secondary" label="Escolher no mapa" pending={busy} onPress={chooseMap} />
-            </View>
+                <Text style={mobileStyles.meta}>{draft.showIdentity ? 'Seu nome e sua foto aparecerão nesta denúncia.' : 'Sua denúncia aparecerá como anônima, inclusive para o gestor.'}</Text>
+                {error && (
+                    <Text accessibilityLiveRegion="assertive" style={styles.error}>
+                        {error}
+                    </Text>
+                )}
+                <ActionButton label={sending ? 'Enviando…' : 'Enviar denúncia'} pending={busy} onPress={() => void send()} />
+            </ScrollView>
             {mapOpen && (
-                <>
-                    <Text style={mobileStyles.meta}>Toque no mapa para ajustar o ponto da ocorrência.</Text>
-                    <MapView testID="location-map" provider={PROVIDER_GOOGLE} style={styles.map} initialRegion={{ latitude: candidate?.latitude ?? -14.2, longitude: candidate?.longitude ?? -51.9, latitudeDelta: candidate ? 0.018 : 36, longitudeDelta: candidate ? 0.018 : 36 }} onPress={(e) => setCandidate({ ...e.nativeEvent.coordinate, source: 'MANUAL' })}>
-                        {candidate && <Marker coordinate={candidate} />}
-                    </MapView>
-                    {candidate && (
-                        <Text>
-                            {candidate.latitude}, {candidate.longitude}
-                        </Text>
-                    )}
-                    <ActionButton
-                        label="Confirmar ponto"
-                        pending={!candidate}
-                        onPress={() => {
-                            if (candidate) edit({ location: candidate });
-                            setMapOpen(false);
-                        }}
-                    />
-                    <ActionButton
-                        variant="secondary"
-                        label="Fechar mapa"
-                        onPress={() => {
-                            setMapOpen(false);
-                            setError('');
-                        }}
-                    />
-                </>
+                <ReportLocationPicker
+                    saved={draft.location}
+                    cancel={() => setMapOpen(false)}
+                    confirm={(location) => {
+                        edit({ location });
+                        setMapOpen(false);
+                    }}
+                />
             )}
-            <View style={styles.toggle}>
-                <Text style={styles.label}>Quero mostrar minha cara</Text>
-                <Switch accessibilityLabel="Quero mostrar minha cara" disabled={busy} value={draft.showIdentity} onValueChange={(showIdentity) => edit({ showIdentity })} />
-            </View>
-            <Text style={mobileStyles.meta}>{draft.showIdentity ? 'Seu nome e sua foto aparecerão nesta denúncia.' : 'Sua denúncia aparecerá como anônima, inclusive para o gestor.'}</Text>
-            {error && (
-                <Text accessibilityLiveRegion="assertive" style={styles.error}>
-                    {error}
-                </Text>
-            )}
-            <ActionButton label={sending ? 'Enviando…' : 'Enviar denúncia'} pending={busy || locating} onPress={() => void send()} />
-        </ScrollView>
+        </>
     );
 }
 const styles = StyleSheet.create({
@@ -254,7 +212,6 @@ const styles = StyleSheet.create({
     active: { color: colors.surface, fontWeight: '700' },
     text: { color: colors.ink, fontSize: 15 },
     input: { padding: 14, minHeight: 100, borderWidth: 1, borderRadius: 8, borderColor: '#819ba5', backgroundColor: colors.surface, textAlignVertical: 'top', color: colors.ink, fontSize: 16 },
-    map: { height: 260, width: '100%' },
     photo: { width: '100%', height: 190, backgroundColor: colors.canvas },
     toggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' },
     error: mobileStyles.error,

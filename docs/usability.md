@@ -40,3 +40,7 @@ A revisão do painel e do app na etapa 5 incluiu navegação por teclado, estado
 O retorno do responsável motivou os ajustes da lateral, do reset de filtros, do carregamento, do CPF e da identidade visual em azul e cinza.
 
 A tipografia de interface do MyCity é Nunito no painel web e no aplicativo Android. Títulos, valores, campos e textos usam a mesma família, com hierarquia por peso e tamanho. As fontes são distribuídas com cada cliente.
+
+Ao abrir o app, a tela MyCity indica o carregamento das fontes e a verificação da sessão. O login ou a área do cidadão aparece assim que a verificação termina. Se a conexão falhar, a tela de acesso oferece **Tentar novamente**.
+
+O mapa de denúncias abre na área urbana de Viçosa e permite alternar entre mapa e lista mantendo a área e os filtros. **Minha localização** centraliza a visualização mediante permissão. Na nova denúncia, o seletor amplo permite tocar no mapa ou arrastar o marcador e só altera o rascunho quando o cidadão confirma o ponto.
