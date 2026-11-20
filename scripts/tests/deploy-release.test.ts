@@ -136,3 +136,16 @@ it('entrega à VM os digests produzidos pelo mesmo workflow, sem artefatos inter
     for (const image of ['api', 'tools', 'web']) expect(JSON.stringify(deploy)).toContain('needs.images.outputs.' + image);
     expect(JSON.stringify(deploy)).not.toMatch(/download-artifact|EC2_RUNTIME_ENV/);
 });
+
+it('revalida o nome da release no próprio job de deploy antes do primeiro comando remoto', () => {
+    const steps = workflow().jobs.deploy.steps as { name?: string; run?: string }[];
+    const prepare = steps.findIndex((step) => step.name === 'Prepare release files and SSH');
+    const firstRemote = steps.findIndex((step) => /\bssh\b|\bscp\b/.test(step.run ?? '') && !step.run!.includes('install -m 700'));
+    expect(prepare).toBeGreaterThanOrEqual(0);
+    expect(prepare).toBeLessThan(firstRemote);
+    const check = steps[prepare]!.run!.match(/\[\[ "\$RELEASE" =~ ([^ ]+) \]\]/)?.[1];
+    expect(check).toBe('^v[0-9]+\\.[0-9]+\\.[0-9]+-[1-9][0-9]{0,8}$');
+    const name = new RegExp(check!);
+    for (const valid of ['v1.0.0-1', 'v12.3.45-10']) expect(name.test(valid)).toBe(true);
+    for (const hostile of ["v1.0.0-1'; rm -rf / #", 'v1.0.0', 'v1.0.0-1/../x', 'latest-1']) expect(name.test(hostile)).toBe(false);
+});

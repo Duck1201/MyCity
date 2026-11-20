@@ -275,6 +275,33 @@ it('carrega as páginas do mapa, abre pelo resumo e restaura a seleção com mov
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Ver denúncia' })).toBeNull());
 });
 
+it('lista as denúncias de um grupo no mesmo ponto e abre o resumo da escolhida', async () => {
+    jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(true);
+    const points = [
+        { id: 'grupo-1', latitude: 0.1, longitude: 0.1, category: 'POTHOLE', status: 'SENT', confirmationCount: 0 },
+        { id: 'grupo-2', latitude: 0.1, longitude: 0.1, category: 'POTHOLE', status: 'UNDER_REVIEW', confirmationCount: 2 },
+    ];
+    jest.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+        const url = new URL(String(input));
+        if (url.pathname.endsWith('/categories')) return categoryResponse();
+        if (url.pathname.endsWith('/reports/map')) return response(page(url.searchParams.get('bbox') === '-1,-1,1,1' ? points : []));
+        throw Error('rota inesperada');
+    });
+    await openApp();
+    await fireEvent.press(screen.getByRole('tab', { name: 'Mapa' }));
+    await fireEvent(screen.getByTestId('community-map').parent!, 'layout', { nativeEvent: { layout: { x: 0, y: 0, width: 360, height: 640 } } });
+    await fireEvent(screen.getByTestId('community-map'), 'regionChangeComplete', { latitude: 0, longitude: 0, latitudeDelta: 2, longitudeDelta: 2 });
+    expect(await screen.findByText('2 denúncias nesta área')).toBeVisible();
+    expect(screen.queryByTestId('report-marker-grupo-1')).toBeNull();
+    await fireEvent.press(screen.getByLabelText('2 denúncias próximas'));
+    expect(screen.getByRole('header', { name: '2 denúncias próximas' })).toBeVisible();
+    expect(screen.getByText('Enviado · 0 confirmações')).toBeVisible();
+    await fireEvent.press(screen.getByText('Em análise · 2 confirmações'));
+    expect(screen.queryByRole('header', { name: '2 denúncias próximas' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Ver denúncia' })).toBeVisible();
+    expect(screen.getByText(/Em análise/)).toBeVisible();
+});
+
 it('só cancela após confirmar e envia a versão exibida; conflito recarrega a situação atual', async () => {
     let changed = false;
     const sent = { ...report, isMine: true, version: 2, status: 'UNDER_REVIEW', allowedActions: ['CANCEL'] };

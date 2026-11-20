@@ -1,6 +1,6 @@
 import { CitizenWorkspace } from '../src/citizen-workspace';
 import { categoryResponse } from './category-fixture';
-import { AppState, type AppStateStatus } from 'react-native';
+import { AccessibilityInfo, AppState, ScrollView, type AppStateStatus } from 'react-native';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { pickReportPhoto } from '../src/report-photos';
 import { ReportLocationPicker } from '../src/report-location-picker';
@@ -98,6 +98,31 @@ it('identifica somente a foto pendente e substitui o aviso pela orientação da 
         expect(screen.getByText('Fotos (1/3)')).toBeVisible();
     } finally {
         catalog.mockRestore();
+    }
+});
+
+it('leva o leitor de tela e a rolagem ao primeiro campo pendente ao tentar enviar', async () => {
+    const catalog = jest.spyOn(globalThis, 'fetch').mockImplementation(async () => categoryResponse());
+    const focus = jest.spyOn(AccessibilityInfo, 'sendAccessibilityEvent');
+    // The React Native preset defines this method as a shared jest.fn; start from this test's calls only.
+    focus.mockClear();
+    const scrollTo = jest.spyOn(ScrollView.prototype, 'scrollTo');
+    const draft = { category: null, description: '', photos: ['file:///cache/foto.jpg'], location: { latitude: 0, longitude: 0, source: 'MANUAL' as const }, showIdentity: false, requestId: 'original' };
+    try {
+        await render(<CitizenReport apiBase="https://example.test" token="teste" onSessionExpired={jest.fn()} draftRef={{ current: draft }} />);
+        const category = screen.getByText('Categoria');
+        await fireEvent(category, 'layout', { nativeEvent: { layout: { x: 0, y: 640, width: 300, height: 24 } } });
+        await fireEvent(screen.getByText('Descrição'), 'layout', { nativeEvent: { layout: { x: 0, y: 900, width: 300, height: 24 } } });
+        await fireEvent.press(screen.getByRole('button', { name: 'Enviar denúncia' }));
+        expect(screen.getByText('Selecione uma categoria.')).toBeVisible();
+        expect(screen.getByText('Descreva o problema.')).toBeVisible();
+        expect(focus).toHaveBeenCalledTimes(1);
+        expect(focus).toHaveBeenCalledWith(expect.anything(), 'focus');
+        expect(scrollTo).toHaveBeenLastCalledWith(expect.objectContaining({ y: 628 }));
+    } finally {
+        catalog.mockRestore();
+        focus.mockRestore();
+        scrollTo.mockRestore();
     }
 });
 

@@ -73,7 +73,7 @@ Os contratos, a API, o painel e os scripts de infraestrutura usam Vitest. O app 
 
 Para rodar só a integração HTTP, mantenha o serviço `test-db` ativo e execute `npm run test:integration` na raiz. O runner aplica as migrações em `mycity_test` e usa a porta local 55433 por padrão. Ele aceita `TEST_DATABASE_URL` para outro destino local com o mesmo nome de banco. Use o banco de desenvolvimento para ensaios manuais.
 
-O job **Quality checks** exporta o bundle Android após os testes. Para repetir localmente, execute `npm run export:android -w @mycity/mobile`. O build assinado segue em um [workflow próprio](../.github/workflows/release.yml) após uma CI aprovada de push na `main). Para rodar a checagem de segredos da CI localmente, use Linux x86-64, a plataforma validada pelo instalador do Gitleaks.
+O job **Quality checks** exporta o bundle Android após os testes. Para repetir localmente, execute `npm run export:android -w @mycity/mobile`. O APK assinado é gerado pelo [workflow de release](../.github/workflows/release.yml) quando uma tag `vX.Y.Z` é criada na `main`. Para rodar a checagem de segredos da CI localmente, use Linux x86-64, a plataforma validada pelo instalador do Gitleaks.
 
 ## Aceite por critério
 
@@ -99,6 +99,8 @@ O APK de `bdd3cfb` publicou duas fotos e um ponto escolhido manualmente no parqu
 O ponto manual persistido coincidiu com as três casas decimais visíveis no aparelho; painel e API mostraram as mesmas coordenadas completas. A galeria do painel exibiu os dois JPEGs nas dimensões naturais esperadas, com orientação coerente e objeto reconhecível. A amostra da câmera não continha texto para avaliar legibilidade fina.
 
 O servidor manteve HTTPS disponível e o proxy recolheu os processos auxiliares após cinco sondas consecutivas. Os revisores de segurança, regressão, interface e integração conferiram as evidências. Após o aceite, foram removidos somente as duas denúncias e os três anexos do ensaio. As três contas e os três perfis preexistentes foram preservados. A [rastreabilidade](requirements.md) registra o recorte das fontes acadêmicas, incluindo alertas simulados e as decisões sobre região, avaliação e emissão manual.
+
+Na verificação final da revisão `bd39e4f`, o push na `main` passou nos quatro checks, implantou e assinou o APK; os três logins funcionaram e uma sessão anterior à atualização continuou válida. O APK (SHA-256 `9a7cdbb288be0f72af7093bebc43d4242b3f92d884cb8169a5da14ceb645b607`) foi instalado sobre a versão anterior no Galaxy M32: a abertura exibiu marca e progresso, o mapa abriu em Viçosa com arrasto, zoom, lista e **Minha localização**, e o seletor de ponto aceitou toque, arrasto e GPS, com **Confirmar**, **Cancelar** e Voltar preservando o ponto confirmado. [CI](https://github.com/Duck1201/MyCity/actions/runs/44695968359) · [Deploy](https://github.com/Duck1201/MyCity/actions/runs/44696382348) · [APK](https://github.com/Duck1201/MyCity/actions/runs/44696382189)
 
 ## Revisão antes de uma versão
 

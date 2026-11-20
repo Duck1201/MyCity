@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { expect, it } from 'vitest';
 import { CategoryCatalogView, type Category, type CategoryChange } from '../src/category-catalog-view';
+import { OverviewPanel } from '../src/components/overview-panel';
 import { PhotoGallery } from '../src/components/photo-gallery';
 import { SituationChart } from '../src/components/situation-chart';
 
@@ -60,4 +61,26 @@ it('moves focus to the archived section after archiving and back to the active e
     await user.click(screen.getByRole('button', { name: 'Confirmar' }));
     await waitFor(() => expect(screen.getByRole('button', { name: 'Arquivar Buraco na via' })).toHaveFocus());
     expect(screen.getByText('Nenhuma categoria arquivada.')).toBeVisible();
+});
+
+it('encontra a categoria ignorando acentos e maiúsculas', async () => {
+    const user = userEvent.setup();
+    render(<Catalog />);
+
+    await user.type(screen.getByRole('searchbox', { name: 'Buscar categoria' }), 'ILUMINACAO');
+    expect(screen.getByText('Iluminação')).toBeVisible();
+    expect(screen.queryByText('Buraco na via')).toBeNull();
+    await user.clear(screen.getByRole('searchbox', { name: 'Buscar categoria' }));
+    await user.type(screen.getByRole('searchbox', { name: 'Buscar categoria' }), 'semáforo');
+    expect(screen.getByText('Nenhuma categoria ativa corresponde à busca.')).toBeVisible();
+});
+
+it('orienta o primeiro uso quando ainda não há denúncias', () => {
+    const empty = { SENT: 0, UNDER_REVIEW: 0, IN_PROGRESS: 0, RESOLVED: 0, REJECTED: 0, CANCELED: 0 };
+    const { rerender } = render(<OverviewPanel counts={empty} ranked={[]} priorities={[]} recent={null} />);
+    expect(screen.getByRole('heading', { name: 'Nenhuma denúncia registrada' })).toBeVisible();
+    expect(screen.getByRole('link', { name: /categorias/i })).toHaveAttribute('href', '/categorias');
+
+    rerender(<OverviewPanel counts={{ ...empty, SENT: 1 }} ranked={[]} priorities={[]} recent={null} />);
+    expect(screen.queryByRole('heading', { name: 'Nenhuma denúncia registrada' })).toBeNull();
 });
