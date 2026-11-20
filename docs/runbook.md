@@ -58,7 +58,7 @@ cd android
 sha256sum "$SIGNED_APK"
 ```
 
-Confira o pacote `br.edu.mycity.app` e o SHA-1 do signatário contra a restrição do Maps. Instale o arquivo referenciado por `SIGNED_APK` no Android físico e percorra a jornada com o Metro desligado. Guarde com o resultado o commit, o SHA-256 do APK e o modelo do aparelho.
+Confira o pacote `br.edu.mycity.app` e o SHA-1 do signatário contra a restrição do Maps. Instale o arquivo referenciado por `SIGNED_APK` no Android físico desbloqueado. Na raiz, execute `bash apps/mobile/tests/launch-release.sh` para verificar a abertura do app instalado e percorra a jornada com o Metro desligado. Guarde com o resultado o commit, o SHA-256 do APK e o modelo do aparelho.
 
 ## Publicação no servidor
 
