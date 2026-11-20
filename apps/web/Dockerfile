@@ -14,7 +14,7 @@ COPY apps/web/src apps/web/src
 COPY apps/web/public apps/web/public
 RUN npm run build:contracts && npm run build -w @mycity/web
 
-FROM nginx:1.28-alpine
+FROM nginx:1.29-alpine
 COPY deploy/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/apps/web/dist /usr/share/nginx/html
 EXPOSE 80
