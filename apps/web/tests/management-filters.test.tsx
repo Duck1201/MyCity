@@ -1,3 +1,4 @@
+import { Profiler } from 'react';
 import { QueueJourney } from './queue-journey';
 import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -192,8 +193,18 @@ it('traz a linha focada à vista quando a consulta termina após voltar do detal
             'fetch',
             vi.fn(async (url: string) => (url.endsWith('/categories') ? categoriesResponse() : Response.json({ data: [{ id: 'alvo', category: 'LIGHTING', categoryName: 'Iluminação', description: 'Poste da praça', status: 'SENT', createdAt: '2026-11-19T12:00:00Z', confirmationCount: 0, latitude: 0, longitude: 0 }], page: 1, total: 1, counts: { SENT: 1 } }))),
         );
-        render(<ManagementReports onSessionExpired={() => {}} />);
+        let focusedOnFirstAppearance: boolean | undefined;
+        function observeQueueCommit() {
+            const link = screen.queryByRole('link', { name: 'Abrir denúncia: Poste da praça' });
+            if (link) focusedOnFirstAppearance ??= document.activeElement === link;
+        }
+        render(
+            <Profiler id="queue" onRender={observeQueueCommit}>
+                <ManagementReports onSessionExpired={() => {}} />
+            </Profiler>,
+        );
         const rowLink = await screen.findByRole('link', { name: 'Abrir denúncia: Poste da praça' });
+        expect(focusedOnFirstAppearance).toBe(true);
         expect(rowLink).toHaveFocus();
         expect(scrollIntoView).toHaveBeenCalledWith({ block: 'nearest' });
         expect(scrollIntoView.mock.instances[0]).toBe(rowLink.closest('tr'));
