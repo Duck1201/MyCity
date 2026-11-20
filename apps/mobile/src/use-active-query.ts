@@ -1,33 +1,57 @@
-import { useEffect, useRef, useState, type SetStateAction } from 'react';
+import { useContext, useSyncExternalStore, useEffect, useRef, useState, type SetStateAction } from 'react';
 import { AppState, type AppStateStatus } from 'react-native';
 
 import { ApiFailure } from './citizen-api';
 
-/** Keeps the last confirmed result while its screen is mounted. */
-export function useActiveQuery<T>(load: (signal: AbortSignal) => Promise<T>) {
-    const [data, setData] = useState<T>();
+import { QueryCache } from './query-cache';
+export { QueryCacheProvider } from './query-cache';
+
+const noSubscription = () => () => {};
+const noCacheVersion = () => 0;
+
+export function useActiveQuery<T>(load: (signal: AbortSignal) => Promise<T>, enabled = true, key?: string) {
+    const session = useContext(QueryCache);
+    const cache = session?.entries;
+    const version = useSyncExternalStore(session?.subscribe ?? noSubscription, session?.snapshot ?? noCacheVersion, noCacheVersion);
+    const [lastResult, setResult] = useState<{ version: number; key: string | undefined; value: T | undefined }>();
+    const result = lastResult?.version === version ? lastResult : undefined;
+    const cached = key ? (cache?.get(key) as T | undefined) : undefined;
+    const data = result?.key === key ? (result?.value ?? cached) : (cached ?? result?.value);
+    const updating = data !== undefined && result?.key !== key && cached === undefined;
+    const currentData = useRef(data);
+    useEffect(() => {
+        currentData.current = data;
+    }, [data]);
     const [unavailable, setUnavailable] = useState(false);
     const [failed, setFailed] = useState(false);
     const retry = useRef<() => void>(() => {});
     const replace = useRef<(next: SetStateAction<T | undefined>) => void>(() => {});
     useEffect(() => {
+        if (!enabled) return;
         let foreground = AppState.currentState == null || AppState.currentState === 'active';
         let request: AbortController | null = null;
         async function refresh() {
             if (!foreground || request) return;
             const controller = new AbortController();
+            const startedAt = session?.snapshot() ?? 0;
             request = controller;
             try {
                 const result = await load(controller.signal);
-                if (!controller.signal.aborted) {
-                    setData(result);
+                if (!controller.signal.aborted && startedAt === (session?.snapshot() ?? 0)) {
+                    if (key && cache) {
+                        cache.delete(key);
+                        cache.set(key, result);
+                        if (cache.size > 96) cache.delete(cache.keys().next().value!);
+                    }
+                    setResult({ version: startedAt, key, value: result });
                     setFailed(false);
                     setUnavailable(false);
                 }
             } catch (error) {
                 if (!controller.signal.aborted) {
                     if (error instanceof ApiFailure && [403, 404].includes(error.status)) {
-                        setData(undefined);
+                        if (session?.snapshot() === startedAt) session.invalidate();
+                        setResult({ version: session?.snapshot() ?? 0, key, value: undefined });
                         setUnavailable(true);
                     }
                     setFailed(true);
@@ -61,7 +85,10 @@ export function useActiveQuery<T>(load: (signal: AbortSignal) => Promise<T>) {
         };
         replace.current = (next) => {
             pause();
-            setData(next);
+            const value = typeof next === 'function' ? (next as (prior: T | undefined) => T | undefined)(currentData.current) : next;
+            currentData.current = value;
+            if (key) cache?.set(key, value);
+            setResult({ version: session?.snapshot() ?? 0, key, value });
             setFailed(false);
         };
         const listener = AppState.addEventListener('change', stateChanged);
@@ -72,6 +99,17 @@ export function useActiveQuery<T>(load: (signal: AbortSignal) => Promise<T>) {
             clearInterval(timer);
             pause();
         };
-    }, [load]);
-    return { data, failed, unavailable, retry: () => retry.current(), replace: (next: SetStateAction<T | undefined>) => replace.current(next) };
+    }, [load, enabled, key, cache, session]);
+    return {
+        data,
+        updating,
+        failed,
+        unavailable,
+        retry: () => retry.current(),
+        replace: (next: SetStateAction<T | undefined>, invalidateRelated = false) => {
+            if (version !== (session?.snapshot() ?? 0)) return;
+            if (invalidateRelated) session?.invalidate();
+            replace.current(next);
+        },
+    };
 }

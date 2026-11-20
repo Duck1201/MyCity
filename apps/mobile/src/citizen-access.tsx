@@ -1,7 +1,5 @@
 import { cpfDigits } from '@mycity/contracts';
 import { useMotionEnabled } from './components/use-motion-enabled';
-import { ScreenTransition } from './components/navigation-motion';
-import { useLoginFade } from './components/login-motion';
 import { CitizenAccessLayout, CitizenLoginScreen, accessStyles } from './components/citizen-login-screen';
 import { mobileStyles } from './theme';
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
@@ -14,7 +12,7 @@ import { ActionButton } from './components/action-button';
 const sessionKey = 'mycity.session';
 type Access = 'checking' | 'login' | 'citizen' | 'denied' | 'offline' | 'signingOut' | 'logoutFailed';
 
-export function CitizenAccess({ apiBase, children, onSignedOut, onAuthenticated }: { apiBase: string; children: (token: string, expire: () => void) => ReactNode; onSignedOut?: () => void; onAuthenticated?: (id: string) => void }) {
+export function CitizenAccess({ apiBase, children, onSignedOut, onAuthenticated, ready = true }: { apiBase: string; ready?: boolean; children: (token: string, expire: () => void, leave: () => void) => ReactNode; onSignedOut?: () => void; onAuthenticated?: (id: string) => void }) {
     const [access, setAccess] = useState<Access>('checking');
     const [token, setToken] = useState('');
     const [cpf, setCpf] = useState('');
@@ -24,7 +22,6 @@ export function CitizenAccess({ apiBase, children, onSignedOut, onAuthenticated 
     const [busy, setBusy] = useState(false);
     const [expiresAt, setExpiresAt] = useState(0);
     const motion = useMotionEnabled();
-    const formOpacity = useLoginFade(access === 'login', motion, 180, 0.85);
 
     const expire = useCallback(() => {
         setAccess('checking');
@@ -116,53 +113,45 @@ export function CitizenAccess({ apiBase, children, onSignedOut, onAuthenticated 
             setAccess('logoutFailed');
         }
     }
-    if (access === 'checking') return <AppLoadingScreen />;
+    if (!ready || access === 'checking') return <AppLoadingScreen />;
+    if (access === 'login') return <CitizenLoginScreen onEnter={enter} credentials={{ cpf, password, setCpf, setPassword, message, busy, motion }} />;
+    if (access === 'citizen') return children(token, expire, leave);
     return (
-        <ScreenTransition route={access === 'citizen' ? 'workspace' : 'access'} depth={access === 'citizen' ? 1 : 0}>
-            {access === 'login' ? (
-                <CitizenLoginScreen onEnter={enter} credentials={{ cpf, password, setCpf, setPassword, message, busy, motion, formOpacity }} />
-            ) : (
-                <CitizenAccessLayout onLeave={access === 'citizen' || access === 'denied' ? leave : undefined}>
-                    {access === 'citizen' ? (
-                        children(token, expire)
-                    ) : (
-                        <View style={accessStyles.form}>
-                            {access === 'signingOut' && (
-                                <Text accessibilityLiveRegion="polite" style={mobileStyles.meta}>
-                                    Encerrando sua sessão…
-                                </Text>
-                            )}
-                            {access === 'denied' && (
-                                <Text accessibilityLiveRegion="polite" style={mobileStyles.error}>
-                                    O aplicativo exige uma conta de cidadão. Saia para entrar com outra conta.
-                                </Text>
-                            )}
-                            {access === 'offline' && (
-                                <>
-                                    <Text accessibilityLiveRegion="polite" style={mobileStyles.error}>
-                                        Não foi possível verificar sua sessão. Confira sua conexão e tente novamente.
-                                    </Text>
-                                    <ActionButton
-                                        label="Tentar novamente"
-                                        onPress={() => {
-                                            setAccess('checking');
-                                            setAttempt((value) => value + 1);
-                                        }}
-                                    />
-                                </>
-                            )}
-                            {access === 'logoutFailed' && (
-                                <>
-                                    <Text accessibilityLiveRegion="polite" style={mobileStyles.error}>
-                                        Não foi possível concluir a operação. Confira sua conexão e encerre a sessão.
-                                    </Text>
-                                    <ActionButton label="Encerrar sessão" onPress={leave} />
-                                </>
-                            )}
-                        </View>
-                    )}
-                </CitizenAccessLayout>
-            )}
-        </ScreenTransition>
+        <CitizenAccessLayout onLeave={access === 'denied' ? leave : undefined}>
+            <View style={accessStyles.form}>
+                {access === 'signingOut' && (
+                    <Text accessibilityLiveRegion="polite" style={mobileStyles.meta}>
+                        Encerrando sua sessão…
+                    </Text>
+                )}
+                {access === 'denied' && (
+                    <Text accessibilityLiveRegion="polite" style={mobileStyles.error}>
+                        O aplicativo exige uma conta de cidadão. Saia para entrar com outra conta.
+                    </Text>
+                )}
+                {access === 'offline' && (
+                    <>
+                        <Text accessibilityLiveRegion="polite" style={mobileStyles.error}>
+                            Não foi possível verificar sua sessão. Confira sua conexão e tente novamente.
+                        </Text>
+                        <ActionButton
+                            label="Tentar novamente"
+                            onPress={() => {
+                                setAccess('checking');
+                                setAttempt((value) => value + 1);
+                            }}
+                        />
+                    </>
+                )}
+                {access === 'logoutFailed' && (
+                    <>
+                        <Text accessibilityLiveRegion="polite" style={mobileStyles.error}>
+                            Não foi possível concluir a operação. Confira sua conexão e encerre a sessão.
+                        </Text>
+                        <ActionButton label="Encerrar sessão" onPress={leave} />
+                    </>
+                )}
+            </View>
+        </CitizenAccessLayout>
     );
 }

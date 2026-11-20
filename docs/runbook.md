@@ -148,9 +148,21 @@ curl --fail --silent --show-error http://127.0.0.1:8090/api/v1/health/ready
 
 Execute o seed na instalação inicial para criar as três contas e denúncias fictícias. O app exige uma conta provisionada. Distribua cada senha por um canal privado.
 
-No Caddy do host, adicione um bloco para seu domínio. Substitua o domínio de exemplo no bloco e no comando de verificação. Valide a configuração e recarregue o serviço do Caddy.
+No Caddy do host, configure o filtro no logger global e adicione o bloco do seu domínio. Se o arquivo já tiver um bloco global, incorpore o filtro ao logger padrão existente e preserve as demais opções. Se já houver um encoder, mantenha-o em `wrap` dentro do filtro. Substitua o domínio de exemplo no bloco e no comando de verificação. Valide a configuração e recarregue o serviço do Caddy.
 
 ```caddyfile
+{
+    log {
+        format filter {
+            wrap json
+            fields {
+                request>uri regexp "[?].*$" ""
+                request>headers>Referer delete
+            }
+        }
+    }
+}
+
 mycity.exemplo.org {
 	reverse_proxy 127.0.0.1:8090
 }

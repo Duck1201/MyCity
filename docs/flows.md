@@ -8,7 +8,7 @@ Regras aprovadas estão descritas como confirmadas. A matriz de visibilidade e a
 
 Use uma conta provisionada pelo operador da sua instalação. Para experimentar com contas fictícias, siga o [início rápido](../README.md#executar-localmente).
 
-- **Cidadão.** Entre no app Android e toque em **Nova denúncia**. Escolha a categoria, descreva o problema, anexe fotos e confirme o ponto no mapa. Depois de enviar, acompanhe o retorno em **Meus registros** e **Notificações**. Para consultar ocorrências de outras pessoas, abra o **Feed** ou o **Mapa**.
+- **Cidadão.** Entre no app Android e toque no **+** no canto inferior direito. Escolha a categoria, descreva o problema, anexe fotos e confirme o ponto no mapa. Depois de enviar, acompanhe o retorno em **Meus registros** e em **Notificações**, no cabeçalho. Para consultar ocorrências de outras pessoas, abra o **Feed** ou o **Mapa**. O histórico de **Resolvidas** fica no Feed.
 - **Gestor.** Entre no painel web e abra **Atendimento**. Use a busca e os filtros para encontrar uma denúncia. Abra o relato para conferir os anexos, registrar uma resposta ou mudar a situação do atendimento. Em **Categorias**, gerencie as opções que o cidadão pode escolher ao registrar uma denúncia.
 
 Para conhecer a interface do cidadão no navegador com exemplos locais, abra a [prévia web](../README.md#explorar-o-app-no-navegador).
@@ -41,18 +41,18 @@ Usuário informa CPF e senha próprios do MyCity, recebe sua identidade e acessa
 
 ### Registrar denúncia
 
-1. Abrir Nova denúncia pelo Início, Feed ou Mapa, selecionar uma categoria ativa e preencher a descrição. O gestor pode acrescentar, arquivar e reativar grupos em Categorias. Ocorrências anteriores mantêm seus vínculos e filtros.
-2. Escolher de uma a três fotos via câmera/galeria e apresentar prévias/remover antes do envio.
-3. Solicitar GPS em contexto; se negado ou indisponível, oferecer mapa para selecionar o ponto.
-4. Revisar “Quero mostrar minha cara”. A opção inicia ligada e exibe nome e foto de perfil aos leitores autorizados. Desligada, a denúncia é apresentada como “Anônimo”, inclusive ao gestor. Confirmar o ponto e os dados. O app prepara as fotos em JPEG e envia tudo em uma única operação.
+1. Abrir a denúncia pelo **+**. O formulário solicita a localização atual enquanto o cidadão fotografa ou escolhe de uma a três fotos. Ao retomar um rascunho com local definido, preservar esse ponto.
+2. Com uma leitura válida, usar o GPS do aparelho no envio. Se a pessoa quiser ajustar o local, abrir o mapa no ponto obtido. Se a permissão for negada ou o GPS estiver indisponível, oferecer nova tentativa ou seleção manual.
+3. Escolher a categoria ativa e descrever o problema. O gestor pode acrescentar, arquivar e reativar grupos em Categorias. Ocorrências anteriores mantêm seus vínculos e filtros.
+4. Revisar “Quero mostrar minha cara”. A opção inicia ligada e exibe nome e foto de perfil aos leitores autorizados. Desligada, a denúncia é apresentada como “Anônimo”, inclusive ao gestor. Revisar os dados e enviar. O app prepara as fotos em JPEG e envia tudo em uma única operação.
 5. Durante o envio, impedir disparos duplicados pela interface; servidor também trata repetições.
 6. Ao voltar do formulário, retornar à origem e manter o rascunho na sessão. Se a categoria tiver sido arquivada, pedir uma nova seleção e preservar relato, fotos e ponto. Após publicar, abrir o acompanhamento e voltar ao Início em Meus registros.
 
-O rascunho fica em memória durante a sessão do app. O ponto escolhido no mapa é manual e a publicação exige coordenadas confirmadas. Endereço, região e geocodificação foram adiados em C03.
+O rascunho fica em memória durante a sessão do app. A publicação usa coordenadas válidas do GPS ou um ponto confirmado manualmente. Fechar um formulário que só recebeu a leitura automática permite começar outra denúncia com a posição atual. Endereço, região e geocodificação foram adiados em C03.
 
 ### Consultar e confirmar
 
-No Início, **Na cidade** apresenta uma ocorrência ativa do feed, mesmo quando Meus registros está vazio. Tocar no relato abre o detalhe; **Ver feed** abre a lista. No feed ou mapa, filtrar, selecionar a denúncia e consultar os detalhes. Outro cidadão confirma; autor não recebe ação habilitada. API repete a checagem. Atualizar contagem com resultado confirmado pelo backend; falha não mantém incremento falso. Ao encerrar, as confirmações ficam congeladas. As consultas do feed e do mapa usam filtros de categoria e status; o mapa pagina os marcadores dentro da área visível.
+No Início, **Na cidade** apresenta uma ocorrência ativa do feed, mesmo quando Meus registros está vazio. Tocar no relato abre o detalhe; **Ver feed** abre a lista. No Feed, selecionar uma denúncia abre o detalhe. No mapa, tocar em um ponto isolado mostra o resumo. Em um grupo numerado, escolher a denúncia pela categoria e situação. **Ver denúncia** abre o detalhe. Voltar restaura a seleção e a área explorada. Outro cidadão confirma; autor não recebe ação habilitada. API repete a checagem. Atualizar contagem com resultado confirmado pelo backend; falha não mantém incremento falso. Ao encerrar, as confirmações ficam congeladas. As consultas do feed e do mapa usam filtros de categoria e status; o mapa pagina os marcadores dentro da área visível.
 
 ### Atender e responder
 
@@ -70,7 +70,7 @@ Tela ativa consulta a cada cinco segundos, sem sobreposição, e consulta ao ret
 
 ### Consultar alertas climáticos
 
-Na navegação principal do app, abrir **Alertas** apresenta os três cenários de 25/11/2026. Selecionar um deles mostra o nível por texto, a área ilustrativa e o período fictício no horário de Brasília. Voltar retorna à página de origem. Se a consulta falhar, o cidadão pode tentar novamente. A aba **Notificações** continua reservada às mudanças de status das denúncias.
+Na navegação principal do app, abrir **Alertas** apresenta os três cenários de 25/11/2026. Selecionar um deles mostra o nível por texto, a área ilustrativa e o período fictício no horário de Brasília. Voltar retorna à página de origem. Se a consulta falhar, o cidadão pode tentar novamente. **Notificações**, no cabeçalho, apresenta mudanças de status das denúncias.
 
 ## Visibilidade aprovada — C04
 

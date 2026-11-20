@@ -1,12 +1,22 @@
 import { CitizenWorkspace } from '../src/citizen-workspace';
 import { categoryResponse } from './category-fixture';
-import { AppState } from 'react-native';
+import { AppState, type AppStateStatus } from 'react-native';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { pickReportPhoto } from '../src/report-photos';
+import { ReportLocationPicker } from '../src/report-location-picker';
 import { CitizenReport } from '../src/citizen-report';
 import * as location from 'expo-location';
 
-jest.mock('react-native-maps', () => ({ __esModule: true, default: 'MapView', Marker: 'Marker', PROVIDER_GOOGLE: 'google' }));
+const mockSetCamera = jest.fn();
+const mockGetCamera = jest.fn();
+jest.mock('react-native-maps', () => {
+    const React = jest.requireActual<typeof import('react')>('react');
+    function MapView({ ref, ...props }: { ref: import('react').Ref<unknown> }) {
+        React.useImperativeHandle(ref, () => ({ setCamera: mockSetCamera, getCamera: mockGetCamera }));
+        return React.createElement('MapView', props);
+    }
+    return { __esModule: true, default: MapView, Marker: 'Marker', PROVIDER_GOOGLE: 'google' };
+});
 jest.mock('expo-file-system', () => ({
     File: class extends Blob {
         constructor(uri: string) {
@@ -14,18 +24,22 @@ jest.mock('expo-file-system', () => ({
         }
     },
 }));
-jest.mock('expo-location', () => ({ requestForegroundPermissionsAsync: jest.fn(), getCurrentPositionAsync: jest.fn() }));
+jest.mock('expo-location', () => ({ Accuracy: { Balanced: 3 }, requestForegroundPermissionsAsync: jest.fn(), watchPositionAsync: jest.fn() }));
 jest.mock('../src/report-photos', () => ({ pickReportPhoto: jest.fn(async () => 'file:///cache/foto.jpg') }));
 jest.mock('expo-crypto', () => {
     let sequence = 0;
     return { randomUUID: () => 'request-' + ++sequence };
 });
 
+const originalSubscribe = AppState.addEventListener;
 const originalState = Object.getOwnPropertyDescriptor(AppState, 'currentState')!;
 beforeEach(() => {
+    AppState.addEventListener = jest.fn().mockReturnValue({ remove: jest.fn() });
+    jest.mocked(location.requestForegroundPermissionsAsync).mockResolvedValue({ granted: false } as Awaited<ReturnType<typeof location.requestForegroundPermissionsAsync>>);
     Object.defineProperty(AppState, 'currentState', { ...originalState, value: 'active' });
 });
 afterEach(() => {
+    AppState.addEventListener = originalSubscribe;
     Object.defineProperty(AppState, 'currentState', originalState);
 });
 
@@ -43,9 +57,10 @@ it('preserva o formulário após perda da resposta e reenvia fotos e metadados i
         await fireEvent.press(screen.getByText('Galeria'));
         jest.mocked(location.requestForegroundPermissionsAsync).mockResolvedValueOnce({ granted: false } as Awaited<ReturnType<typeof location.requestForegroundPermissionsAsync>>);
         await fireEvent.press(screen.getByText('Escolher no mapa'));
-        await fireEvent.press(screen.getByText('Usar GPS'));
-        expect(await screen.findByText('GPS indisponível. Toque no mapa para escolher o ponto.')).toBeVisible();
+        await fireEvent.press(screen.getByRole('button', { name: 'Usar GPS' }));
+        expect(await screen.findByText('Localização sem permissão. Toque no mapa para escolher o ponto.')).toBeVisible();
         await fireEvent(screen.getByTestId('location-map'), 'press', { nativeEvent: { coordinate: { latitude: -20, longitude: -42 } } });
+        expect(screen.getByText('Local escolhido no mapa')).toBeVisible();
         await fireEvent.press(screen.getByText('Confirmar ponto'));
         await fireEvent.press(screen.getByText('Enviar denúncia'));
         expect(await screen.findByText(/dados foram preservados/)).toBeTruthy();
@@ -66,6 +81,26 @@ it('preserva o formulário após perda da resposta e reenvia fotos e metadados i
     }
 });
 
+it('identifica somente a foto pendente e substitui o aviso pela orientação da câmera', async () => {
+    const catalog = jest.spyOn(globalThis, 'fetch').mockImplementation(async () => categoryResponse());
+    const draft = { category: 'POTHOLE', description: 'Praça', photos: [], location: { latitude: 0, longitude: 0, source: 'MANUAL' as const }, showIdentity: false, requestId: 'original' };
+    try {
+        await render(<CitizenReport apiBase="https://example.test" token="teste" onSessionExpired={jest.fn()} draftRef={{ current: draft }} />);
+        await fireEvent.press(screen.getByRole('button', { name: 'Enviar denúncia' }));
+        expect(screen.getByText('Adicione pelo menos uma foto.')).toBeVisible();
+        expect(screen.queryByText('Selecione uma categoria.')).toBeNull();
+        jest.mocked(pickReportPhoto).mockRejectedValueOnce(new Error('Permita o acesso à câmera ou escolha uma foto da galeria.'));
+        await fireEvent.press(screen.getByRole('button', { name: 'Câmera' }));
+        expect(screen.getByText('Permita o acesso à câmera ou escolha uma foto da galeria.')).toBeVisible();
+        expect(screen.queryByText('Adicione pelo menos uma foto.')).toBeNull();
+        await fireEvent.press(screen.getByRole('button', { name: 'Galeria' }));
+        expect(screen.queryByText(/Permita o acesso/)).toBeNull();
+        expect(screen.getByText('Fotos (1/3)')).toBeVisible();
+    } finally {
+        catalog.mockRestore();
+    }
+});
+
 it('abre o mapa na região urbana e descarta um ponto manual não confirmado', async () => {
     const catalog = jest.spyOn(globalThis, 'fetch').mockImplementation(async () => categoryResponse());
     try {
@@ -77,7 +112,7 @@ it('abre o mapa na região urbana e descarta um ponto manual não confirmado', a
         expect(region.latitude).toBeCloseTo(-20.75, 1);
         expect(region.longitude).toBeCloseTo(-42.88, 1);
         expect(region.latitudeDelta).toBeLessThan(0.2);
-        expect(screen.getByRole('button', { name: 'Confirmar ponto' })).toBeDisabled();
+        expect(screen.getByRole('button', { name: 'Confirmar ponto', busy: false })).toBeDisabled();
         await fireEvent(screen.getByTestId('location-map'), 'press', { nativeEvent: { coordinate: { latitude: -20.752, longitude: -42.881 } } });
         await fireEvent.press(screen.getByRole('button', { name: 'Cancelar' }));
         expect(screen.getByLabelText('Descrição')).toHaveProp('value', 'Iluminação da praça');
@@ -95,22 +130,32 @@ it('preserva origem GPS ao confirmar e altera para manual só após confirmar o 
     const draftRef = { current: { category: 'LIGHTING', description: 'Praça', photos: ['file:///teste.jpg'], location: { ...manual, source: 'MANUAL' as const }, showIdentity: false, requestId: 'original' } };
     try {
         await render(<CitizenReport apiBase="https://example.test/api/v1" token="teste" onSessionExpired={jest.fn()} draftRef={draftRef} />);
-        await fireEvent.press(screen.getByText('Escolher no mapa'));
+        await fireEvent.press(screen.getByText('Ajustar ponto no mapa'));
         expect(screen.getByTestId('location-map').props.initialRegion).toMatchObject(manual);
         jest.mocked(location.requestForegroundPermissionsAsync).mockResolvedValueOnce({ granted: true } as Awaited<ReturnType<typeof location.requestForegroundPermissionsAsync>>);
-        jest.mocked(location.getCurrentPositionAsync).mockResolvedValueOnce({ coords: gps } as Awaited<ReturnType<typeof location.getCurrentPositionAsync>>);
-        await fireEvent.press(screen.getByText('Usar GPS'));
+        jest.mocked(location.watchPositionAsync).mockImplementationOnce(async (_, receive) => {
+            receive({ coords: gps } as location.LocationObject);
+            return { remove: jest.fn() };
+        });
+        await fireEvent.press(screen.getByRole('button', { name: 'Usar GPS' }));
+        await fireEvent(screen.getByTestId('location-map'), 'regionChangeComplete', { ...manual, longitudeDelta: 0.01, latitudeDelta: 0.01 }, { isGesture: false });
         await fireEvent.press(screen.getByText('Confirmar ponto'));
         expect(draftRef.current.location).toEqual({ ...gps, source: 'GPS' });
-        await fireEvent.press(screen.getByText('Escolher no mapa'));
+        expect(screen.getByText('Localização obtida por GPS')).toBeVisible();
+        await fireEvent.press(screen.getByText('Ajustar ponto no mapa'));
         expect(screen.getByTestId('location-map').props.initialRegion).toMatchObject(gps);
-        await fireEvent(screen.getByTestId('location-map'), 'press', { nativeEvent: { coordinate: manual } });
-        await fireEvent.press(screen.getByText('Cancelar'));
+        const map = screen.getByTestId('location-map');
+        await fireEvent(map, 'regionChangeStart', { ...gps, longitudeDelta: 0.01, latitudeDelta: 0.01 }, { isGesture: true });
+        expect(screen.getByRole('button', { name: 'Confirmar ponto' })).toBeDisabled();
+        mockGetCamera.mockResolvedValueOnce({ center: manual });
+        await fireEvent(map, 'regionChangeComplete', { ...gps, longitudeDelta: 0.01, latitudeDelta: 0.01 }, { isGesture: true });
+        await fireEvent.press(screen.getByRole('button', { name: 'Cancelar' }));
         expect(draftRef.current.location).toEqual({ ...gps, source: 'GPS' });
-        await fireEvent.press(screen.getByText('Escolher no mapa'));
+        await fireEvent.press(screen.getByText('Ajustar ponto no mapa'));
         await fireEvent(screen.getByTestId('location-map'), 'press', { nativeEvent: { coordinate: manual } });
         await fireEvent.press(screen.getByText('Confirmar ponto'));
         expect(draftRef.current.location).toEqual({ ...manual, source: 'MANUAL' });
+        expect(screen.getByText('Ponto confirmado no mapa')).toBeVisible();
     } finally {
         catalog.mockRestore();
     }
@@ -118,27 +163,90 @@ it('preserva origem GPS ao confirmar e altera para manual só após confirmar o 
 
 it('mantém o ajuste manual feito enquanto o GPS responde', async () => {
     const catalog = jest.spyOn(globalThis, 'fetch').mockImplementation(async () => categoryResponse());
-    type Fix = Awaited<ReturnType<typeof location.getCurrentPositionAsync>>;
-    let finish!: (fix: Fix) => void;
-    const fix = new Promise<Fix>((resolve) => {
-        finish = resolve;
-    });
-    jest.mocked(location.requestForegroundPermissionsAsync).mockResolvedValueOnce({ granted: true } as Awaited<ReturnType<typeof location.requestForegroundPermissionsAsync>>);
-    jest.mocked(location.getCurrentPositionAsync).mockReturnValueOnce(fix);
+    let finish!: location.LocationCallback;
+    const remove = jest.fn();
     const draftRef = { current: { category: 'LIGHTING', description: 'Praça', photos: [] as string[], location: null, showIdentity: false, requestId: 'original' } };
     const manual = { latitude: -20.75, longitude: -42.88 };
     try {
         await render(<CitizenReport apiBase="https://example.test/api/v1" token="teste" onSessionExpired={jest.fn()} draftRef={draftRef} />);
         await fireEvent.press(screen.getByText('Escolher no mapa'));
-        await fireEvent.press(screen.getByText('Usar GPS'));
-        expect(screen.getByText('Buscando GPS…')).toBeVisible();
-        await fireEvent(screen.getByTestId('location-map'), 'press', { nativeEvent: { coordinate: manual } });
-        await act(async () => {
-            finish({ coords: { latitude: 1, longitude: 2 } } as Fix);
-            await fix;
+        jest.mocked(location.requestForegroundPermissionsAsync).mockResolvedValueOnce({ granted: true } as Awaited<ReturnType<typeof location.requestForegroundPermissionsAsync>>);
+        jest.mocked(location.watchPositionAsync).mockImplementationOnce(async (_, callback) => {
+            finish = callback;
+            return { remove };
         });
+        await fireEvent.press(screen.getByRole('button', { name: 'Usar GPS' }));
+        expect(screen.getByRole('button', { name: 'Buscando GPS…', busy: true })).toBeVisible();
+        const map = screen.getByTestId('location-map');
+        const region = { ...manual, latitudeDelta: 0.01, longitudeDelta: 0.01 };
+        await fireEvent(map, 'regionChangeStart', region, { isGesture: true });
+        expect(remove).toHaveBeenCalledTimes(1);
+        await act(() => finish({ coords: { latitude: 1, longitude: 2 } } as location.LocationObject));
+        expect(screen.getByRole('button', { name: 'Confirmar ponto' })).toBeDisabled();
+        mockGetCamera.mockResolvedValueOnce({ center: manual, zoom: 17 });
+        await fireEvent(map, 'regionChangeComplete', region, { isGesture: true });
         await fireEvent.press(screen.getByText('Confirmar ponto'));
         expect(draftRef.current.location).toEqual({ ...manual, source: 'MANUAL' });
+    } finally {
+        catalog.mockRestore();
+    }
+});
+
+it.each(['fechar', 'tocar', 'segundo plano'] as const)('encerra o GPS do ajuste ao %s e desconsidera leitura tardia', async (action) => {
+    const remove = jest.fn();
+    const listeners = new Set<(state: AppStateStatus) => void>();
+    const subscription = jest.spyOn(AppState, 'addEventListener').mockImplementation((_, listener) => {
+        listeners.add(listener);
+        return { remove: () => listeners.delete(listener) };
+    });
+    try {
+        let receive!: location.LocationCallback;
+        jest.mocked(location.requestForegroundPermissionsAsync).mockResolvedValueOnce({ granted: true } as location.PermissionResponse);
+        jest.mocked(location.watchPositionAsync).mockImplementationOnce(async (_, callback) => {
+            receive = callback;
+            return { remove };
+        });
+        const view = await render(<ReportLocationPicker saved={null} cancel={jest.fn()} confirm={jest.fn()} />);
+        await fireEvent.press(screen.getByRole('button', { name: 'Usar GPS' }));
+        expect(screen.getByRole('button', { name: 'Buscando GPS…' })).toBeVisible();
+        if (action === 'fechar') await view.unmount();
+        else if (action === 'tocar') await fireEvent.press(screen.getByTestId('location-map'), { nativeEvent: { coordinate: { latitude: 1, longitude: 2 } } });
+        else
+            await act(() => {
+                for (const listener of [...listeners]) listener('background');
+            });
+        expect(remove).toHaveBeenCalledTimes(1);
+        await act(() => receive({ coords: { latitude: 3, longitude: 4 } } as location.LocationObject));
+        if (action !== 'fechar') expect(screen.queryByText('Localização do aparelho')).toBeNull();
+    } finally {
+        subscription.mockRestore();
+    }
+});
+
+it('aproxima o primeiro toque e mantém o zoom de rua e o ponto exato no toque seguinte', async () => {
+    const catalog = jest.spyOn(globalThis, 'fetch').mockImplementation(async () => categoryResponse());
+    const draftRef = { current: { category: 'LIGHTING', description: 'Praça', photos: [], location: null, showIdentity: false, requestId: 'zoom' } };
+    const wide = { latitude: -20.7526, longitude: -42.8818, latitudeDelta: 0.06, longitudeDelta: 0.06 };
+    const close = { ...wide, latitudeDelta: 0.002, longitudeDelta: 0.002 };
+    const tap = { latitude: -20.7531234567, longitude: -42.8821234567 };
+    try {
+        await render(<CitizenReport apiBase="https://example.test" token="teste" onSessionExpired={jest.fn()} draftRef={draftRef} />);
+        await fireEvent.press(screen.getByText('Escolher no mapa'));
+        const map = screen.getByTestId('location-map');
+        await fireEvent(map, 'mapReady');
+        await fireEvent(map, 'regionChangeStart', wide);
+        await fireEvent(map, 'regionChangeComplete', wide);
+        await fireEvent(map, 'press', { nativeEvent: {} });
+        expect(screen.getByRole('button', { name: 'Confirmar ponto' })).toBeDisabled();
+        await fireEvent(map, 'press', { nativeEvent: { coordinate: tap } });
+        expect(mockSetCamera).toHaveBeenLastCalledWith({ center: tap, zoom: 17 });
+        await fireEvent(map, 'regionChangeComplete', close, { isGesture: false });
+        const next = { latitude: tap.latitude + 0.00005, longitude: tap.longitude };
+        await fireEvent(map, 'press', { nativeEvent: { coordinate: next } });
+        expect(mockSetCamera).toHaveBeenLastCalledWith({ center: next });
+        await fireEvent(map, 'regionChangeComplete', close, { isGesture: false });
+        await fireEvent.press(screen.getByText('Confirmar ponto'));
+        expect(draftRef.current.location).toEqual({ ...next, source: 'MANUAL' });
     } finally {
         catalog.mockRestore();
     }

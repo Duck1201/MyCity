@@ -2,6 +2,7 @@ import { act, render, screen, userEvent, fireEvent } from '@testing-library/reac
 import { Text } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { CitizenAccess } from '../src/citizen-access';
+import { CitizenAccessLayout } from '../src/components/citizen-login-screen';
 
 jest.mock('expo-secure-store', () => ({ getItemAsync: jest.fn(), setItemAsync: jest.fn(), deleteItemAsync: jest.fn() }));
 afterEach(() => jest.restoreAllMocks());
@@ -12,7 +13,15 @@ it('restaura token protegido, consulta identidade e revoga ao sair', async () =>
         .mockResolvedValueOnce({ ok: true, json: async () => ({ data: { id: 'demo', role: 'CITIZEN' } }) } as Response)
         .mockResolvedValueOnce({ ok: true, status: 204 } as Response);
     const user = userEvent.setup();
-    await render(<CitizenAccess apiBase="https://demo.example/api/v1">{() => <Text>Denúncia privada</Text>}</CitizenAccess>);
+    await render(
+        <CitizenAccess apiBase="https://demo.example/api/v1">
+            {(_token, _expire, leave) => (
+                <CitizenAccessLayout onLeave={leave}>
+                    <Text>Denúncia privada</Text>
+                </CitizenAccessLayout>
+            )}
+        </CitizenAccess>,
+    );
     expect(await screen.findByText('Denúncia privada')).toBeVisible();
     expect(request).toHaveBeenCalledWith('https://demo.example/api/v1/me', expect.objectContaining({ headers: { Authorization: 'Bearer teste' } }));
     await user.press(screen.getByRole('button', { name: 'Sair' }));

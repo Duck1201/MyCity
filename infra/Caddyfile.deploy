@@ -1,3 +1,15 @@
+{
+    log {
+        format filter {
+            wrap json
+            fields {
+                request>uri regexp "[?].*$" ""
+                request>headers>Referer delete
+            }
+        }
+    }
+}
+
 https://mycity.private-gateway.site:8080 {
     tls {
         issuer acme {

@@ -42,10 +42,12 @@ it('identifica os três níveis e abre o detalhe simulado usando a sessão do ci
     expect(screen.getByText('Alerta')).toBeVisible();
     expect(screen.getByText('Emergência')).toBeVisible();
     expect(screen.getByText('Simulação climática')).toBeVisible();
-    await fireEvent.press(screen.getByText('Alagamento em via urbana'));
+    await fireEvent.press(screen.getByRole('button', { name: 'Emergência, Alagamento em via urbana, Vale do Sol' }));
     expect(await screen.findByText(scenarios[2]!.message)).toBeVisible();
     expect(screen.getByText('Simulação climática')).toBeVisible();
     expect(screen.getByText('Vale do Sol')).toBeVisible();
+    expect(screen.getByText('Início do cenário')).toBeVisible();
+    expect(screen.getByText('Fim do cenário')).toBeVisible();
     await fireEvent.press(screen.getByRole('button', { name: 'Voltar aos alertas' }));
     expect(await screen.findByText('Atenção')).toBeVisible();
     expect(api.mock.calls.some(([url]) => String(url).includes('/notifications'))).toBe(false);
@@ -102,4 +104,27 @@ it('exige novo login se a sessão expirar ao abrir o detalhe', async () => {
     await fireEvent.press(await screen.findByText('Vento intenso'));
     expect(expire).toHaveBeenCalledTimes(1);
     expect(screen.queryByText(scenarios[1]!.message)).toBeNull();
+});
+
+it('retorna ao detalhe do alerta após consultar notificações e abrir o formulário flutuante', async () => {
+    jest.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+        if (String(input) === base + '/weather-alerts') return page([scenarios[0]], 'mais');
+        if (String(input) === base + '/weather-alerts?cursor=mais') return page(scenarios.slice(1));
+        if (String(input) === base + '/weather-alerts/vento') return ok({ data: scenarios[1] });
+        if (String(input) === base + '/categories') return categoryResponse();
+        return page([]);
+    });
+    await enter();
+    await fireEvent.press(await screen.findByRole('button', { name: 'Próxima página' }));
+    await fireEvent.press(await screen.findByText('Vento intenso'));
+    await fireEvent.press(screen.getByRole('button', { name: 'Notificações' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Voltar' }));
+    expect(await screen.findByText(scenarios[1]!.message)).toBeVisible();
+    await fireEvent.press(screen.getByRole('button', { name: 'Nova denúncia' }));
+    expect(await screen.findByLabelText('Descrição')).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Nova denúncia' })).toBeNull();
+    await fireEvent.press(screen.getByRole('button', { name: 'Voltar' }));
+    expect(await screen.findByText(scenarios[1]!.message)).toBeVisible();
+    await fireEvent.press(screen.getByRole('button', { name: 'Voltar aos alertas' }));
+    expect(await screen.findByText('Página 2')).toBeVisible();
 });

@@ -38,6 +38,10 @@ A API integrada já permite renomear categorias e desfazer somente o último ava
 - [x] Integrar o painel após o aceite, incluindo indicadores, ranking, filtros, CSV completo e verificação da mudança de categoria sob latência.
 - [x] Repetir os percursos com o painel definitivo e colher os quatro pareceres do gate local.
 
+### Refinamento do Android integrado
+
+O responsável aprovou no Galaxy M32 o registro de denúncia pelo **+**, com câmera e GPS automático ao abrir o formulário. O mapa de ajuste é opcional. O mapa comunitário agrupa pontos próximos e mantém a seleção ao voltar do detalhe. O gate local incluiu Sol, Luna e os QAs de interface e integração. Os ensaios e seus limites estão na [matriz de testes](docs/testing.md); o parecer de segurança está em [C29](concerns.md#revisão-independente-por-fase).
+
 ## Aceite da entrega hospedada
 
 No Galaxy M32, o cidadão publicou uma ocorrência com fotos da câmera e da galeria e escolheu um ponto público no mapa. Outro cidadão confirmou, o gestor atendeu pelo painel e o autor consultou o histórico e o aviso no APK. A sessão e a leitura persistiram após reiniciar o aplicativo. A [matriz de aceite](docs/testing.md#aceite-por-critério) identifica as revisões e verificações realizadas.

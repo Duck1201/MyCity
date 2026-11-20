@@ -8,7 +8,8 @@ import { Nunito_800ExtraBold } from '@expo-google-fonts/nunito/800ExtraBold';
 import { FontAvailability, nunitoFaces } from './typography';
 
 const assets = { [nunitoFaces.regular]: Nunito_400Regular, [nunitoFaces.semibold]: Nunito_600SemiBold, [nunitoFaces.bold]: Nunito_700Bold, [nunitoFaces.extrabold]: Nunito_800ExtraBold };
-export function AppFonts({ children }: { children: ReactNode }) {
+export function AppFonts({ children }: { children: ReactNode | ((loaded: boolean) => ReactNode) }) {
     const [ready, error] = useFonts(assets);
-    return <FontAvailability.Provider value={ready}>{ready || error ? children : <AppLoadingScreen />}</FontAvailability.Provider>;
+    const loaded = ready || !!error;
+    return <FontAvailability.Provider value={ready}>{typeof children === 'function' ? children(loaded) : loaded ? children : <AppLoadingScreen />}</FontAvailability.Provider>;
 }

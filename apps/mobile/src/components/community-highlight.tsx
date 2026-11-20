@@ -1,8 +1,10 @@
-import { Image, Pressable, StyleSheet, View, type ImageSourcePropType } from 'react-native';
+import { StyleSheet, View, type ImageSourcePropType } from 'react-native';
 import { type ReportStatus } from '@mycity/contracts';
 import { colors, mobileStyles } from '../theme';
 import { statusLabels } from '../report-overview';
 import { Icon } from '../prototype/civic-header';
+import { MotionPressable } from './motion-pressable';
+import { ReportThumbnail } from './report-photo';
 import { Text } from './typography';
 
 type Highlight = { description: string; category: string; status: ReportStatus; photo?: ImageSourcePropType | undefined };
@@ -15,14 +17,14 @@ export function CommunityHighlight({ report, message, open, feed }: Props) {
                 <Text accessibilityRole="header" style={mobileStyles.heading}>
                     Na cidade
                 </Text>
-                <Pressable accessibilityRole="button" accessibilityLabel="Ver feed" onPress={feed} style={({ pressed }) => [styles.link, pressed && styles.pressed]}>
+                <MotionPressable accessibilityRole="button" accessibilityLabel="Ver feed" onPress={feed} style={({ pressed }) => [styles.link, pressed && styles.pressed]}>
                     <Text style={styles.linkText}>Ver feed</Text>
                     <Icon name="next" size={15} color={colors.teal} />
-                </Pressable>
+                </MotionPressable>
             </View>
             {report && (
-                <Pressable accessibilityRole="button" accessibilityLabel={'Abrir ocorrência: ' + report.description} accessibilityHint={report.category + '. ' + statusLabels[report.status]} onPress={open} style={({ pressed }) => [styles.story, pressed && styles.pressed]}>
-                    {report.photo && <Image source={report.photo} accessible={false} style={styles.image} />}
+                <MotionPressable accessibilityRole="button" accessibilityLabel={'Abrir ocorrência: ' + report.description} accessibilityHint={report.category + '. ' + statusLabels[report.status]} onPress={open} style={({ pressed }) => [styles.story, pressed && styles.pressed]}>
+                    {report.photo && <ReportThumbnail source={report.photo} />}
                     <View style={styles.copy}>
                         <Text style={styles.category}>{report.category}</Text>
                         <Text style={styles.title} numberOfLines={2}>
@@ -30,7 +32,7 @@ export function CommunityHighlight({ report, message, open, feed }: Props) {
                         </Text>
                         <Text style={mobileStyles.meta}>{statusLabels[report.status]}</Text>
                     </View>
-                </Pressable>
+                </MotionPressable>
             )}
             {!!message && (
                 <Text accessibilityLiveRegion="polite" style={mobileStyles.meta}>
@@ -46,7 +48,6 @@ const styles = StyleSheet.create({
     link: { flexDirection: 'row', alignItems: 'center', gap: 3, minHeight: 44, paddingHorizontal: 4 },
     linkText: { color: colors.teal, fontWeight: '700', fontSize: 14 },
     story: { flexDirection: 'row', alignItems: 'center', borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.line, paddingVertical: 12, gap: 14 },
-    image: { width: 80, height: 84, borderRadius: 8, backgroundColor: colors.pale },
     copy: { flex: 1, gap: 3, minWidth: 0 },
     category: { color: colors.teal, fontSize: 13, fontWeight: '700' },
     title: { fontSize: 17, lineHeight: 22, fontWeight: '800', color: colors.ink },

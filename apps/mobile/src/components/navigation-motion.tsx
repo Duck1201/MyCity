@@ -6,7 +6,7 @@ import { useMotionEnabled } from './use-motion-enabled';
 const easeOut = Easing.bezier(0.22, 1, 0.36, 1);
 const timing = { easing: easeOut, useNativeDriver: Platform.OS !== 'web', isInteraction: false };
 
-export function ScreenTransition({ route, depth, children }: { route: string; depth: number; children: ReactNode }) {
+export function ScreenTransition({ route, depth, children, fadeContent = true }: { route: string; depth: number; fadeContent?: boolean; children: ReactNode }) {
     const enabled = useMotionEnabled();
     const prior = useRef({ route, depth });
     const [offset] = useState(() => new Animated.Value(0));
@@ -21,16 +21,16 @@ export function ScreenTransition({ route, depth, children }: { route: string; de
         }
         const distance = Math.sign(depth - previous.depth) * 20;
         offset.setValue(distance);
-        opacity.setValue(distance ? 0.86 : 0.92);
-        const fade = Animated.timing(opacity, { ...timing, toValue: 1, duration: distance ? 170 : 120 });
+        opacity.setValue(fadeContent ? (distance ? 0.86 : 0.92) : 1);
+        const fade = fadeContent ? Animated.timing(opacity, { ...timing, toValue: 1, duration: distance ? 170 : 120 }) : undefined;
         const slide = distance ? Animated.timing(offset, { ...timing, toValue: 0, duration: 190 }) : undefined;
-        fade.start();
+        fade?.start();
         slide?.start();
         return () => {
-            fade.stop();
+            fade?.stop();
             slide?.stop();
         };
-    }, [route, depth, enabled, offset, opacity]);
+    }, [route, depth, enabled, fadeContent, offset, opacity]);
     return <Animated.View style={[styles.surface, enabled && { opacity, transform: [{ translateX: offset }] }]}>{children}</Animated.View>;
 }
 
