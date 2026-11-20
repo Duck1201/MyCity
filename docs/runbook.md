@@ -96,7 +96,7 @@ Para demonstrar a correção, use **Voltar para análise** após iniciar um aten
 - Reiniciar ou recriar containers com os mesmos volumes deve preservar banco/fotos; validar isso antes da apresentação.
 - Nunca remover volumes como rotina de atualização. Não incluir reset ou seed destrutivo no startup.
 - Backup precisa de banco e volume de fotos em um ponto consistente. Para o MVP, pode ser feito com escritas pausadas durante a captura; registrar o procedimento real após implementação.
-- Testar restauração em ambiente separado. Presença de arquivos de backup não comprova recuperação.
+- Testar restauração em ambiente separado. Em cluster novo, criar o papel `mycity_api` com `NOLOGIN` antes de importar o dump com as concessões de acesso. Antes de voltar a servir a API, executar o provisionamento da release para configurar o login restrito. Presença de arquivos de backup não comprova recuperação.
 - Em falha de deploy, preservar logs e volumes; voltar à versão anterior somente se compatível com as migrações. Não prometer downgrade automático.
 - Limpeza de staging/órfãos deve respeitar uploads em andamento. Guardar evidência do comportamento em T25.
 

@@ -102,6 +102,10 @@ O fluxo no proxy usa HTTP real com cookie e Bearer. As interfaces nativas de câ
 | AC18                   | APK independente, API HTTPS, painel e retorno no mesmo protocolo | Pendente na etapa 6. Registrar APK, aparelho, URL e percurso sem Metro.                                                                                                                                                         |
 | AC21                   | Swagger, opt-in e contrato gerado                                | Suíte de documentação e verificação de drift no check local.                                                                                                                                                                    |
 
+Na EC2, a revisão `a0c2e8f` passou no percurso API → painel no Chrome → cidadão. A confirmação, o atendimento e o aviso corresponderam ao mesmo registro. Uma restauração isolada preservou o vínculo e o SHA-256 da foto. A cadeia pública respondeu 429 com `Retry-After` em readiness e manteve liveness disponível. As 11 migrações, os três perfis e os privilégios restritos do runtime foram conferidos no destino.
+
+No Galaxy M32 com Android 13, o APK intermediário assinado revelou uma falha de inicialização do WorkManager. Com a regra de preservação do construtor, o processo iniciou o JavaScript e manteve a atividade principal. O aceite AC18 ainda depende do APK com a chave de mapas, da jornada no aparelho desbloqueado e da limpeza do ensaio após o aceite.
+
 ## QA independente após cada fase
 
 O gate definido em [agents/readme.md](../agents/readme.md) é obrigatório. Sol revisa segurança; Luna valida cenários funcionais baseados nas personas; QA de interface aplica Nielsen e QA de integração verifica o fluxo real conforme a fase. Relatórios indicam a revisão e o ambiente, distinguem achados de hipóteses e registram o que não foi executado.

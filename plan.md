@@ -14,7 +14,7 @@ O percurso principal liga cidadão, gestor e autor da denúncia. Um cidadão reg
 | 3     | Atendimento, histórico, respostas e avisos ao cidadão            | Percurso local validado.                                                                            |
 | 4     | Feed, mapa, confirmações, prioridade, filtros e cancelamento     | Participação validada localmente.                                                                   |
 | 5     | Alertas simulados e revisão visual                               | Gate local concluído.                                                                               |
-| 6     | Publicação e homologação do APK contra a API hospedada           | Preparação local concluída. APK assinado e fluxo hospedado aguardam homologação.                    |
+| 6     | Publicação e homologação do APK contra a API hospedada           | API e painel homologados na EC2. Pendente jornada completa no APK com mapa.                         |
 
 ## Revisão do frontend — painel administrativo e acompanhamento no Android
 
