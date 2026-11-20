@@ -2,7 +2,7 @@ import { useLayoutEffect, useRef, useState, useSyncExternalStore, type CSSProper
 import { Dialog } from 'radix-ui';
 import { ChartNoAxesColumnIncreasing, Inbox, LayoutGrid, LogOut, MapPin, Menu, PanelLeftClose, PanelLeftOpen, X } from 'lucide-react';
 import { PanelStage } from './panel-loading';
-import { Link, useLocation } from './prototype/navigation';
+import { Link, useLocation } from './navigation';
 import './manager-shell.css';
 
 export type QueueNavigation = { section: 'overview' | 'queue' | 'categories'; id?: string };

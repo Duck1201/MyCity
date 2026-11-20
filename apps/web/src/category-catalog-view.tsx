@@ -1,33 +1,18 @@
-import { CategoryIconPicker } from '../category-icon-picker';
+import { CategoryIconPicker } from './category-icon-picker';
 import { useRef, useState, type ReactNode } from 'react';
 import { createCategorySchema, type CategoryIconKey } from '@mycity/contracts';
 import { Dialog } from 'radix-ui';
 import { Archive, ArchiveRestore, ChevronDown, ChevronRight, Pencil, Plus, Search } from 'lucide-react';
-import './catalog.css';
-import '../category-manager.css';
-import type { Category, DemoRecord } from './demo';
-import { CategorySymbol, iconChoices, type CategoryIcon } from './category-symbol';
+import './category-catalog-view.css';
+import './category-manager.css';
+import { CategorySymbol, iconChoices, type CategoryIcon } from './components/category-symbol';
 import { Link, queueUrl } from './navigation';
 
 function searchableName(value: string) {
     return value.normalize('NFD').replace(/\p{M}/gu, '').toLocaleLowerCase('pt-BR').trim();
 }
 
-export function Catalog({ items, change, rows }: { rows: DemoRecord[]; items: Category[]; change: (items: Category[]) => void }) {
-    const counts = new Map<string, number>();
-    for (const row of rows) counts.set(row.category, (counts.get(row.category) ?? 0) + 1);
-    function save(id: string | undefined, payload: CategoryChange) {
-        if ('name' in payload) {
-            const compare = new Intl.Collator('pt-BR', { sensitivity: 'base' });
-            if (items.some((item) => item.id !== id && compare.compare(payload.name, item.name) === 0)) throw new Error('Já existe uma categoria com esse nome.');
-            change(id ? items.map((item) => (item.id === id ? { ...item, ...payload } : item)) : [...items, { id: crypto.randomUUID(), ...payload, archived: false }]);
-        } else {
-            change(items.map((item) => (item.id === id ? { ...item, ...payload } : item)));
-        }
-    }
-    return <CategoryCatalogView items={items} count={(id) => counts.get(id) ?? 0} save={save} />;
-}
-
+export type Category = { id: string; name: string; icon: CategoryIcon; archived: boolean };
 export type CategoryChange = { name: string; icon: CategoryIconKey } | { archived: boolean };
 type ViewProps = { items: Category[]; count: (id: string) => number | undefined; save: (id: string | undefined, payload: CategoryChange) => void | Promise<void>; feedback?: ReactNode; loading?: boolean };
 export function CategoryCatalogView({ items, count, save, feedback, loading }: ViewProps) {

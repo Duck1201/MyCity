@@ -1,4 +1,4 @@
-import { CategorySymbol, categorySymbols, iconChoices, type CategoryIcon } from './prototype/category-symbol';
+import { CategorySymbol, categorySymbols, iconChoices, type CategoryIcon } from './components/category-symbol';
 import './category-icon-picker.css';
 export function CategoryIconPicker({ value, change, disabled }: { disabled?: boolean; value: CategoryIcon; change: (icon: CategoryIcon) => void }) {
     return (

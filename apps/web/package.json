@@ -7,20 +7,16 @@
         "dev": "node ../../scripts/dev-client.mjs web",
         "build": "tsc --noEmit && vite build",
         "typecheck": "tsc --noEmit",
-        "test": "vitest run",
-        "prototype": "vite --mode prototype --host 127.0.0.1 --port 8091 --strictPort"
+        "test": "vitest run"
     },
     "dependencies": {
         "@mycity/contracts": "*",
-        "@radix-ui/react-slot": "1.2.3",
         "class-variance-authority": "0.7.1",
-        "clsx": "2.1.1",
         "cn": "^0.5.2",
         "lucide-react": "1.75.0",
         "radix-ui": "^1.8.1",
         "react": "19.3.0",
-        "react-dom": "19.3.0",
-        "tailwind-merge": "3.7.0"
+        "react-dom": "19.3.0"
     },
     "devDependencies": {
         "@tailwindcss/vite": "4.3.5",

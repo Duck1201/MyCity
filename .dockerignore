@@ -23,7 +23,6 @@ apps/api/src/generated
 !apps/web/src/**/*.ts
 !apps/web/src/**/*.tsx
 !apps/web/src/**/*.css
-!apps/web/src/prototype/images/report-credits.json
 !apps/web/public/favicon.svg
 !apps/web/public/fonts/nunito-latin-wght-normal.woff2
 !apps/web/public/images/urban-neighborhood.svg

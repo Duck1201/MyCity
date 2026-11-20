@@ -23,7 +23,6 @@
         "dev:api": "npm run dev -w @mycity/api",
         "dev:web": "npm run dev -w @mycity/web --",
         "dev:mobile": "npm run start -w @mycity/mobile --",
-        "dev:mobile:web": "npm run prototype:pc -w @mycity/mobile --",
         "build": "npm run build -w @mycity/contracts && npm run build -w @mycity/api && npm run build -w @mycity/web",
         "build:contracts": "npm run build -w @mycity/contracts",
         "typecheck": "npm run build:contracts && npm run typecheck --workspaces --if-present",

@@ -4,7 +4,7 @@ import { ArrowRight, ArrowUpRight, CircleCheck, Inbox, ThumbsUp } from 'lucide-r
 import type { ReportStatus, ReportStatusCounts } from '@mycity/contracts';
 import { statusNames } from '../report-status-labels';
 import type { CategoryIcon } from './category-symbol';
-import { Link, queueUrl } from './navigation';
+import { Link, queueUrl } from '../navigation';
 import { CategorySymbol } from './category-symbol';
 import { CategoryRanking, type RankedCategory } from './category-ranking';
 import './dashboard.css';

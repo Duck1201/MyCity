@@ -6,7 +6,7 @@ import { AccessibilityInfo, AppState, Image, Keyboard, ScrollView, StyleSheet, S
 import { Text, TextInput } from './components/typography';
 import { MotionPressable } from './components/motion-pressable';
 import { useMotionEnabled } from './components/use-motion-enabled';
-import { Icon } from './prototype/civic-header';
+import { Icon } from './components/civic-header';
 import { ReportLocationPicker } from './report-location-picker';
 import * as GPS from 'expo-location';
 import { readDevicePosition } from './device-position';

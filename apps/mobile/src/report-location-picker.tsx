@@ -10,7 +10,7 @@ import { MotionPressable } from './components/motion-pressable';
 import { Text } from './components/typography';
 import { readDevicePosition } from './device-position';
 import { cityRegion, pointRegion } from './map-region';
-import { Icon } from './prototype/civic-header';
+import { Icon } from './components/civic-header';
 import { colors, mobileStyles } from './theme';
 
 type Props = { saved: Location | null; confirm: (point: Location) => void; cancel: () => void };

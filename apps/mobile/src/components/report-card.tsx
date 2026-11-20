@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { StyleSheet, View, type ImageSourcePropType } from 'react-native';
 import type { ReportStatus } from '@mycity/contracts';
-import { Icon } from '../prototype/civic-header';
+import { Icon } from './civic-header';
 import { statusLabels } from '../report-overview';
 import { colors, statusTint } from '../theme';
 import { MotionPressable } from './motion-pressable';

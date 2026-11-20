@@ -13,9 +13,6 @@
                 "backgroundColor": "#316ba9"
             }
         },
-        "icon": "./assets/icon.png",
-        "web": {
-            "favicon": "./assets/icon.png"
-        }
+        "icon": "./assets/icon.png"
     }
 }

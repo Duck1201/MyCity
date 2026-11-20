@@ -14,23 +14,6 @@ import { colors } from './theme';
 const apiBase = resolveApiBase({ development: __DEV__, configuredUrl: process.env.EXPO_PUBLIC_API_URL, developmentPort: process.env.EXPO_PUBLIC_API_PORT, metroHostUri: Constants.expoConfig?.hostUri });
 
 export default function App() {
-    if (__DEV__ && process.env.EXPO_PUBLIC_MY_CITY_PROTOTYPE === '1') {
-        // eslint-disable-next-line @typescript-eslint/no-require-imports -- Metro drops this dependency when folding the production branch.
-        const { CitizenPrototype } = require('./prototype/citizen-prototype') as typeof import('./prototype/citizen-prototype');
-        return (
-            <SafeAreaProvider initialMetrics={initialWindowMetrics}>
-                <SafeAreaView style={styles.preview}>
-                    <StatusBar style="dark" />
-                    <AppFonts>
-                        <CitizenPrototype />
-                    </AppFonts>
-                </SafeAreaView>
-            </SafeAreaProvider>
-        );
-    }
-    return <ConnectedApp />;
-}
-function ConnectedApp() {
     const [linkedReport, setLinkedReport] = useState<{ id: string } | null>(null);
     const clearLink = useCallback(() => setLinkedReport(null), []);
     useEffect(() => {
@@ -80,4 +63,4 @@ function ConnectedApp() {
         </SafeAreaProvider>
     );
 }
-const styles = StyleSheet.create({ container: { flex: 1, backgroundColor: colors.surface }, preview: { flex: 1, backgroundColor: colors.surface } });
+const styles = StyleSheet.create({ container: { flex: 1, backgroundColor: colors.surface } });

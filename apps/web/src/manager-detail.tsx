@@ -1,7 +1,7 @@
 import { ArrowLeft } from 'lucide-react';
-import { Link } from './prototype/navigation';
+import { Link } from './navigation';
 import { ReportService } from './report-service';
-import './prototype/detail.css';
+import './occurrence-detail.css';
 import './manager-detail.css';
 
 export function ManagerDetail({ id, onSessionExpired }: { id: string; onSessionExpired: () => void }) {

@@ -87,7 +87,6 @@ set -eu
 umask 077
 export EXPO_PUBLIC_API_URL=https://mycity.private-gateway.site:8080/api/v1
 export NODE_ENV=production EXPO_NO_DOTENV=1 EXPO_NO_TELEMETRY=1
-unset EXPO_PUBLIC_MY_CITY_PROTOTYPE
 npm run build:contracts
 cd apps/mobile
 node --env-file=../../.env ../../node_modules/.bin/expo prebuild --platform android --no-install --no-clean --template ../../node_modules/expo/template.tgz

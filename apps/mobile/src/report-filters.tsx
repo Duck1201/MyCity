@@ -8,7 +8,7 @@ import { Text } from './components/typography';
 import { MotionPressable } from './components/motion-pressable';
 import { useMotionEnabled } from './components/use-motion-enabled';
 import { ActionButton } from './components/action-button';
-import { Icon } from './prototype/civic-header';
+import { Icon } from './components/civic-header';
 import { type ReportCategory, type ReportStatus } from '@mycity/contracts';
 import { statusLabels } from './report-overview';
 

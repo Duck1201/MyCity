@@ -21,7 +21,7 @@ Em **Início**, o cidadão acompanha os próprios registros e pode abrir uma nov
   <img src="docs/images/citizen-feed.png" width="280" alt="Tela Feed, com ocorrências ativas e seus estados">
 </p>
 
-As capturas do cidadão vêm da prévia web do app, que usa exemplos próprios. No Android integrado, o app e o painel compartilham a API e o PostgreSQL. Os alertas climáticos são simulados.
+No Android, o app e o painel compartilham a API e o PostgreSQL. Os alertas climáticos são simulados.
 
 ## Executar localmente
 
@@ -46,10 +46,6 @@ npm run dev
 Abra **<http://localhost:8090>** e entre como gestor com o CPF **`00000000003`** e a senha de `DEMO_MANAGER_PASSWORD` no seu `.env`. O seed prepara também os cidadãos `00000000001` e `00000000002`, com senhas em `DEMO_CITIZEN_A_PASSWORD` e `DEMO_CITIZEN_B_PASSWORD`. São contas fictícias provisionadas na instalação.
 
 Abra **Atendimento** para explorar os exemplos. A API atende em **<http://localhost:3000/api/v1/health/ready>** para a verificação de saúde. Ctrl+C encerra o painel e a API.
-
-### Explorar o app no navegador
-
-Em outro terminal, execute `npm run dev:mobile:web` e abra **<http://localhost:8093>**. A prévia usa dados locais do protótipo e funciona sem API, banco ou credenciais. O link **Ver tela de login** permite experimentar a interface de entrada.
 
 Para mudar portas, configurar a API do celular ou executar a versão compilada em containers, consulte o [guia de ambiente local](docs/runbook.md#ambiente-local).
 
@@ -90,4 +86,4 @@ O check valida OpenAPI, lint, tipos, testes e build. A integração automatizada
 
 ## Licença
 
-O código do MyCity usa [Apache 2.0](LICENSE). Autores, fontes e licenças das fotos que aparecem nas capturas estão nos [créditos das ocorrências](apps/web/src/prototype/images/report-credits.json) e nos [créditos da prévia mobile](apps/mobile/src/prototype/photos/creditos.txt).
+O código do MyCity usa [Apache 2.0](LICENSE). Autores, fontes e licenças das fotos fictícias estão nos [créditos das ocorrências](apps/api/prisma/report-images/credits.json) e nos [créditos das imagens do app](apps/mobile/src/assets/creditos.txt).

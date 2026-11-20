@@ -152,8 +152,8 @@ Os arquivos ficam em [`docs/images/`](images/). Para trocar as capturas, substit
 | Arquivo                 | Tela e enquadramento                                                                           |
 | ----------------------- | ---------------------------------------------------------------------------------------------- |
 | `manager-dashboard.png` | **Atendimento** no painel local com o banco semeado. Use uma janela de cerca de 1440 × 860 px. |
-| `citizen-app.png`       | **Início** no `npm run dev:mobile:web`. Selecione 390 px na prévia e capture só a tela do app. |
-| `citizen-feed.png`      | **Feed → Ativas** na mesma prévia, com o mesmo enquadramento e altura da tela **Início**.      |
+| `citizen-app.png`       | **Início** no app Android com a API local semeada. Capture com `adb exec-out screencap -p`.    |
+| `citizen-feed.png`      | **Feed → Ativas** no mesmo aparelho, com o mesmo enquadramento da tela **Início**.             |
 
 Capture somente a interface com dados fictícios. Abra o README renderizado em largura de desktop e de celular para conferir o enquadramento, a legibilidade e o texto junto de cada imagem.
 
