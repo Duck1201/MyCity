@@ -11,7 +11,7 @@ it('consulta os indicadores autenticados e abre a fila e o detalhe pelos IDs do 
         expect(await screen.findByRole('link', { name: /75 Denúncias pendentes/ })).toHaveAttribute('href', '/atendimento?status=pending');
         expect(fetcher.mock.calls[0]?.[0]).toBe('/api/v1/reports/overview');
         expect(screen.getByRole('link', { name: /Pendência mais antiga/ })).toHaveAttribute('href', '/atendimento/antiga');
-        expect(screen.getByRole('link', { name: 'Abrir denúncia prioritaria' })).toHaveAccessibleDescription(/Buraco no cruzamento.*Ciclovias.*20 confirmações/);
+        expect(screen.getByRole('link', { name: 'Abrir denúncia: Buraco no cruzamento' })).toHaveAccessibleDescription(/Buraco no cruzamento.*Ciclovias.*20 confirmações/);
         expect(screen.queryByRole('combobox', { name: 'Indicador' })).toBeNull();
         const chart = within(screen.getByRole('region', { name: 'Denúncias por situação' }));
         expect(chart.getByRole('link', { name: 'Filtrar por Enviado' })).toHaveAccessibleDescription('61 de 84 denúncias, 73%');
@@ -52,6 +52,31 @@ it('mantém o ranking expandido compacto e acessível quando o catálogo cresce'
         await user.click(ranking.getByRole('button', { name: 'Próximas categorias' }));
         expect(ranking.getAllByRole('link')).toHaveLength(4);
         expect(ranking.getByRole('link', { name: 'Filtrar por Grupo 12' })).toHaveAttribute('href', '/atendimento?category=grupo-11&status=pending');
+    } finally {
+        fetcher.mockRestore();
+    }
+});
+
+it('mostra em cada prioridade a categoria com o ícone e há quanto tempo foi aberta', async () => {
+    const day = 86_400_000;
+    const at = (days: number) => new Date(Date.now() - days * day - 60_000).toISOString();
+    const priorities = [
+        { id: 'p1', category: 'grupo', description: 'Buraco no cruzamento', status: 'SENT', confirmationCount: 4, createdAt: at(3) },
+        { id: 'p2', category: 'grupo', description: 'Poste apagado', status: 'UNDER_REVIEW', confirmationCount: 1, createdAt: at(1) },
+        { id: 'p3', category: 'grupo', description: 'Lixo na calçada', status: 'SENT', confirmationCount: 0, createdAt: at(0) },
+    ];
+    const payload = { counts: { SENT: 2, UNDER_REVIEW: 1, IN_PROGRESS: 0, RESOLVED: 0, REJECTED: 0, CANCELED: 0 }, oldest: { id: 'p1', createdAt: priorities[0]!.createdAt }, categories: [{ id: 'grupo', name: 'Ciclovias', icon: 'cycling', archived: false, count: 3 }], priorities };
+    const fetcher = vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json({ data: payload }));
+    try {
+        render(<ManagerOverview onSessionExpired={vi.fn()} />);
+        const first = await screen.findByRole('link', { name: 'Abrir denúncia: Buraco no cruzamento' });
+        expect(first).toHaveAccessibleDescription(/Ciclovias · há 3 dias/);
+        expect(screen.getByRole('link', { name: 'Abrir denúncia: Poste apagado' })).toHaveAccessibleDescription(/Ciclovias · há 1 dia\b/);
+        expect(screen.getByRole('link', { name: 'Abrir denúncia: Lixo na calçada' })).toHaveAccessibleDescription(/Ciclovias · hoje/);
+        // The icon sits inside the category line, so it cannot wrap onto a line of its own.
+        const category = within(first).getByText(/Ciclovias/);
+        expect(category.querySelector('svg.category-symbol')).not.toBeNull();
+        expect(first.textContent).not.toContain('p1');
     } finally {
         fetcher.mockRestore();
     }

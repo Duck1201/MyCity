@@ -97,7 +97,7 @@ export function addBusinessPaths(doc) {
             counts: ref('ReportStatusCounts'),
             oldest: { type: 'object', nullable: true, required: ['id', 'createdAt'], properties: { id: string, createdAt: { type: 'string', format: 'date-time' } } },
             categories: { type: 'array', items: { ...category, required: [...category.required, 'count'], properties: { ...category.properties, icon: string, count } } },
-            priorities: { type: 'array', maxItems: 3, items: { type: 'object', required: ['id', 'category', 'description', 'status', 'confirmationCount'], properties: { id: string, category: string, description: string, status: statusFilter.schema, confirmationCount: count, photoPath: string } } },
+            priorities: { type: 'array', maxItems: 3, items: { type: 'object', required: ['id', 'category', 'description', 'status', 'confirmationCount', 'createdAt'], properties: { id: string, category: string, description: string, status: statusFilter.schema, confirmationCount: count, createdAt: { type: 'string', format: 'date-time' }, photoPath: string } } },
         },
     };
     const alert = { $ref: '#/components/schemas/WeatherAlert' };

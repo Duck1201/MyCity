@@ -3,6 +3,12 @@ import { categoryIconFor, type ManagementOverview, type ManagementQueuePage } fr
 import { useLiveQuery } from './use-live-query';
 import { OverviewPanel, RecentReports } from './components/overview-panel';
 
+const day = 86_400_000;
+const ageLabel = (createdAt: string) => {
+    const days = Math.max(0, Math.floor((Date.now() - Date.parse(createdAt)) / day));
+    return days === 0 ? 'hoje' : days === 1 ? 'há 1 dia' : 'há ' + days + ' dias';
+};
+
 function RecentQueue({ categories, onSessionExpired }: { categories: ManagementOverview['categories']; onSessionExpired: () => void }) {
     const query = useLiveQuery<ManagementQueuePage>('/api/v1/reports/queue?ordem=recentes&limit=3', onSessionExpired);
     const rows = (query.data?.data ?? []).map((row) => ({ ...row, categoryIcon: categoryIconFor(row.category, categories.find((c) => c.id === row.category)?.icon), photo: row.coverPhotoId ? '/api/v1/reports/' + encodeURIComponent(row.id) + '/photos/' + encodeURIComponent(row.coverPhotoId) + '/thumb' : undefined }));
@@ -30,9 +36,9 @@ export function ManagerOverview({ onSessionExpired }: { onSessionExpired: () => 
     const priorities =
         overview?.priorities.map((row) => {
             const group = byCategory.get(row.category);
-            return { ...row, categoryName: group?.name ?? row.category, categoryIcon: categoryIconFor(row.category, group?.icon), count: row.confirmationCount, photo: row.photoPath };
+            return { ...row, categoryName: group?.name ?? row.category, categoryIcon: categoryIconFor(row.category, group?.icon), count: row.confirmationCount, photo: row.photoPath, age: ageLabel(row.createdAt) };
         }) ?? [];
-    const oldest = overview?.oldest && { id: overview.oldest.id, days: Math.max(0, Math.floor((Date.now() - Date.parse(overview.oldest.createdAt)) / 86400000)) };
+    const oldest = overview?.oldest && { id: overview.oldest.id, days: Math.max(0, Math.floor((Date.now() - Date.parse(overview.oldest.createdAt)) / day)) };
     return (
         <main aria-label="Visão geral">
             {!overview && <h1>Visão geral</h1>}

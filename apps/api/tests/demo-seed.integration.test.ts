@@ -170,6 +170,7 @@ it('consolida todas as situações, categorias e as três prioridades para o ges
     expect(overview.priorities.map((r: { id: string }) => r.id)).toEqual(queue.map((r) => r.id));
     expect(overview.priorities[0].photoPath).toBe(queue[0]!.coverPhoto.thumbnailPath);
     expect(overview.priorities[0]).not.toHaveProperty('author');
+    expect(overview.priorities.map((r: { createdAt: string }) => r.createdAt)).toEqual(queue.map((r) => r.createdAt));
     const oldest = queue.slice().sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id))[0]!;
     expect(overview.oldest).toEqual({ id: oldest.id, createdAt: oldest.createdAt });
     await db.reportCategoryDefinition.delete({ where: { id: archived.id } });
