@@ -142,7 +142,7 @@
 .civic-priority li a > img,
 .civic-priority li a > .priority-photo-fallback {
     grid-area: photo;
-    align-self: start;
+    align-self: center;
 }
 .civic-priority li a > .civic-case {
     grid-area: case;
