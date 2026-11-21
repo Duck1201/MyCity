@@ -42,7 +42,7 @@ function transitionLabel(from: ReportEvent['fromStatus'], to: ReportNotification
     return null;
 }
 
-function QueryFeedback({ failed, loading, retry, updating }: { failed: boolean; loading: boolean; updating?: boolean; retry: () => void }) {
+function QueryFeedback({ failed, loading, retry, updating, revalidating }: { failed: boolean; loading: boolean; updating?: boolean; revalidating?: boolean; retry: () => void }) {
     if (failed)
         return (
             <View style={styles.message}>
@@ -52,6 +52,7 @@ function QueryFeedback({ failed, loading, retry, updating }: { failed: boolean; 
         );
     if (updating) return <Text accessibilityLiveRegion="polite">Exibindo os resultados anteriores enquanto atualizamos…</Text>;
     if (loading) return <Text accessibilityLiveRegion="polite">Carregando…</Text>;
+    if (revalidating) return <Text accessibilityLiveRegion="polite">Atualizando…</Text>;
     return null;
 }
 function Pagination({ pages, next, setPages }: { pages: (string | null)[]; next: string | null; setPages: (pages: (string | null)[]) => void }) {
@@ -104,7 +105,7 @@ function ReportList({ request, feed, resolved, offsets, open, pages, setPages, s
                     {scope === 'feed' ? <ActionButton variant="secondary" label="Resolvidas" onPress={resolved} /> : <ActionButton variant="secondary" label="Voltar ao feed" onPress={feed} />}
                 </View>
             )}
-            <QueryFeedback failed={query.failed} loading={!query.data} updating={query.updating} retry={query.retry} />
+            <QueryFeedback failed={query.failed} loading={!query.data} updating={query.updating} revalidating={query.revalidating} retry={query.retry} />
             {voteError && !query.data?.data.some((row) => row.id === voteError.id) && (
                 <Text accessibilityLiveRegion="polite" style={styles.message}>
                     {voteError.message}
@@ -132,7 +133,7 @@ function Notifications({ request, open, pages, setPages, back }: ListProps & { b
             <Text accessibilityRole="header" style={styles.title}>
                 Avisos de atendimento
             </Text>
-            <QueryFeedback failed={query.failed} loading={!query.data} updating={query.updating} retry={query.retry} />
+            <QueryFeedback failed={query.failed} loading={!query.data} updating={query.updating} revalidating={query.revalidating} retry={query.retry} />
             {!query.updating && query.data?.data.length === 0 && <Text>Você ainda não recebeu notificações.</Text>}
             {query.data?.data.map((n) => (
                 <Pressable accessibilityRole="button" style={styles.card} key={n.id} onPress={() => open({ id: n.reportId, ...(!n.readAt && { noticeId: n.id }) })}>
@@ -155,7 +156,7 @@ function History({ request, path, pages, setPages }: { request: Request; path: s
             <Text accessibilityRole="header" style={styles.heading}>
                 Histórico do atendimento
             </Text>
-            <QueryFeedback failed={query.failed} loading={!query.data} updating={query.updating} retry={query.retry} />
+            <QueryFeedback failed={query.failed} loading={!query.data} updating={query.updating} revalidating={query.revalidating} retry={query.retry} />
             {!query.updating && query.data?.data.length === 0 && <Text>Nenhum evento registrado.</Text>}
             {query.data?.data.map((event) => (
                 <View key={event.id} style={styles.event}>

@@ -496,3 +496,7 @@
     margin-top: 6px;
     font-size: 13px;
 }
+.occurrence-updating {
+    color: var(--case-muted);
+    font-size: 13px;
+}

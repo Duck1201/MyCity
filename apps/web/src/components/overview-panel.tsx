@@ -10,7 +10,7 @@ import { CategoryRanking, type RankedCategory } from './category-ranking';
 import './dashboard.css';
 
 export type PriorityItem = { id: string; photo?: string | undefined; categoryName: string; categoryIcon: CategoryIcon; age: string; status: ReportStatus; description: string; count: number };
-export function OverviewPanel({ counts, oldest, ranked, priorities, recent }: { counts: ReportStatusCounts; oldest?: { id: string; days: number } | undefined; ranked: RankedCategory[]; priorities: PriorityItem[]; recent: ReactNode }) {
+export function OverviewPanel({ counts, oldest, ranked, priorities, recent, updating = false }: { updating?: boolean; counts: ReportStatusCounts; oldest?: { id: string; days: number } | undefined; ranked: RankedCategory[]; priorities: PriorityItem[]; recent: ReactNode }) {
     const pendingCount = counts.SENT + counts.UNDER_REVIEW + counts.IN_PROGRESS;
     const closedCount = counts.RESOLVED + counts.REJECTED + counts.CANCELED;
     const hasReports = pendingCount + closedCount > 0;
@@ -19,6 +19,11 @@ export function OverviewPanel({ counts, oldest, ranked, priorities, recent }: { 
             <section className="civic-cover" aria-labelledby="overview-title">
                 <img className="civic-grid" src="/images/urban-grid.svg" alt="" />
                 <h1 id="overview-title">Visão geral</h1>
+                {updating && (
+                    <p role="status" className="overview-updating">
+                        Atualizando…
+                    </p>
+                )}
                 <div className="civic-metrics">
                     {pendingCount > 0 && (
                         <Link href={queueUrl({ status: 'pending' })}>
