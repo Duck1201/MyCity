@@ -177,4 +177,4 @@ export * from './management-queue.js';
 
 export type { ManagementOverview } from './management-overview.js';
 
-export { fetchWithServerTime, serverTimeHeader, serverTimeOffset, subscribeServerTime } from './server-clock.js';
+export { fetchWithServerTime, serverTimeHeader, serverTimeReader, subscribeServerTime } from './server-clock.js';

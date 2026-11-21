@@ -123,7 +123,7 @@ function LiveGallery() {
     return data ? <PhotoGallery category="Iluminação" photos={photos} photosExpireAt={data.photosExpireAt} /> : null;
 }
 
-it('fecha a imagem ampliada e remove as fotos no instante do vencimento com relógio local atrasado', async () => {
+it.each(['timer', 'retorno da suspensão'])('fecha a imagem ampliada no vencimento com relógio local atrasado via %s', async (wake) => {
     vi.useFakeTimers();
     try {
         const serverTime = Date.now() + 3_600_000;
@@ -133,11 +133,18 @@ it('fecha a imagem ampliada e remove as fotos no instante do vencimento com rel�
         });
         fireEvent.click(screen.getByRole('button', { name: 'Ampliar foto 1 de 2' }));
         expect(screen.getByRole('dialog')).toBeVisible();
-        act(() => vi.advanceTimersByTime(3000));
+        if (wake === 'timer') act(() => vi.advanceTimersByTime(3000));
+        else {
+            const tick = performance.now();
+            vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 4000);
+            act(() => document.dispatchEvent(new Event('visibilitychange')));
+            expect(performance.now()).toBe(tick);
+        }
         expect(screen.queryByRole('dialog')).toBeNull();
         expect(screen.queryByRole('img')).toBeNull();
         expect(screen.getByText('Fotos expiradas')).toBeVisible();
     } finally {
+        vi.restoreAllMocks();
         vi.unstubAllGlobals();
         vi.useRealTimers();
     }

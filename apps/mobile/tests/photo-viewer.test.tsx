@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
+import { AppState } from 'react-native';
 import { State } from 'react-native-gesture-handler';
 import { fireGestureHandler, getByGestureTestId } from 'react-native-gesture-handler/jest-utils';
 import { fetchWithServerTime, type ReportDetail } from '@mycity/contracts';
@@ -116,9 +117,14 @@ it('mantém fotos com prazo guardadas fora da tela enquanto aguarda uma leitura 
     expect(screen.getByText(detail.description)).toBeVisible();
 });
 
-it('remove as imagens do detalhe e da tela cheia mesmo sem outra resposta da API', async () => {
+it.each(['timer', 'retorno da suspensão'])('remove as imagens do detalhe e da tela cheia offline via %s', async (wake) => {
     jest.useFakeTimers();
     try {
+        let resume = () => {};
+        jest.spyOn(AppState, 'addEventListener').mockImplementation((_, handler) => {
+            resume = () => handler('active');
+            return { remove: jest.fn() };
+        });
         jest.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { headers: { 'X-MyCity-Server-Time': String(Date.now()) } }));
         await fetchWithServerTime(apiBase + '/reports/r');
         const closing = { ...detail, photosExpireAt: new Date(Date.now() + 3000).toISOString() };
@@ -126,7 +132,13 @@ it('remove as imagens do detalhe e da tela cheia mesmo sem outra resposta da API
         await fireEvent.press(screen.getByRole('button', { name: 'Ampliar foto 1 da denúncia' }));
         expect(screen.getByText('Foto 1 de 2')).toBeVisible();
         await act(async () => {
-            jest.advanceTimersByTime(3000);
+            if (wake === 'timer') jest.advanceTimersByTime(3000);
+            else {
+                const tick = performance.now();
+                jest.spyOn(Date, 'now').mockReturnValue(Date.now() + 4000);
+                resume();
+                expect(performance.now()).toBe(tick);
+            }
         });
         expect(screen.queryByText('Foto 1 de 2')).toBeNull();
         expect(screen.queryByLabelText('Foto 1 da denúncia')).toBeNull();
