@@ -130,7 +130,11 @@ it('recusa salto e avanço por cidadão, e serializa conflitos sem duplicar efei
     const mine = await request(app(citizen))
         .get('/reports/' + report.id)
         .expect(200);
-    expect(mine.body.data).toMatchObject({ status: 'REJECTED', version: 3, allowedActions: [] });
+    expect(mine.body.data).toMatchObject({ status: 'REJECTED', version: 3, allowedActions: [], rejectionReason: 'Fora da competência municipal.' });
+    const managed = await request(app(manager))
+        .get('/reports/' + report.id)
+        .expect(200);
+    expect(managed.body.data.rejectionReason).toBe('Fora da competência municipal.');
     const history = await request(app(citizen))
         .get('/reports/' + report.id + '/history?limit=2')
         .expect(200);
@@ -156,6 +160,7 @@ it('recusa salto e avanço por cidadão, e serializa conflitos sem duplicar efei
     expect(await db.notification.count({ where: { reportId: report.id } })).toBe(2);
     const reopened = await request(app(manager)).post(url).send({ targetStatus: 'UNDER_REVIEW', expectedVersion: 3 }).expect(200);
     expect(reopened.body.data).toMatchObject({ status: 'UNDER_REVIEW', version: 4 });
+    expect(reopened.body.data).not.toHaveProperty('rejectionReason');
     const complete = await request(app(citizen))
         .get('/reports/' + report.id + '/history')
         .expect(200);

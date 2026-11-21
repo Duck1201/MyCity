@@ -274,3 +274,22 @@ it('permite ler por inteiro relatos e eventos extensos sem ocupar a página inte
     await user.click(screen.getByText('Ler texto completo'));
     expect(screen.getByText(reply)).toBeVisible();
 });
+
+it('destaca o motivo da rejeição no topo e marca a justificativa no histórico', async () => {
+    const reason = 'Fora da competência municipal.';
+    const rejected = { ...report, status: 'REJECTED', version: 3, allowedActions: ['UNDER_REVIEW', 'REPLY'], rejectionReason: reason };
+    const change = { id: 'evento-2', type: 'STATUS_CHANGED', actorRole: 'MANAGER', fromStatus: 'UNDER_REVIEW', toStatus: 'REJECTED', text: reason, createdAt: report.createdAt };
+    vi.stubGlobal(
+        'fetch',
+        vi.fn(async (url: string) => {
+            if (url.includes('/history')) return page([change, created]);
+            if (url.endsWith('/categories')) return categoriesResponse();
+            return Response.json({ data: rejected });
+        }),
+    );
+    render(<ReportService id="teste" onSessionExpired={vi.fn()} />);
+    const motive = await screen.findByRole('note', { name: 'Motivo da rejeição' });
+    expect(motive).toHaveTextContent(reason);
+    const entry = within(document.getElementById('occurrence-history')!).getByText(reason).closest('li')!;
+    expect(entry).toHaveTextContent('Justificativa: ' + reason);
+});

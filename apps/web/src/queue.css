@@ -63,15 +63,6 @@
     font-size: 12px;
     line-height: 1.4;
 }
-.preview-case-meta .queue-protocol {
-    font-variant-numeric: tabular-nums;
-    color: #304d64;
-    font-weight: 700;
-}
-.queue-protocol + .preview-category-label {
-    padding-inline-start: 8px;
-    border-inline-start: 1px solid #c5d2dc;
-}
 .preview-case-meta .queue-address {
     display: inline-flex;
     flex-basis: 100%;

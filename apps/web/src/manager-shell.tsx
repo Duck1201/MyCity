@@ -103,7 +103,7 @@ export function ManagerShell({ children, leave }: { children: (navigation: Queue
     const area = useRef<HTMLDivElement>(null);
     const prior = useRef(view);
     useLayoutEffect(() => {
-        document.title = (navigation.id ? navigation.id + ' · ' : '') + destinations.find((item) => item.section === section)!.label + ' · MyCity';
+        document.title = (navigation.id ? 'Denúncia · ' : '') + destinations.find((item) => item.section === section)!.label + ' · MyCity';
         if (prior.current === view) return;
         prior.current = view;
         const position = history.state?.scroll ?? 0;

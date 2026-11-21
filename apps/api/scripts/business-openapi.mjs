@@ -81,7 +81,7 @@ export function addBusinessPaths(doc) {
     Object.assign(doc.components.schemas, {
         ReportPhoto: object({ id: string, position: count, width: positiveInteger, height: positiveInteger, byteSize: positiveInteger, contentPath: string, thumbnailPath: string }),
         ReportSummary: object({ ...summaryFields, coverPhoto: ref('ReportPhoto'), author: object({ name: string, photoUrl: string }) }, Object.keys(summaryFields)),
-        ReportDetail: { allOf: [ref('ReportSummary'), object({ version: positiveInteger, photos: { ...array(ref('ReportPhoto')), minItems: 1, maxItems: 3 }, allowedActions: array(string) })] },
+        ReportDetail: { allOf: [ref('ReportSummary'), object({ version: positiveInteger, photos: { ...array(ref('ReportPhoto')), minItems: 1, maxItems: 3 }, allowedActions: array(string) }), { type: 'object', properties: { rejectionReason: { ...string, description: 'Justificativa da rejeição em vigor; presente só quando o status é REJECTED.' } } }] },
         ReportMarker: object({ ...reportFields, latitude, longitude }),
         ReportEvent: object({ id: string, type: { ...string, enum: ['CREATED', 'STATUS_CHANGED', 'REPLY'] }, actorRole: { ...string, enum: ['CITIZEN', 'MANAGER'] }, fromStatus: statusFilter.schema, toStatus: statusFilter.schema, text: publicText, createdAt: timestamp }, ['id', 'type', 'actorRole', 'createdAt']),
         ReportStatusCounts: object(Object.fromEntries(statusFilter.schema.enum.map((status) => [status, count]))),
