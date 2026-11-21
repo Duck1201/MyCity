@@ -33,8 +33,10 @@ it('revalida as leituras autenticadas com ETag e responde 304 quando nada mudou'
         const first = await request(app).get(path).set('Cookie', cookie).expect(200);
         expect(first.headers['cache-control']).toBe('private, no-cache');
         expect(first.headers.etag).toBeTruthy();
+        expect(first.headers['x-mycity-server-time']).toMatch(/^\d{13}$/);
         const again = await request(app).get(path).set('Cookie', cookie).set('If-None-Match', first.headers.etag!).expect(304);
         expect(again.text ?? '').toBe('');
+        expect(Number(again.headers['x-mycity-server-time'])).toBeGreaterThanOrEqual(Number(first.headers['x-mycity-server-time']));
         await request(app).get(path).set('Cookie', cookie).set('If-None-Match', 'W/"outro"').expect(200);
     }
 });

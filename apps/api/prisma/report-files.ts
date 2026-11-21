@@ -56,22 +56,28 @@ export async function removeResetPhotos(root: string, photos: readonly { id: str
 
 // Photos published before thumbnails existed get one; rerunning only fills gaps.
 // Walk the report folders on this volume, so photos stored elsewhere are not counted.
-export async function backfillThumbnails(db: Pick<Database, 'reportPhoto'>, root: string) {
+export async function backfillThumbnails(db: Database, root: string) {
     let created = 0,
         missingOriginals = 0;
     for (const entry of await readdir(root, { withFileTypes: true })) {
         if (!entry.isDirectory() || !reportFolder.test(entry.name)) continue;
         const folder = join(root, entry.name);
-        for (const { id } of await db.reportPhoto.findMany({ where: { reportId: entry.name }, select: { id: true }, orderBy: { position: 'asc' } })) {
-            if (!photoName.test(id + '.jpg') || (await lstat(join(folder, thumbnailFile(id))).catch(absent))?.isFile()) continue;
-            const original = join(folder, id + '.jpg');
-            if (!(await lstat(original).catch(absent))?.isFile()) {
-                missingOriginals++;
-                continue;
+        await db.$transaction(async (tx) => {
+            // Serialize against the purge so a thumbnail cannot be recreated after removal.
+            const reports = await tx.$queryRaw<{ id: string }[]>`SELECT id FROM reports WHERE id = ${entry.name}
+                AND (photos_expire_at IS NULL OR photos_expire_at > (CURRENT_TIMESTAMP AT TIME ZONE 'UTC')) FOR UPDATE`;
+            if (!reports.length) return;
+            for (const { id } of await tx.reportPhoto.findMany({ where: { reportId: entry.name }, select: { id: true }, orderBy: { position: 'asc' } })) {
+                if (!photoName.test(id + '.jpg') || (await lstat(join(folder, thumbnailFile(id))).catch(absent))?.isFile()) continue;
+                const original = join(folder, id + '.jpg');
+                if (!(await lstat(original).catch(absent))?.isFile()) {
+                    missingOriginals++;
+                    continue;
+                }
+                await writeFile(join(folder, thumbnailFile(id)), await thumbnailOf(await readFile(original)), { flag: 'wx', mode: 0o600 });
+                created++;
             }
-            await writeFile(join(folder, thumbnailFile(id)), await thumbnailOf(await readFile(original)), { flag: 'wx', mode: 0o600 });
-            created++;
-        }
+        });
     }
     return { created, missingOriginals };
 }

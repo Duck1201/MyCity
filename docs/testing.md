@@ -37,7 +37,7 @@ Regressão acompanha a mesma alteração de feature/bug. Não apagar casos, redu
 | T13 | Unitário/integração/interface  | Rejeitar apenas Em análise com justificativa não branca; demais combinações falham. AC07.                                        |
 | T14 | Integração                     | Mudança de status aparece com evento e aviso; falha transacional não deixa apenas parte desses efeitos. AC07/AC13.               |
 | T15 | Integração/interface           | Resposta do gestor aparece no histórico; cidadão não publica resposta de gestor; repetição não duplica. AC07.                    |
-| T16 | Integração/interface           | Resolvida aparece no histórico correto, preservando eventos e fotos. AC09, C04.                                                  |
+| T16 | Integração/interface           | Resolvida aparece no histórico correto, preservando eventos e exibindo fotos até o vencimento. AC09, C04.                        |
 | T17 | Interface/integração           | Três níveis climáticos, marcação simulated e nenhuma chamada meteorológica/envio real. AC10.                                     |
 | T18 | Integração                     | Acesso direto a IDs alheios, papéis forjados e ausência de sessão não contornam autorização. AC11.                               |
 | T19 | Unitário/integração            | Autor cancela Enviado/Em análise, outro cidadão não; Em andamento e finais bloqueiam. AC12.                                      |
@@ -147,6 +147,10 @@ Pelo Expo Go, com a API local e um proxy que registrava as requisições e segur
 - o polling de 5 s volta como `304` sem corpo, com `If-None-Match`;
 - ao fechar e reabrir o app com a resposta de "Minhas denúncias" retida, a lista guardada aparece com "Atualizando…" e as miniaturas saem do disco, sem nova requisição;
 - depois de sair e entrar de novo, a lista mostra "Carregando…" sem dados anteriores e as miniaturas são baixadas outra vez: o logout apagou as leituras guardadas e o cache de imagens.
+
+### Retenção das fotos (21/11/2026)
+
+No Chrome e no Galaxy M32 com Expo Go, uma foto aberta em tela cheia saiu da tela no vencimento e o detalhe passou a mostrar “Fotos expiradas”. No Chrome, o aviso também apareceu com a rede desligada e o relógio local cinco minutos atrasado. No Android, a conexão com a API estava interrompida no vencimento e o histórico continuou visível. Em restauração isolada de PostgreSQL e uploads com seis denúncias fictícias, a limpeza removeu o original e a miniatura vencidos e preservou os arquivos das outras cinco.
 
 ## Atualizar as capturas do README
 

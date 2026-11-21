@@ -1,3 +1,4 @@
+import { serverTimeHeader } from '@mycity/contracts';
 import type { Request, RequestHandler, Response } from 'express';
 
 // Reads may be kept by the browser only to revalidate them: Express answers a
@@ -10,6 +11,7 @@ export const httpCachePolicy: RequestHandler = (req, res, next) => {
     const readable = req.method === 'GET' || req.method === 'HEAD';
     res.set('Cache-Control', readable && !fromApp(req) ? 'private, no-cache' : 'no-store');
     if (readable) {
+        res.set(serverTimeHeader, String(Date.now()));
         const writeHead = res.writeHead;
         res.writeHead = function (this: Response, ...args: Parameters<Response['writeHead']>) {
             const status = typeof args[0] === 'number' ? args[0] : this.statusCode;

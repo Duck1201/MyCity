@@ -1,11 +1,13 @@
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
+import { AppState } from 'react-native';
 import { State } from 'react-native-gesture-handler';
 import { fireGestureHandler, getByGestureTestId } from 'react-native-gesture-handler/jest-utils';
+import { fetchWithServerTime, type ReportDetail } from '@mycity/contracts';
 import { ReportOverview } from '../src/report-overview';
 
 const apiBase = 'https://demo.test/api/v1';
 const photos = [1, 2].map((n) => ({ id: 'foto-' + n, position: n - 1, width: 1600, height: 1200, byteSize: 300_000, contentPath: '/api/v1/reports/r/photos/foto-' + n, thumbnailPath: '/api/v1/reports/r/photos/foto-' + n + '/thumb' }));
-const detail = { id: 'r', category: 'POTHOLE', categoryName: 'Buraco na via', description: 'Buraco fundo', status: 'SENT', location: { latitude: -20, longitude: -42, source: 'GPS' }, createdAt: '2026-11-19T12:00:00Z', updatedAt: '2026-11-19T12:00:00Z', confirmationCount: 0, confirmedByMe: false, isMine: true, showIdentity: false, photos, version: 1, allowedActions: [] } as never;
+const detail = { id: 'r', category: 'POTHOLE', categoryName: 'Buraco na via', description: 'Buraco fundo', status: 'SENT', location: { latitude: -20, longitude: -42, source: 'GPS' }, createdAt: '2026-11-19T12:00:00Z', updatedAt: '2026-11-19T12:00:00Z', confirmationCount: 0, confirmedByMe: false, isMine: true, showIdentity: false, photos, version: 1, allowedActions: [] } satisfies ReportDetail;
 
 it('amplia a foto tocada em tela cheia, troca de foto e fecha', async () => {
     await render(<ReportOverview detail={detail} apiBase={apiBase} token="sessao" />);
@@ -103,6 +105,46 @@ it('começa a pinça de onde a foto está, mesmo no meio da volta aos limites', 
         );
         expect(transformOf(0).translateX).toBeCloseTo(midway, 0);
     } finally {
+        jest.useRealTimers();
+    }
+});
+
+it('mantém fotos com prazo guardadas fora da tela enquanto aguarda uma leitura da API após reiniciar', async () => {
+    const cached = { ...detail, photosExpireAt: new Date(Date.now() + 60_000).toISOString() };
+    await render(<ReportOverview detail={cached} apiBase={apiBase} token="sessao" />);
+    expect(screen.queryByLabelText('Foto 1 da denúncia')).toBeNull();
+    expect(screen.getByText('Conecte-se para verificar a validade das fotos.')).toBeVisible();
+    expect(screen.getByText(detail.description)).toBeVisible();
+});
+
+it.each(['timer', 'retorno da suspensão'])('remove as imagens do detalhe e da tela cheia offline via %s', async (wake) => {
+    jest.useFakeTimers();
+    try {
+        let resume = () => {};
+        jest.spyOn(AppState, 'addEventListener').mockImplementation((_, handler) => {
+            resume = () => handler('active');
+            return { remove: jest.fn() };
+        });
+        jest.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { headers: { 'X-MyCity-Server-Time': String(Date.now()) } }));
+        await fetchWithServerTime(apiBase + '/reports/r');
+        const closing = { ...detail, photosExpireAt: new Date(Date.now() + 3000).toISOString() };
+        await render(<ReportOverview detail={closing} apiBase={apiBase} token="sessao" />);
+        await fireEvent.press(screen.getByRole('button', { name: 'Ampliar foto 1 da denúncia' }));
+        expect(screen.getByText('Foto 1 de 2')).toBeVisible();
+        await act(async () => {
+            if (wake === 'timer') jest.advanceTimersByTime(3000);
+            else {
+                const tick = performance.now();
+                jest.spyOn(Date, 'now').mockReturnValue(Date.now() + 4000);
+                resume();
+                expect(performance.now()).toBe(tick);
+            }
+        });
+        expect(screen.queryByText('Foto 1 de 2')).toBeNull();
+        expect(screen.queryByLabelText('Foto 1 da denúncia')).toBeNull();
+        expect(screen.getByText('Fotos expiradas')).toBeVisible();
+    } finally {
+        jest.restoreAllMocks();
         jest.useRealTimers();
     }
 });

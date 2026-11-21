@@ -59,7 +59,7 @@ type ContentProps = ComponentProps<typeof PhotoGallery> & {
     historyControls?: ReactNode;
 };
 
-export function OccurrenceContent({ description, location, registered, confirmations, author, photos, category, reply, events, count, historyFeedback, historyControls }: ContentProps) {
+export function OccurrenceContent({ description, location, registered, confirmations, author, photos, photosExpireAt, category, reply, events, count, historyFeedback, historyControls }: ContentProps) {
     const list = useRef<HTMLOListElement>(null);
     const listHeight = useRef<number | null>(null);
     // When entries come or go, the list eases from its previous height.
@@ -106,7 +106,7 @@ export function OccurrenceContent({ description, location, registered, confirmat
                         )}
                     </dl>
                 </div>
-                <PhotoGallery photos={photos} category={category} />
+                <PhotoGallery photosExpireAt={photosExpireAt} photos={photos} category={category} />
             </section>
             <div className="occurrence-followup">
                 {reply}

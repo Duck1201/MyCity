@@ -6,7 +6,7 @@ import type { Database } from '../../database.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { readPublicProfiles } from '../identity/index.js';
 import { reportIds, type ReportQuery } from './query.js';
-import { canTransition, isOpenForConfirmation, managerActions } from './rules.js';
+import { canTransition, isOpenReportStatus, managerActions, photosAvailable } from './rules.js';
 import { thumbnailFile } from './thumbnail.js';
 import { ReportError, type parseUpload } from './upload.js';
 
@@ -55,7 +55,8 @@ function summary(row: Stored, viewerId: string, profiles: Profiles): ReportSumma
         isMine: row.authorId === viewerId,
         showIdentity: row.showIdentity,
         ...(author && { author }),
-        ...(row.photos[0] && { coverPhoto: photoDto(row.id, row.photos[0]) }),
+        ...(row.photosExpireAt && { photosExpireAt: row.photosExpireAt.toISOString() }),
+        ...(photosAvailable(row.photosExpireAt) && row.photos[0] && { coverPhoto: photoDto(row.id, row.photos[0]) }),
     };
 }
 function detail(row: Stored, viewerId: string, profiles: Profiles, role: Role = 'CITIZEN', previousStatus?: ReportStatus | null): ReportDetail {
@@ -63,9 +64,9 @@ function detail(row: Stored, viewerId: string, profiles: Profiles, role: Role = 
     const allowedActions: string[] = role === 'MANAGER' ? managerActions(row.status, previousStatus) : [];
     if (role === 'CITIZEN') {
         if (canTransition({ from: row.status, to: 'CANCELED', isAuthor: dto.isMine, role })) allowedActions.push('CANCEL');
-        if (!dto.isMine && isOpenForConfirmation(row.status)) allowedActions.push(dto.confirmedByMe ? 'WITHDRAW' : 'CONFIRM');
+        if (!dto.isMine && isOpenReportStatus(row.status)) allowedActions.push(dto.confirmedByMe ? 'WITHDRAW' : 'CONFIRM');
     }
-    return { ...dto, photos: row.photos.map((photo) => photoDto(row.id, photo)), version: row.version, allowedActions };
+    return { ...dto, photos: dto.coverPhoto ? row.photos.map((photo) => photoDto(row.id, photo)) : [], version: row.version, allowedActions };
 }
 
 export function visibleReports(viewer: { id: string; role: Role }): Prisma.ReportWhereInput {

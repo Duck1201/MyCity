@@ -1,3 +1,4 @@
+import { usePhotoExpiry } from '../use-photo-expiry';
 import { useRef, useState } from 'react';
 import { Dialog } from 'radix-ui';
 import { Camera, ChevronLeft, ChevronRight, X } from 'lucide-react';
@@ -23,7 +24,7 @@ function bounded(zoom: Zoom, box: Size, picture: Size = box): Zoom {
 }
 type GalleryPhoto = { image: string; width?: number; height?: number; credit?: { source: string; author: string; licenseUrl: string; license: string } };
 
-export function PhotoGallery({ photos, category }: { photos: readonly GalleryPhoto[]; category: string }) {
+export function PhotoGallery({ photos, category, photosExpireAt }: { photosExpireAt?: string | undefined; photos: readonly GalleryPhoto[]; category: string }) {
     const [index, setIndex] = useState(0);
     const start = useRef<{ x: number; y: number; id: number } | null>(null);
     const swiped = useRef(false);
@@ -35,6 +36,8 @@ export function PhotoGallery({ photos, category }: { photos: readonly GalleryPho
     const multiple = photos.length > 1;
     const position = Math.min(index, photos.length - 1);
     const photo = photos[position];
+    const { hidden, waitingForTime } = usePhotoExpiry([{ photosExpireAt }]);
+    if (hidden(photosExpireAt) || (photosExpireAt && !photos.length)) return <p role="status">{photos.length && waitingForTime ? 'Conecte-se para verificar a validade das fotos.' : 'Fotos expiradas'}</p>;
     if (!photo) return null;
     function step(amount: number) {
         setIndex((value) => Math.min(photos.length - 1, Math.max(0, Math.min(value, photos.length - 1) + amount)));

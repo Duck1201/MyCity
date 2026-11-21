@@ -19,6 +19,7 @@
         "docs:check": "node scripts/generate-openapi.mjs --check",
         "db:sync-deployment-passwords": "tsx prisma/seed.ts --sync-deployment-passwords",
         "db:rotate-demo-passwords": "tsx prisma/seed.ts --rotate-passwords",
+        "photos:purge-expired": "tsx --env-file-if-exists=../../.env prisma/purge-expired-photos.ts",
         "photos:backfill-thumbnails": "tsx --env-file-if-exists=../../.env prisma/backfill-thumbnails.ts"
     },
     "dependencies": {

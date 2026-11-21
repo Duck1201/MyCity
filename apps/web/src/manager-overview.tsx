@@ -1,3 +1,4 @@
+import { usePhotoExpiry } from './use-photo-expiry';
 import { overviewEndpoint, recentReportsEndpoint } from './queue-endpoint';
 import { usePanelLoading } from './panel-loading';
 import { categoryIconFor, type ManagementOverview, type ManagementQueuePage } from '@mycity/contracts';
@@ -12,7 +13,8 @@ const ageLabel = (createdAt: string) => {
 
 function RecentQueue({ categories, onSessionExpired }: { categories: ManagementOverview['categories']; onSessionExpired: () => void }) {
     const query = useLiveQuery<ManagementQueuePage>(recentReportsEndpoint, onSessionExpired);
-    const rows = (query.data?.data ?? []).map((row) => ({ ...row, categoryIcon: categoryIconFor(row.category, categories.find((c) => c.id === row.category)?.icon), photo: row.coverPhotoId ? '/api/v1/reports/' + encodeURIComponent(row.id) + '/photos/' + encodeURIComponent(row.coverPhotoId) + '/thumb' : undefined }));
+    const { hidden } = usePhotoExpiry(query.data?.data);
+    const rows = (query.data?.data ?? []).map((row) => ({ ...row, categoryIcon: categoryIconFor(row.category, categories.find((c) => c.id === row.category)?.icon), photo: row.coverPhotoId && !hidden(row.photosExpireAt) ? '/api/v1/reports/' + encodeURIComponent(row.id) + '/photos/' + encodeURIComponent(row.coverPhotoId) + '/thumb' : undefined }));
     return (
         <RecentReports
             rows={rows}

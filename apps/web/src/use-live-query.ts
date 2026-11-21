@@ -1,3 +1,4 @@
+import { fetchWithServerTime } from '@mycity/contracts';
 import { createContext, createElement, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 
 // Last confirmed reads of the signed-in manager, kept in memory so returning to a
@@ -22,7 +23,7 @@ export function useWarm() {
             for (const url of urls) {
                 if (cache.has(url) || inFlight.has(url)) continue;
                 inFlight.add(url);
-                void fetch(url, { cache: 'no-cache' })
+                void fetchWithServerTime(url, { cache: 'no-cache' })
                     .then(async (response) => {
                         if (!response.ok) return;
                         const data: unknown = await response.json();
@@ -83,7 +84,7 @@ export function useLiveQuery<T>(url: string | null, onSessionExpired: () => void
             active.current = controller;
             try {
                 // Revalidate with the server every time; an unchanged read comes back as 304.
-                const response = await fetch(endpoint, { cache: 'no-cache', signal: controller.signal });
+                const response = await fetchWithServerTime(endpoint, { cache: 'no-cache', signal: controller.signal });
                 if (controller.signal.aborted) return;
                 if (response.status === 401) return onSessionExpired();
                 if (!response.ok) throw new Error();

@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import express from 'express';
 import request from 'supertest';
-import { afterAll, beforeAll, expect, it } from 'vitest';
+import { afterAll, beforeAll, expect, it, vi } from 'vitest';
 import { createDatabase } from '../src/database.js';
 import { createReportsRouter } from '../src/modules/reports/index.js';
 
@@ -350,4 +350,47 @@ it('só desfaz o último avanço, mesmo com resposta posterior, e bloqueia recuo
         .post('/reports/' + legacy.id + '/transitions')
         .send({ targetStatus: 'UNDER_REVIEW', expectedVersion: 1 })
         .expect(409);
+});
+
+it.each(['RESOLVED', 'REJECTED', 'CANCELED'] as const)('conta 30 dias a partir do encerramento em %s e cancela o prazo na reabertura antecipada', async (targetStatus) => {
+    const report = await fixture();
+    const from = targetStatus === 'RESOLVED' ? 'IN_PROGRESS' : 'UNDER_REVIEW';
+    await db.report.update({ where: { id: report.id }, data: { status: from } });
+    const endpoint = '/reports/' + report.id + '/transitions';
+    const cancel = (expectedVersion: number) =>
+        request(app(citizen))
+            .post('/reports/' + report.id + '/cancellation')
+            .send({ expectedVersion })
+            .expect(200);
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+        vi.setSystemTime(new Date('2099-01-20T12:00:00Z'));
+        if (targetStatus === 'CANCELED') await cancel(1);
+        else
+            await request(app(manager))
+                .post(endpoint)
+                .send({ targetStatus, expectedVersion: 1, ...(targetStatus === 'REJECTED' && { reason: 'Teste' }) })
+                .expect(200);
+        const deadline = new Date('2099-02-19T12:00:00Z');
+        const read = () => db.report.findUniqueOrThrow({ where: { id: report.id } });
+        expect((await read()).photosExpireAt).toEqual(deadline);
+        await request(app(manager))
+            .post('/reports/' + report.id + '/replies')
+            .send({ text: 'Resposta', clientRequestId: randomUUID() })
+            .expect(201);
+        expect((await read()).photosExpireAt).toEqual(deadline);
+        await request(app(manager)).post(endpoint).send({ targetStatus: 'UNDER_REVIEW', expectedVersion: 2 }).expect(200);
+        expect((await read()).photosExpireAt).toBeNull();
+        vi.setSystemTime(new Date('2099-02-01T12:00:00Z'));
+        await cancel(3);
+        const secondDeadline = new Date('2099-03-03T12:00:00Z');
+        expect((await read()).photosExpireAt).toEqual(secondDeadline);
+        vi.setSystemTime(secondDeadline);
+        await request(app(manager)).post(endpoint).send({ targetStatus: 'UNDER_REVIEW', expectedVersion: 4 }).expect(200);
+        expect((await read()).photosExpireAt).toEqual(secondDeadline);
+        await cancel(5);
+        expect((await read()).photosExpireAt).toEqual(secondDeadline);
+    } finally {
+        vi.useRealTimers();
+    }
 });

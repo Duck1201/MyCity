@@ -81,7 +81,9 @@ Segredos são fornecidos pela configuração do ambiente. Repetir o seed preserv
 
 ## Retenção
 
-Preservar registros durante a demonstração. Duração posterior, descarte das imagens e eventual anonimização estão pendentes em C12. Não assumir retenção indefinida nem prometer apagamento já implementado.
+Cada novo encerramento (resolução, rejeição ou cancelamento) inicia 30 dias de guarda das fotos da denúncia. O prazo vale desde o instante da transição. Respostas posteriores preservam a data. Uma reabertura antes do vencimento cancela o prazo, e o próximo encerramento inicia outros 30 dias. Encerramentos anteriores à ativação da regra continuam sem prazo até uma reabertura seguida de novo encerramento.
+
+No vencimento, original e miniatura deixam de estar disponíveis. A limpeza horária remove os dois arquivos e pode repetir uma remoção interrompida. A denúncia e os eventos permanecem consultáveis. A expiração é definitiva, inclusive quando o gestor reabre o caso. Backups seguem ciclo próprio; a restauração reaplica os prazos antes de liberar o acesso.
 
 ## Identidade e anonimato aprovados
 

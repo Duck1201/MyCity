@@ -4,6 +4,7 @@ import sharp from 'sharp';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { expect, it } from 'vitest';
+import { purgeExpiredPhotos } from '../src/modules/reports/index.js';
 import { createDatabase } from '../src/database.js';
 import { backfillThumbnails, reconcileReportFiles } from '../prisma/report-files.js';
 
@@ -66,6 +67,7 @@ it('trata como resíduo uma pasta órfã com foto e miniatura', async () => {
 it('gera só as miniaturas que faltam e repete sem efeito', async () => {
     const url = new URL(process.env.DATABASE_URL!);
     if (url.pathname !== '/mycity_test' || !['localhost', 'test-db', '127.0.0.1'].includes(url.hostname)) throw new Error('Use o banco local de teste.');
+    url.searchParams.set('options', '-c timezone=America/Sao_Paulo');
     const db = createDatabase(url.toString());
     const root = await mkdtemp(join(tmpdir(), 'mycity-thumb-backfill-'));
     const userId = randomUUID(),
@@ -101,8 +103,58 @@ it('gera só as miniaturas que faltam e repete sem efeito', async () => {
         expect(await sharp(await readFile(join(folder, legacy + '.thumb.jpg'))).metadata()).toMatchObject({ format: 'jpeg', width: 320, height: 240 });
         expect(await readFile(join(folder, ready + '.thumb.jpg'), 'utf8')).toBe('existente');
         expect(await backfillThumbnails(db, root)).toEqual({ created: 0, missingOriginals: 1 });
+        await db.report.update({ where: { id: reportId }, data: { photosExpireAt: new Date(Date.now() - 60_000) } });
+        await rm(join(folder, legacy + '.thumb.jpg'));
+        expect(await backfillThumbnails(db, root)).toEqual({ created: 0, missingOriginals: 0 });
+        expect(await readdir(folder)).not.toContain(legacy + '.thumb.jpg');
     } finally {
         await db.report.deleteMany({ where: { id: reportId } });
+        await db.user.deleteMany({ where: { id: userId } });
+        await db.$disconnect();
+        await rm(root, { recursive: true, force: true });
+    }
+});
+
+it('retoma a remoção após volume ausente ou falha na miniatura e preserva o acervo sem prazo', async () => {
+    const url = new URL(process.env.DATABASE_URL!);
+    if (url.pathname !== '/mycity_test' || !['localhost', 'test-db', '127.0.0.1'].includes(url.hostname)) throw new Error('Use o banco local de teste.');
+    const db = createDatabase(url.toString());
+    const root = await mkdtemp(join(tmpdir(), 'mycity-expire-'));
+    const userId = randomUUID();
+    try {
+        await db.user.create({ data: { id: userId, cpf: '00000000082', role: 'CITIZEN', password: 'fixture' } });
+        async function fixture(photosExpireAt: Date | null) {
+            const reportId = randomUUID(),
+                id = randomUUID();
+            await db.report.create({ data: { id: reportId, authorId: userId, clientRequestId: randomUUID(), requestHash: '0'.repeat(64), description: 'Árvore', category: 'TREE', latitude: 0, longitude: 0, locationSource: 'GPS', showIdentity: false, status: 'RESOLVED', photosExpireAt, photos: { create: { id, width: 1, height: 1, position: 0, byteSize: 1 } } } });
+            const folder = join(root, reportId);
+            await mkdir(folder);
+            const original = join(folder, id + '.jpg'),
+                thumbnail = join(folder, id + '.thumb.jpg');
+            await writeFile(original, 'fixture');
+            if (photosExpireAt) await mkdir(thumbnail);
+            else await writeFile(thumbnail, 'fixture');
+            return { original, thumbnail, reportId };
+        }
+        const expired = await fixture(new Date(0));
+        const legacy = await fixture(null);
+        const emptyVolume = join(root, 'empty-volume');
+        await mkdir(emptyVolume);
+        await expect(purgeExpiredPhotos(db, emptyVolume)).rejects.toThrow();
+        expect((await db.report.findUniqueOrThrow({ where: { id: expired.reportId } })).photosPurgedAt).toBeNull();
+        expect(await readFile(expired.original, 'utf8')).toBe('fixture');
+        await expect(purgeExpiredPhotos(db, root)).rejects.toThrow();
+        await expect(readFile(expired.original)).rejects.toMatchObject({ code: 'ENOENT' });
+        expect((await db.report.findUniqueOrThrow({ where: { id: expired.reportId } })).photosPurgedAt).toBeNull();
+        await rm(expired.thumbnail, { recursive: true });
+        await writeFile(expired.thumbnail, 'fixture');
+        await Promise.all([purgeExpiredPhotos(db, root), purgeExpiredPhotos(db, root)]);
+        await expect(readFile(expired.thumbnail)).rejects.toMatchObject({ code: 'ENOENT' });
+        expect((await db.report.findUniqueOrThrow({ where: { id: expired.reportId } })).photosPurgedAt).toBeInstanceOf(Date);
+        expect(await readFile(legacy.thumbnail, 'utf8')).toBe('fixture');
+        expect(await readFile(legacy.original, 'utf8')).toBe('fixture');
+    } finally {
+        await db.report.deleteMany({ where: { authorId: userId } });
         await db.user.deleteMany({ where: { id: userId } });
         await db.$disconnect();
         await rm(root, { recursive: true, force: true });
