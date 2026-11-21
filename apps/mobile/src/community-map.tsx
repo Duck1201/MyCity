@@ -53,41 +53,44 @@ export function CommunityMap({ request, filters, setFilters, viewport, setViewpo
     const attempt = useRef<AbortController | null>(null);
     const [locating, setLocating] = useState(false);
     const [locationError, setLocationError] = useState('');
-    const centerOnDevice = useCallback(async () => {
-        if (attempt.current) return;
-        const controller = new AbortController();
-        attempt.current = controller;
-        const intent = cameraIntent.current;
-        setLocating(true);
-        setLocationError('');
-        let deviceLocation: LatLng | null = null;
-        let destination: Region | undefined;
-        try {
-            const permission = await Location.requestForegroundPermissionsAsync();
-            if (controller.signal.aborted) return;
-            if (!permission.granted) {
-                setLocationError('Localização sem permissão. Você pode explorar o mapa manualmente.');
-                return;
+    const centerOnDevice = useCallback(
+        async (hasPreviousLocation = false) => {
+            if (attempt.current) return;
+            const controller = new AbortController();
+            attempt.current = controller;
+            const intent = cameraIntent.current;
+            setLocating(true);
+            setLocationError('');
+            let deviceLocation: LatLng | null = null;
+            let destination: Region | undefined;
+            try {
+                const permission = await Location.requestForegroundPermissionsAsync();
+                if (controller.signal.aborted) return;
+                if (!permission.granted) {
+                    setLocationError('Localização sem permissão. Você pode explorar o mapa manualmente.');
+                    return;
+                }
+                if (AppState.currentState === 'background') throw new Error('Localização indisponível.');
+                const { coords } = await readDevicePosition(controller.signal, { allowRecentFix: true });
+                if (controller.signal.aborted) return;
+                const { latitude, longitude } = locationSchema.parse({ latitude: coords.latitude, longitude: coords.longitude, source: 'GPS' });
+                deviceLocation = { latitude, longitude };
+                if (intent !== cameraIntent.current) return;
+                destination = pointRegion(deviceLocation);
+                if (mapReady.current) map.current?.animateToRegion(destination, 0);
+                else cameraTarget.current = destination;
+            } catch {
+                if (!controller.signal.aborted) setLocationError(hasPreviousLocation ? 'Não foi possível atualizar. A última localização continua marcada.' : 'GPS indisponível. Você pode explorar o mapa manualmente.');
+            } finally {
+                if (!controller.signal.aborted) {
+                    attempt.current = null;
+                    setViewport((current) => ({ ...current, region: destination ?? current?.region ?? cityRegion, deviceLocation: deviceLocation ?? current?.deviceLocation ?? null }));
+                    setLocating(false);
+                }
             }
-            if (AppState.currentState === 'background') throw new Error('Localização indisponível.');
-            const { coords } = await readDevicePosition(controller.signal);
-            if (controller.signal.aborted) return;
-            const { latitude, longitude } = locationSchema.parse({ latitude: coords.latitude, longitude: coords.longitude, source: 'GPS' });
-            deviceLocation = { latitude, longitude };
-            if (intent !== cameraIntent.current) return;
-            destination = pointRegion(deviceLocation);
-            if (mapReady.current) map.current?.animateToRegion(destination, 0);
-            else cameraTarget.current = destination;
-        } catch {
-            if (!controller.signal.aborted) setLocationError('GPS indisponível. Você pode explorar o mapa manualmente.');
-        } finally {
-            if (!controller.signal.aborted) {
-                attempt.current = null;
-                setViewport((current) => ({ ...current, region: destination ?? current?.region ?? cityRegion, deviceLocation: deviceLocation ?? current?.deviceLocation ?? null }));
-                setLocating(false);
-            }
-        }
-    }, [setViewport]);
+        },
+        [setViewport],
+    );
     useEffect(() => {
         if (!viewport) void centerOnDevice();
     }, [viewport, centerOnDevice]);
@@ -290,7 +293,7 @@ export function CommunityMap({ request, filters, setFilters, viewport, setViewpo
                         </View>
                     )}
                     {!inspecting && (
-                        <MotionPressable accessibilityRole="button" accessibilityLabel="Minha localização" disabled={locating} accessibilityState={{ busy: locating, disabled: locating }} style={styles.locate} onPress={() => void centerOnDevice()}>
+                        <MotionPressable accessibilityRole="button" accessibilityLabel="Minha localização" disabled={locating} accessibilityState={{ busy: locating, disabled: locating }} style={styles.locate} onPress={() => void centerOnDevice(!!viewport?.deviceLocation)}>
                             {locating ? <ActivityIndicator color={colors.teal} /> : <Icon name="pin" size={22} />}
                         </MotionPressable>
                     )}

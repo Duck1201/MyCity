@@ -3,7 +3,7 @@ import { AppState } from 'react-native';
 
 const positionTimeout = 6000;
 
-export function readDevicePosition(signal: AbortSignal) {
+export function readDevicePosition(signal: AbortSignal, { allowRecentFix = false } = {}) {
     return new Promise<Location.LocationObject>((resolve, reject) => {
         let subscription: Location.LocationSubscription | undefined;
         let settled = false;
@@ -23,9 +23,20 @@ export function readDevicePosition(signal: AbortSignal) {
             if (state === 'background') stop();
         });
         signal.addEventListener('abort', stop, { once: true });
-        void Location.watchPositionAsync({ accuracy: Location.Accuracy.Balanced, mayShowUserSettingsDialog: false }, finish, stop).then((registered) => {
+        async function acquire() {
+            if (signal.aborted) return stop();
+            if (allowRecentFix) {
+                if (!(await Location.hasServicesEnabledAsync())) return stop();
+                if (settled) return;
+                const recent = await Location.getLastKnownPositionAsync({ maxAge: 30000, requiredAccuracy: 100 }).catch(() => null);
+                if (settled) return;
+                if (recent) return finish(recent);
+            }
+            const options = allowRecentFix ? { accuracy: Location.Accuracy.High, timeInterval: 1000, distanceInterval: 0 } : { accuracy: Location.Accuracy.Balanced };
+            const registered = await Location.watchPositionAsync({ ...options, mayShowUserSettingsDialog: false }, finish, stop);
             if (settled) registered.remove();
             else subscription = registered;
-        }, stop);
+        }
+        void acquire().catch(stop);
     });
 }
