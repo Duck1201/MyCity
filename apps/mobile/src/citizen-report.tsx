@@ -9,8 +9,7 @@ import { MotionPressable } from './components/motion-pressable';
 import { useMotionEnabled } from './components/use-motion-enabled';
 import { Icon } from './components/civic-header';
 import { ReportLocationPicker } from './report-location-picker';
-import * as GPS from 'expo-location';
-import { readDevicePosition } from './device-position';
+import { readReportPosition } from './report-position';
 import { appendReportPhotos } from './report-photo-file';
 import { randomUUID } from 'expo-crypto';
 import { locationSchema, type Location, type ReportDetail, type ReportCategory } from '@mycity/contracts';
@@ -106,28 +105,27 @@ export function CitizenReport({ token, apiBase, onSessionExpired, onPublished, d
         if (hasLocation || detail) return;
         let current: AbortController | null = null;
         let resume = false;
+        let reading = false;
         function stop() {
             current?.abort();
             current = null;
+            reading = false;
             resume = false;
         }
         async function acquire() {
-            if (AppState.currentState === 'background') {
-                resume = true;
-                return;
-            }
             const controller = new AbortController();
             current = controller;
             setGpsStatus('locating');
             try {
-                const permission = await GPS.requestForegroundPermissionsAsync();
+                const position = await readReportPosition(controller.signal, () => {
+                    reading = true;
+                });
                 if (controller.signal.aborted) return;
-                if (!permission.granted) {
+                if (!position) {
                     setGpsStatus('denied');
                     return;
                 }
-                const { coords } = await readDevicePosition(controller.signal);
-                if (controller.signal.aborted) return;
+                const { coords } = position;
                 const location = locationSchema.parse({ latitude: coords.latitude, longitude: coords.longitude, source: 'GPS' });
                 setDraft((previous) => (previous.location ? previous : { ...previous, location, automaticLocation: true, requestId: randomUUID() }));
             } catch {
@@ -138,7 +136,7 @@ export function CitizenReport({ token, apiBase, onSessionExpired, onPublished, d
         }
         cancelGps.current = stop;
         const listener = AppState.addEventListener('change', (state) => {
-            if (state === 'background' && current) {
+            if ((state === 'background' || state === 'inactive') && reading && current) {
                 stop();
                 resume = true;
             } else if (state === 'active' && resume) {

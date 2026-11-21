@@ -3,12 +3,11 @@ import { ActivityIndicator, AppState, Modal, StyleSheet, View } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MapView, { PROVIDER_GOOGLE, type Camera, type LatLng, type Region } from './map-view';
 import Svg, { Circle, Path } from 'react-native-svg';
-import * as GPS from 'expo-location';
 import { locationSchema, type Location } from '@mycity/contracts';
 import { ActionButton } from './components/action-button';
 import { MotionPressable } from './components/motion-pressable';
 import { Text } from './components/typography';
-import { readDevicePosition } from './device-position';
+import { readReportPosition } from './report-position';
 import { cityRegion, pointRegion } from './map-region';
 import { Icon } from './components/civic-header';
 import { colors, mobileStyles } from './theme';
@@ -29,13 +28,15 @@ export function ReportLocationPicker({ saved, confirm, cancel }: Props) {
     const gesture = useRef(false);
     const attempt = useRef(0);
     const gpsRequest = useRef<AbortController | null>(null);
+    const reading = useRef(false);
     function abortGps() {
+        reading.current = false;
         gpsRequest.current?.abort();
         gpsRequest.current = null;
     }
     useEffect(() => {
         const listener = AppState.addEventListener('change', (state) => {
-            if (state === 'background' && gpsRequest.current) {
+            if ((state === 'background' || state === 'inactive') && reading.current) {
                 abortGps();
                 setLocating(false);
             }
@@ -100,17 +101,19 @@ export function ReportLocationPicker({ saved, confirm, cancel }: Props) {
         attempt.current++;
         const controller = new AbortController();
         gpsRequest.current = controller;
+        reading.current = false;
         setLocating(true);
         setError('');
         try {
-            const permission = await GPS.requestForegroundPermissionsAsync();
+            const position = await readReportPosition(controller.signal, () => {
+                reading.current = true;
+            });
             if (controller.signal.aborted) return;
-            if (!permission.granted) {
+            if (!position) {
                 setError('Localização sem permissão. Toque no mapa para escolher o ponto.');
                 return;
             }
-            const { coords } = await readDevicePosition(controller.signal);
-            if (controller.signal.aborted) return;
+            const { coords } = position;
             const point = locationSchema.parse({ latitude: coords.latitude, longitude: coords.longitude, source: 'GPS' });
             setCandidate(point);
             center(point);
@@ -119,6 +122,7 @@ export function ReportLocationPicker({ saved, confirm, cancel }: Props) {
         } finally {
             if (gpsRequest.current === controller) {
                 gpsRequest.current = null;
+                reading.current = false;
                 setLocating(false);
             }
         }

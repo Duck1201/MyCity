@@ -71,7 +71,7 @@ export const CommunityMap = memo(function CommunityMap({ active, request, filter
                     return;
                 }
                 if (AppState.currentState === 'background') throw new Error('Localização indisponível.');
-                const { coords } = await readDevicePosition(controller.signal, { allowRecentFix: true });
+                const { coords } = await readDevicePosition(controller.signal);
                 if (controller.signal.aborted) return;
                 const { latitude, longitude } = locationSchema.parse({ latitude: coords.latitude, longitude: coords.longitude, source: 'GPS' });
                 deviceLocation = { latitude, longitude };

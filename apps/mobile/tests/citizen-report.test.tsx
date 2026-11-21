@@ -24,7 +24,7 @@ jest.mock('expo-file-system', () => ({
         }
     },
 }));
-jest.mock('expo-location', () => ({ Accuracy: { Balanced: 3 }, requestForegroundPermissionsAsync: jest.fn(), watchPositionAsync: jest.fn() }));
+jest.mock('expo-location', () => ({ Accuracy: { High: 4 }, hasServicesEnabledAsync: jest.fn(), getLastKnownPositionAsync: jest.fn(), getForegroundPermissionsAsync: jest.fn(), requestForegroundPermissionsAsync: jest.fn(), watchPositionAsync: jest.fn() }));
 jest.mock('../src/report-photos', () => ({ pickReportPhoto: jest.fn(async () => 'file:///cache/foto.jpg') }));
 jest.mock('expo-crypto', () => {
     let sequence = 0;
@@ -34,6 +34,11 @@ jest.mock('expo-crypto', () => {
 const originalSubscribe = AppState.addEventListener;
 const originalState = Object.getOwnPropertyDescriptor(AppState, 'currentState')!;
 beforeEach(() => {
+    jest.mocked(location.getForegroundPermissionsAsync)
+        .mockReset()
+        .mockResolvedValue({ granted: false, canAskAgain: true } as location.LocationPermissionResponse);
+    jest.mocked(location.hasServicesEnabledAsync).mockReset().mockResolvedValue(true);
+    jest.mocked(location.getLastKnownPositionAsync).mockReset().mockResolvedValue(null);
     AppState.addEventListener = jest.fn().mockReturnValue({ remove: jest.fn() });
     jest.mocked(location.requestForegroundPermissionsAsync).mockResolvedValue({ granted: false } as Awaited<ReturnType<typeof location.requestForegroundPermissionsAsync>>);
     Object.defineProperty(AppState, 'currentState', { ...originalState, value: 'active' });
@@ -546,7 +551,16 @@ it.each([
         await fireEvent.press(await screen.findByRole('button', { name: /^Escolher categoria:/ }));
         await fireEvent.press(screen.getByText('Buraco na via'));
         await fireEvent(screen.getByLabelText('Quero mostrar minha cara'), 'valueChange', true);
+        expect(location.getLastKnownPositionAsync).not.toHaveBeenCalled();
         await fireEvent.press(screen.getByText('Ajustar ponto no mapa'));
+        jest.mocked(location.requestForegroundPermissionsAsync).mockResolvedValueOnce({ granted: true } as location.PermissionResponse);
+        jest.mocked(location.getLastKnownPositionAsync).mockResolvedValueOnce({ coords: { latitude: -20.75, longitude: -42.87 } } as location.LocationObject);
+        await fireEvent.press(screen.getByRole('button', { name: 'Usar GPS' }));
+        expect(await screen.findByText('Localização do aparelho')).toBeVisible();
+        await fireEvent.press(screen.getByRole('button', { name: 'Cancelar' }));
+        await fireEvent.press(screen.getByText('Ajustar ponto no mapa'));
+        expect(screen.getByTestId('location-map').props.initialRegion).toMatchObject({ latitude: original.location.latitude, longitude: original.location.longitude });
+
         await fireEvent(screen.getByTestId('location-map'), 'press', { nativeEvent: { coordinate: { latitude: -21, longitude: -43 } } });
         await fireEvent.press(screen.getByText('Confirmar ponto'));
         await fireEvent.press(screen.getByRole('button', { name: 'Remover foto 1' }));
