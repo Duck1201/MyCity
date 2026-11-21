@@ -1,3 +1,4 @@
+import { once } from 'node:events';
 import { managementQueueSchema, queueExportSchema } from '@mycity/contracts';
 import { managementCsv, managementQueue } from './management-queue.js';
 import { managementOverview } from './overview.js';
@@ -31,9 +32,22 @@ export function createReportQueryRouter(database: Database, store: ReturnType<ty
         if (res.locals.user.role !== 'MANAGER') throw new ReportError(403, 'FORBIDDEN', 'A exportação exige uma conta de gestor.');
         const filters = queueExportSchema.safeParse(req.query);
         if (!filters.success) throw invalidQuery();
-        res.attachment('ocorrencias.csv')
-            .type('text/csv')
-            .send(await managementCsv(database, filters.data));
+        const disconnect = new AbortController();
+        res.once('close', () => disconnect.abort());
+        const signal = AbortSignal.any([disconnect.signal, AbortSignal.timeout(300_000)]);
+        await managementCsv(database, filters.data, signal, async (etag, chunks) => {
+            signal.throwIfAborted();
+            res.attachment('ocorrencias.csv').type('text/csv; charset=utf-8').set('ETag', etag);
+            if (req.fresh) {
+                res.status(304).removeHeader('Content-Type');
+                return;
+            }
+            if (req.method === 'HEAD') return;
+            for await (const chunk of chunks) {
+                if (!res.write(chunk)) await once(res, 'drain', { signal });
+            }
+        });
+        res.end();
     });
     router.get('/map', async (req, res) => {
         const parsed = reportMapQuerySchema.safeParse(req.query);
