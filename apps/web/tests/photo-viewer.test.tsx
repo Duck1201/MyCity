@@ -56,7 +56,8 @@ it('amplia no ponto clicado e volta no clique seguinte, também pelo teclado, se
     // A click a quarter of the way in zooms there: translate = (point - centre) * (1 - scale).
     fireEvent.click(image, { clientX: 200, clientY: 150 });
     expect(transformOf(image)).toEqual({ x: 300, y: 225, scale: 2.5 });
-    fireEvent.click(image, { clientX: 200, clientY: 150 });
+    // After a drag the pointer is captured by the stage, so the click that restores lands there.
+    fireEvent.click(stage, { clientX: 200, clientY: 150 });
     expect(transformOf(image)).toEqual({ x: 0, y: 0, scale: 1 });
     // From the keyboard, Enter on the photo zooms at its centre and back.
     image.focus();

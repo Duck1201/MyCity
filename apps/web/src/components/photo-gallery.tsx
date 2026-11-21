@@ -143,6 +143,12 @@ export function PhotoGallery({ photos, category }: { photos: readonly GalleryPho
                                     const box = stage.current?.getBoundingClientRect();
                                     if (box) setZoom(bounded({ scale: start.from.scale, x: start.from.x + dx, y: start.from.y + dy }, box));
                                 }}
+                                // The click is read on the stage: after a drag the pointer is captured there, not on the photo.
+                                onClick={(event) => {
+                                    if (drag.current?.moved) return;
+                                    if (zoom.scale > 1) setZoom(unzoomed);
+                                    else zoomAt(tapScale, event.clientX, event.clientY);
+                                }}
                                 onPointerUp={() => {
                                     // Let the click that ends a drag know it was a drag.
                                     setTimeout(() => (drag.current = null));
@@ -156,11 +162,6 @@ export function PhotoGallery({ photos, category }: { photos: readonly GalleryPho
                                     style={{ transform: 'translate(' + zoom.x + 'px, ' + zoom.y + 'px) scale(' + zoom.scale + ')' }}
                                     tabIndex={0}
                                     // Zoom is a click: in at the clicked point, out on the next click. Enter does the same from the keyboard.
-                                    onClick={(event) => {
-                                        if (drag.current?.moved) return;
-                                        if (zoom.scale > 1) setZoom(unzoomed);
-                                        else zoomAt(tapScale, event.clientX, event.clientY);
-                                    }}
                                     onKeyDown={(event) => {
                                         if (event.key !== 'Enter' && event.key !== ' ') return;
                                         event.preventDefault();

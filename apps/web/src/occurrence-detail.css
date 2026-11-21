@@ -573,6 +573,8 @@
 }
 .photo-viewer-stage {
     display: grid;
+    /* Bound the single cell to the stage, so a photo at 100% never grows past the screen. */
+    grid-template: minmax(0, 1fr) / minmax(0, 1fr);
     place-items: center;
     overflow: hidden;
     padding: 0 72px 24px;
