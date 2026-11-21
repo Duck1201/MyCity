@@ -293,3 +293,56 @@ it('destaca o motivo da rejeição no topo e marca a justificativa no histórico
     const entry = within(document.getElementById('occurrence-history')!).getByText(reason).closest('li')!;
     expect(entry).toHaveTextContent('Justificativa: ' + reason);
 });
+
+it('anima a lista do histórico ao expandir e recolher e marca só os registros que chegam depois', async () => {
+    const user = userEvent.setup();
+    const events = [1, 2, 3, 4].map((n) => ({ id: 'recente-' + n, type: 'REPLY', actorRole: 'MANAGER', text: 'Resposta ' + n, createdAt: report.createdAt }));
+    let latest = events;
+    vi.stubGlobal(
+        'fetch',
+        vi.fn(async (url: string) => {
+            if (url.includes('cursor=')) return page([created]);
+            if (url.includes('/history')) return page(latest, 'recente-4');
+            if (url.endsWith('/categories')) return categoriesResponse();
+            return Response.json({ data: report });
+        }),
+    );
+    // The browser's Web Animations API is the boundary: record what runs and finish on demand.
+    const runs: { element: Element; keyframes: Keyframe[]; finish: () => void }[] = [];
+    const animate = vi.fn(function (this: Element, keyframes: Keyframe[]) {
+        let finish!: () => void;
+        const finished = new Promise<void>((resolve) => (finish = resolve));
+        runs.push({ element: this, keyframes, finish });
+        return { finished, cancel: vi.fn() } as unknown as Animation;
+    });
+    vi.stubGlobal('matchMedia', (query: string) => ({ matches: false, media: query, addEventListener: vi.fn(), removeEventListener: vi.fn() }));
+    const original = HTMLElement.prototype.animate;
+    HTMLElement.prototype.animate = animate as unknown as typeof HTMLElement.prototype.animate;
+    try {
+        render(<ReportService id="teste" onSessionExpired={vi.fn()} />);
+        const history = within(await screen.findByRole('region', { name: 'Histórico' }));
+        await history.findByText('Resposta 1');
+        // The first load is not "new".
+        expect(document.querySelectorAll('#occurrence-history li[data-fresh]')).toHaveLength(0);
+        await user.click(screen.getByRole('button', { name: /Ver registros anteriores/ }));
+        await history.findByText('Denúncia enviada');
+        const list = document.getElementById('occurrence-history')!;
+        expect(runs.some((run) => run.element === list && run.keyframes.some((frame) => 'height' in frame))).toBe(true);
+        runs.length = 0;
+        await user.click(screen.getByRole('button', { name: 'Recolher histórico' }));
+        // The older entries fade out first and only then leave the list.
+        const archived = history.getByText('Denúncia enviada').closest('li')!;
+        expect(runs.some((run) => run.element === archived && run.keyframes.some((frame) => 'opacity' in frame))).toBe(true);
+        expect(history.getByText('Denúncia enviada')).toBeInTheDocument();
+        await act(async () => runs.forEach((run) => run.finish()));
+        expect(history.queryByText('Denúncia enviada')).toBeNull();
+        // An entry that arrives later is marked to come in with a short entrance.
+        latest = [{ id: 'nova', type: 'REPLY', actorRole: 'MANAGER', text: 'Resposta nova', createdAt: report.createdAt }, ...events.slice(0, 3)];
+        await act(async () => {
+            await new Promise((resolve) => setTimeout(resolve, 5200));
+        });
+        expect((await history.findByText('Resposta nova')).closest('li')).toHaveAttribute('data-fresh');
+    } finally {
+        HTMLElement.prototype.animate = original;
+    }
+}, 15000);

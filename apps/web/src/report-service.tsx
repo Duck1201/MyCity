@@ -11,6 +11,7 @@ import { Check } from 'lucide-react';
 import { reportCategoryLabels, categoryIconFor } from '@mycity/contracts';
 import { QueueLoading } from './components/queue-loading';
 import { useLiveQuery } from './use-live-query';
+import { leave } from './history-motion';
 export const statuses: Record<ReportStatus, string> = { SENT: 'Enviado', UNDER_REVIEW: 'Em análise', IN_PROGRESS: 'Em andamento', RESOLVED: 'Resolvido', REJECTED: 'Rejeitado', CANCELED: 'Cancelado' };
 export const formatDate = (value: string) => new Date(value).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
 function CaseText({ text, description = false, label }: { text: string; description?: boolean; label?: string }) {
@@ -50,7 +51,24 @@ export function ReportService({ id, onSessionExpired, onChange }: Props) {
     const [archive, setArchive] = useState<{ anchor: string; cursor: string; loaded: ReportEvent[] } | null>(null);
     const expanded = !!archive && archive.anchor === anchor;
     const older = useLiveQuery<EventPage>(expanded ? historyUrl + '&cursor=' + encodeURIComponent(archive.cursor) : null, onSessionExpired);
-    const events = [...(history.data?.data ?? []), ...(expanded ? [...archive.loaded, ...(older.data?.data ?? [])] : [])];
+    const recent = history.data?.data ?? [];
+    const events = [...recent, ...(expanded ? [...archive.loaded, ...(older.data?.data ?? [])] : [])];
+    // Entries of the first load are not news; anything that shows up in the recent page later is.
+    const seen = useRef<Set<string> | null>(null);
+    useEffect(() => {
+        if (!history.data) return;
+        seen.current ??= new Set();
+        for (const event of history.data.data) seen.current.add(event.id);
+    }, [history.data]);
+    const [leaving, setLeaving] = useState(false);
+    function collapseHistory() {
+        if (leaving) return;
+        setLeaving(true);
+        leave([...document.querySelectorAll('#occurrence-history li[data-archived]')], () => {
+            setArchive(null);
+            setLeaving(false);
+        });
+    }
     const more = older.data?.page.nextCursor;
     const [reason, setReason] = useState('');
     const [rejecting, setRejecting] = useState(false);
@@ -261,8 +279,10 @@ export function ReportService({ id, onSessionExpired, onChange }: Props) {
                             )
                         }
                         count={history.data ? String(events.length) + ((expanded ? more || !older.data : anchor) ? '+' : '') : '…'}
-                        events={events.map((event) => ({
+                        events={events.map((event, position) => ({
                             id: event.id,
+                            archived: position >= recent.length,
+                            fresh: position < recent.length && !!seen.current && !seen.current.has(event.id),
                             reply: event.type === 'REPLY',
                             text: (
                                 <>
@@ -289,7 +309,7 @@ export function ReportService({ id, onSessionExpired, onChange }: Props) {
                         historyControls={
                             anchor && (
                                 <>
-                                    <button type="button" className="history-disclosure" aria-controls="occurrence-history" aria-expanded={expanded} onClick={() => setArchive(expanded ? null : { anchor, cursor: anchor, loaded: [] })}>
+                                    <button type="button" className="history-disclosure" aria-controls="occurrence-history" aria-expanded={expanded} disabled={leaving} onClick={() => (expanded ? collapseHistory() : setArchive({ anchor, cursor: anchor, loaded: [] }))}>
                                         {expanded ? 'Recolher histórico' : 'Ver registros anteriores'}
                                     </button>
                                     {expanded && older.failed && (

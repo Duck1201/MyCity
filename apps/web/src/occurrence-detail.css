@@ -658,3 +658,28 @@
 .case-text-label {
     font-weight: 700;
 }
+@media (prefers-reduced-motion: no-preference) {
+    /* New and older history entries ease in; the list height is animated in history-motion.ts. */
+    #occurrence-history li[data-fresh],
+    #occurrence-history li[data-archived] {
+        animation: history-entry-in 240ms cubic-bezier(0.23, 1, 0.32, 1) both;
+    }
+    @keyframes history-entry-in {
+        from {
+            opacity: 0;
+            transform: translateY(-6px);
+        }
+    }
+    .occurrence-rejection,
+    .occurrence-notice:not(:empty),
+    .occurrence .case-error,
+    .occurrence-rejection-reason {
+        animation: occurrence-reveal 200ms cubic-bezier(0.23, 1, 0.32, 1) both;
+    }
+    @keyframes occurrence-reveal {
+        from {
+            opacity: 0;
+            transform: translateY(-4px);
+        }
+    }
+}
