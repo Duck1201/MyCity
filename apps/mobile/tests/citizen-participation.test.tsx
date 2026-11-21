@@ -366,7 +366,7 @@ it('mostra a foto de capa do feed com a sessão do cidadão apenas na origem da 
     expect(await screen.findByText(report.description)).toBeVisible();
     expect(screen.queryByText(report.id)).toBeNull();
     const cover = await screen.findByLabelText('Foto da ocorrência: Pista quebrada');
-    expect(cover).toHaveProp('source', { uri: 'https://demo.test' + path, headers: { Authorization: 'Bearer sintetico' } });
+    expect(cover).toHaveProp('source', [{ uri: 'https://demo.test' + path, headers: { Authorization: 'Bearer sintetico' } }]);
     expect(screen.queryByLabelText('Foto da ocorrência: Outra rua')).toBeNull();
 });
 

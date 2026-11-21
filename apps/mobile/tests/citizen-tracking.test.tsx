@@ -298,7 +298,7 @@ it('recolhe a capa indisponível no feed e permite carregar a foto novamente no 
     expect(screen.getByText('Foto 1 da denúncia indisponível.')).toBeVisible();
     expect(readOversized).not.toHaveBeenCalled();
     await fireEvent.press(screen.getByRole('button', { name: 'Tentar carregar a foto 1 novamente' }));
-    expect(await screen.findByLabelText('Foto 1 da denúncia')).toHaveProp('source', { uri: new URL(photo.contentPath, base).href, headers: { Authorization: 'Bearer token-teste' } });
+    expect(await screen.findByLabelText('Foto 1 da denúncia')).toHaveProp('source', [{ uri: new URL(photo.contentPath, base).href, headers: { Authorization: 'Bearer token-teste' } }]);
 });
 
 it('resolve o caminho absoluto da foto no Android sem repetir o prefixo da API', () => {
@@ -329,10 +329,10 @@ it('recupera a miniatura e a foto ampliada quando o carregador nativo rejeita a 
     await fireEvent.press(await screen.findByRole('tab', { name: 'Feed' }));
     const label = 'Foto da ocorrência: ' + report.description;
     await fireEvent(await screen.findByLabelText(label), 'error', { nativeEvent: { error: '401' } });
-    expect(screen.getByLabelText(label)).toHaveProp('source', { uri: 'data:image/jpeg;base64,/9j/2Q==' });
+    expect(screen.getByLabelText(label)).toHaveProp('source', [{ uri: 'data:image/jpeg;base64,/9j/2Q==' }]);
     await fireEvent.press(screen.getByText(report.description));
     await fireEvent(await screen.findByLabelText('Foto 1 da denúncia'), 'error', { nativeEvent: { error: '401' } });
-    expect(screen.getByLabelText('Foto 1 da denúncia')).toHaveProp('source', { uri: 'data:image/jpeg;base64,/9j/2Q==' });
+    expect(screen.getByLabelText('Foto 1 da denúncia')).toHaveProp('source', [{ uri: 'data:image/jpeg;base64,/9j/2Q==' }]);
     const downloads = api.mock.calls.filter(([url]) => String(url).endsWith('/photos/foto-teste'));
     expect(downloads).toHaveLength(2);
     for (const [, init] of downloads) expect(init).toMatchObject({ headers: { Authorization: 'Bearer token-teste' }, redirect: 'error' });

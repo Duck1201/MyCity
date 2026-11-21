@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { View } from 'react-native';
 import { Text } from './components/typography';
 import * as SecureStore from 'expo-secure-store';
+import { clearCachedPhotos } from './components/report-photo';
 import { AppLoadingScreen } from './components/app-loading-screen';
 import { ActionButton } from './components/action-button';
 
@@ -28,6 +29,7 @@ export function CitizenAccess({ apiBase, children, onSignedOut, onAuthenticated,
         setToken('');
         setPassword('');
         setMessage('Sua sessão expirou. Entre novamente.');
+        clearCachedPhotos();
         void SecureStore.deleteItemAsync(sessionKey).then(
             () => setAccess('login'),
             () => setAccess('offline'),
@@ -104,6 +106,7 @@ export function CitizenAccess({ apiBase, children, onSignedOut, onAuthenticated,
             const response = await fetch(apiBase + '/sessions/current', { method: 'DELETE', headers: { Authorization: 'Bearer ' + token } });
             if (!response.ok && response.status !== 401) throw new Error();
             await SecureStore.deleteItemAsync(sessionKey);
+            clearCachedPhotos();
             setToken('');
             setExpiresAt(0);
             setMessage('');

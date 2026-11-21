@@ -1,11 +1,24 @@
 import { fromByteArray } from 'base64-js';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Image, StyleSheet, View, type ImageProps, type ImageSourcePropType } from 'react-native';
+import { Image, type ImageProps } from 'expo-image';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { colors, mobileStyles } from '../theme';
 import { MotionPressable } from './motion-pressable';
 import { Text } from './typography';
 
-export function reportPhotoSource(path: string, apiBase: string, token: string) {
+export type PhotoSource = { uri: string; headers?: Record<string, string> };
+
+// Lists use the 320 px thumbnail; a server without thumbnails still sends contentPath.
+export const listPhotoPath = (photo: { contentPath: string; thumbnailPath?: string }) => photo.thumbnailPath ?? photo.contentPath;
+
+// Photos never change content for the same URL, so expo-image keeps them on disk.
+// They are private, so both caches are dropped when the session ends.
+export function clearCachedPhotos() {
+    void Image.clearDiskCache().catch(() => false);
+    void Image.clearMemoryCache().catch(() => false);
+}
+
+export function reportPhotoSource(path: string, apiBase: string, token: string): PhotoSource | undefined {
     const origin = new URL(apiBase).origin;
     if (path.startsWith('//') || path.includes('\\')) return undefined;
     const url = path.startsWith('/') ? new URL(origin + path) : new URL(path, apiBase);
@@ -15,13 +28,13 @@ export function reportPhotoSource(path: string, apiBase: string, token: string) 
 
 const maxPhotoBytes = 5 * 1024 * 1024;
 
-function ReportImage({ source, onUnavailable, ...props }: Omit<ImageProps, 'source' | 'onError'> & { source: ImageSourcePropType; onUnavailable: () => void }) {
+function ReportImage({ source, onUnavailable, ...props }: Omit<ImageProps, 'source' | 'onError' | 'cachePolicy'> & { source: PhotoSource; onUnavailable: () => void }) {
     const [memoryUri, setMemoryUri] = useState('');
     const download = useRef<AbortController | null>(null);
     useEffect(() => () => download.current?.abort(), []);
 
     async function recover() {
-        if (memoryUri || typeof source !== 'object' || !('uri' in source) || !source.uri || !source.headers?.Authorization) return onUnavailable();
+        if (memoryUri || !source.uri || !source.headers?.Authorization) return onUnavailable();
         if (download.current) return;
         const controller = new AbortController();
         download.current = controller;
@@ -37,14 +50,14 @@ function ReportImage({ source, onUnavailable, ...props }: Omit<ImageProps, 'sour
         }
     }
 
-    return <Image {...props} source={memoryUri ? { uri: memoryUri } : source} onError={() => void recover()} />;
+    return <Image {...props} cachePolicy="disk" source={memoryUri ? { uri: memoryUri } : source} onError={() => void recover()} />;
 }
 
-export function ReportThumbnail({ source, label }: { source: ImageSourcePropType; label?: string }) {
-    const resource = typeof source === 'number' ? source : 'length' in source ? source[0]?.uri : source.uri;
+export function ReportThumbnail({ source, label }: { source: PhotoSource; label?: string }) {
+    const resource = source.uri;
     const [failedResource, setFailedResource] = useState<typeof resource | null>(null);
     if (resource === failedResource) return null;
-    return <ReportImage key={resource} source={source} accessible={!!label} accessibilityLabel={label} resizeMode="cover" onUnavailable={() => setFailedResource(resource)} style={styles.thumb} />;
+    return <ReportImage key={resource} source={source} accessible={!!label} {...(label && { accessibilityLabel: label })} contentFit="cover" onUnavailable={() => setFailedResource(resource)} style={styles.thumb} />;
 }
 
 export function ReportPhoto({ path, index, apiBase, token, width, height }: { path: string; index: number; apiBase: string; token: string; width: number; height: number }) {
@@ -68,7 +81,7 @@ export function ReportPhoto({ path, index, apiBase, token, width, height }: { pa
     const aspectRatio = width > 0 && height > 0 ? Math.max(1, Math.min(2.5, width / height)) : 1.5;
     return (
         <View style={[styles.frame, { aspectRatio }]}>
-            <ReportImage key={source.uri} accessibilityLabel={label} source={source} resizeMode="contain" style={StyleSheet.absoluteFill} onUnavailable={() => setState('failed')} onLoad={() => setState('loaded')} />
+            <ReportImage key={source.uri} accessibilityLabel={label} source={source} contentFit="contain" style={StyleSheet.absoluteFill} onUnavailable={() => setState('failed')} onLoad={() => setState('loaded')} />
             {state === 'loading' && <ActivityIndicator color={colors.teal} accessibilityLabel={'Carregando foto ' + (index + 1)} />}
         </View>
     );

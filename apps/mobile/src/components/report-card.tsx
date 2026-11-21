@@ -1,11 +1,11 @@
 import type { ReactNode } from 'react';
-import { StyleSheet, View, type ImageSourcePropType } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import type { ReportStatus } from '@mycity/contracts';
 import { Icon } from './civic-header';
 import { statusLabels } from '../report-overview';
 import { colors, statusTint } from '../theme';
 import { MotionPressable } from './motion-pressable';
-import { ReportThumbnail } from './report-photo';
+import { ReportThumbnail, type PhotoSource } from './report-photo';
 import { Text } from './typography';
 
 type Props = {
@@ -15,7 +15,7 @@ type Props = {
     description: string;
     status: ReportStatus;
     when: string;
-    photo?: ImageSourcePropType | undefined;
+    photo?: PhotoSource | undefined;
     place?: string;
     update?: string | undefined;
     onPress: () => void;

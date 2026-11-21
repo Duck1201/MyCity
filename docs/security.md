@@ -10,7 +10,7 @@ Para entrar em contato sobre uma vulnerabilidade, siga o [procedimento de relato
 - Denúncias, fotos, mapa e histórico exigem autenticação. As restrições de propriedade e de visibilidade por status são verificadas em cada operação.
 - Adotar negação por padrão nas rotas de negócio. Rotas públicas são exceções explícitas, como login e saúde genérica do serviço.
 - Papel e identidade vêm da sessão validada no servidor. Não confiar em campos enviados pelo cliente, URL, estado da interface ou ocultação de botões.
-- Sessões expiram em 24 horas sem renovação automática. O logout revoga a sessão atual. A web usa cookie `HttpOnly`, `Secure` e `SameSite=Lax`. O Android usa Bearer salvo no armazenamento seguro do dispositivo.
+- Sessões expiram em 24 horas sem renovação automática. O logout revoga a sessão atual. A web usa cookie `HttpOnly`, `Secure` e `SameSite=Lax`. O Android usa Bearer salvo no armazenamento seguro do dispositivo. As fotos das denúncias ficam no cache de disco do `expo-image` (sandbox do app) e são apagadas, com o cache de memória, ao sair e quando a sessão expira.
 - Senhas das contas de demonstração são fornecidas por configuração protegida, nunca pelo código público ou por exemplos de teste. O seed preserva credenciais existentes.
 - Proteger o login contra tentativas repetidas e operações por cookie contra CSRF. Os limites da janela de 15 minutos e o cabeçalho de proteção da web estão no [contrato HTTP](api/contract.md).
 

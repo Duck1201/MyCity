@@ -3,7 +3,7 @@ import { categoryLabel } from './category-catalog';
 import { mobileStyles, colors } from './theme';
 import { CitizenCover, Icon, type IconName } from './components/civic-header';
 import { ReportCard } from './components/report-card';
-import { reportPhotoSource } from './components/report-photo';
+import { listPhotoPath, reportPhotoSource } from './components/report-photo';
 import { useCallback, useEffect, useRef, useMemo, useState } from 'react';
 import { BackHandler, Share, ScrollView, StyleSheet, View } from 'react-native';
 import { MotionPressable as Pressable } from './components/motion-pressable';
@@ -69,7 +69,7 @@ function HomeCommunity({ request, open, feed, apiBase, token }: { request: Reque
     const load = useCallback((signal: AbortSignal) => request<Page<ReportSummary>>('/reports?scope=feed&limit=1', signal), [request]);
     const query = useActiveQuery(load, true, '/reports?scope=feed&limit=1');
     const row = query.data?.data[0];
-    return <CommunityHighlight report={row && { description: row.description, category: categoryLabel(row), status: row.status, photo: row.coverPhoto && reportPhotoSource(row.coverPhoto.contentPath, apiBase, token) }} message={query.failed ? 'Não foi possível atualizar as ocorrências da cidade.' : !query.data ? 'Consultando o feed…' : !row ? 'Nenhuma ocorrência ativa no feed.' : undefined} open={() => row && open({ id: row.id })} feed={feed} />;
+    return <CommunityHighlight report={row && { description: row.description, category: categoryLabel(row), status: row.status, photo: row.coverPhoto && reportPhotoSource(listPhotoPath(row.coverPhoto), apiBase, token) }} message={query.failed ? 'Não foi possível atualizar as ocorrências da cidade.' : !query.data ? 'Consultando o feed…' : !row ? 'Nenhuma ocorrência ativa no feed.' : undefined} open={() => row && open({ id: row.id })} feed={feed} />;
 }
 
 function ReportList({ request, feed, resolved, offsets, open, pages, setPages, scope, filters, onChange, apiBase, token }: ListProps & { feed: () => void; resolved: () => void; offsets: Map<string, number>; apiBase: string; token: string; scope: 'mine' | 'feed' | 'resolved'; filters: ReportFilters; onChange: (f: ReportFilters) => void }) {
@@ -112,7 +112,7 @@ function ReportList({ request, feed, resolved, offsets, open, pages, setPages, s
             )}
             {!query.updating && query.data?.data.length === 0 && <Text style={styles.emptyList}>{scope === 'mine' && !filters.status && !filters.category ? 'Você ainda não registrou denúncias.' : 'Nenhuma denúncia encontrada.'}</Text>}
             {query.data?.data.map((report) => (
-                <ReportCard key={report.id} feed={scope === 'feed'} category={categoryLabel(report)} description={report.description} status={report.status} when={date(report.createdAt)} photo={report.coverPhoto && reportPhotoSource(report.coverPhoto.contentPath, apiBase, token)} onPress={() => open({ id: report.id })}>
+                <ReportCard key={report.id} feed={scope === 'feed'} category={categoryLabel(report)} description={report.description} status={report.status} when={date(report.createdAt)} photo={report.coverPhoto && reportPhotoSource(listPhotoPath(report.coverPhoto), apiBase, token)} onPress={() => open({ id: report.id })}>
                     {scope === 'feed' && !query.updating ? <ApiConfirmation report={report} onError={(message) => setVoteError({ id: report.id, message })} request={request} update={(vote) => query.replace((previous) => previous && { ...previous, data: previous.data.map((row) => (row.id === report.id ? { ...row, ...vote } : row)) })} refresh={query.retry} /> : <Text style={styles.meta}>{confirmationLabel(report.confirmationCount)}</Text>}
                 </ReportCard>
             ))}
