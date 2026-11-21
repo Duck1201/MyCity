@@ -98,6 +98,36 @@ jobs:
                   labels: org.opencontainers.image.source=https://github.com/Duck1201/MyCity
                   cache-from: type=gha,scope=web
 
+    server-package:
+        name: Publish self-hosting package
+        needs: [verify, images]
+        runs-on: ubuntu-latest
+        permissions:
+            contents: write
+        steps:
+            - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  persist-credentials: false
+            - name: Package server files
+              env:
+                  RELEASE: ${{ github.ref_name }}-${{ github.run_attempt }}
+                  API_DIGEST: ${{ needs.images.outputs.api }}
+                  TOOLS_DIGEST: ${{ needs.images.outputs.tools }}
+                  WEB_DIGEST: ${{ needs.images.outputs.web }}
+              run: bash deploy/package-release.sh server-package "$RELEASE" "$API_DIGEST" "$TOOLS_DIGEST" "$WEB_DIGEST"
+            - name: Attach server package to the GitHub release
+              env:
+                  GH_TOKEN: ${{ github.token }}
+                  TAG: ${{ github.ref_name }}
+              run: |
+                  set -euo pipefail
+                  assets=(server-package/mycity-server.tar.gz server-package/mycity-server.tar.gz.sha256)
+                  if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+                    gh release upload "$TAG" "${assets[@]}" --clobber --repo "$GITHUB_REPOSITORY"
+                  else
+                    gh release create "$TAG" "${assets[@]}" --verify-tag --generate-notes --repo "$GITHUB_REPOSITORY"
+                  fi
+
     deploy:
         name: Deploy
         needs: [verify, images]
@@ -208,7 +238,8 @@ jobs:
 
     android-sign:
         name: Sign and publish Android APK
-        needs: android-build
+        needs: [android-build, server-package]
+        if: ${{ !cancelled() && needs.android-build.result == 'success' }}
         runs-on: ubuntu-latest
         timeout-minutes: 10
         environment: demonstration

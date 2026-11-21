@@ -40,12 +40,12 @@ deploy/                  # compose, proxies e script de publicação genéricos
 
 Cada módulo expõe suas operações a outros módulos pelo `index.ts`. O [ESLint](../eslint.config.js) restringe importações internas entre módulos e impede que clientes e contratos importem infraestrutura do servidor.
 
-| Módulo       | Dono de                                              | Interface pública conceitual                                                               |
-| ------------ | ---------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| Identidade   | Usuários, credenciais, perfis e sessões              | Autenticar, resolver sessão, encerrar sessão, consultar perfis públicos                    |
-| Denúncias    | Denúncias, categorias, fotos, confirmações e eventos | Criar, consultar, confirmar, retirar, cancelar, transicionar, responder e gerir categorias |
-| Notificações | Avisos individuais e leitura                         | Registrar mudança de status, listar destinatário, marcar leitura                           |
-| Alertas      | Cenários fictícios                                   | Listar e consultar alertas simulados                                                       |
+| Módulo       | Dono de                                              | Interface pública conceitual                                                                                |
+| ------------ | ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| Identidade   | Usuários, credenciais, perfis e sessões              | Autenticar, resolver sessão, encerrar sessão, consultar perfis públicos                                     |
+| Denúncias    | Denúncias, categorias, fotos, confirmações e eventos | Criar, consultar, editar, confirmar, retirar, cancelar, reabrir, transicionar, responder e gerir categorias |
+| Notificações | Avisos individuais e leitura                         | Registrar mudança de status, listar destinatário, marcar leitura                                            |
+| Alertas      | Cenários fictícios                                   | Listar e consultar alertas simulados                                                                        |
 
 Contratos compartilham DTOs e validações de entrada sem importar Prisma, segredos ou código do servidor nos clientes. Formatação de tela não decide autorização; o servidor sempre valida o ator real.
 
@@ -65,7 +65,7 @@ Denúncias registra o aviso pela interface de Notificações. A criação do avi
 
 ## Concorrência e idempotência
 
-- Versão inteira da denúncia protege atualizações concorrentes. Conflito exige recarregar a representação, não repetir cegamente o comando.
+- Edições e mudanças de situação conferem e incrementam a versão da denúncia sob bloqueio da linha. Em caso de conflito, recarregue o recurso antes de enviar outra alteração.
 - Confirmação tem unicidade de `(reportId, userId)`. PUT/DELETE representam presença/ausência e não um contador incrementado sem proteção.
 - Criação usa identificador de requisição do cliente com unicidade por autor. Respostas do gestor têm chave própria por denúncia e gestor. Reenviar a mesma chave com o mesmo conteúdo retorna o registro existente. Alterar o conteúdo com a mesma chave gera conflito.
 - Transições usam versão esperada. Se o cliente perdeu a resposta, consulta o estado e o histórico antes de tentar outra mudança.
@@ -75,12 +75,12 @@ Denúncias registra o aviso pela interface de Notificações. A criação do avi
 
 1. Autenticar e autorizar o cidadão antes de receber o multipart em memória com limite de 16 MiB.
 2. Validar uma a três fotos JPEG, até 5 MiB por foto e maior lado de até 1.600 px. A API aplica a orientação e recodifica o JPEG.
-3. Gravar os arquivos com IDs gerados pelo servidor no diretório privado da denúncia.
+3. Gravar originais e miniaturas com IDs gerados pelo servidor no diretório privado da denúncia.
 4. Criar denúncia, metadados e evento inicial na mesma transação. Se o resultado do commit for incerto, consultar o banco antes de remover os arquivos preparados.
 5. Servir fotos somente quando os metadados estiverem vinculados a uma denúncia visível ao solicitante.
 6. Reconciliar offline os diretórios órfãos remanescentes de interrupções, respeitando a idade mínima dos arquivos.
 
-Banco e arquivos não compartilham transação. O [runbook](deploy.md#reconciliar-fotos-órfãs) descreve a manutenção offline e a idade mínima de 24 horas para os diretórios. A [matriz de aceite](testing.md#aceite-por-critério) registra o ensaio de orientação e reconhecimento do objeto fotografado.
+Banco e arquivos não compartilham transação. O [runbook](deploy.md#reconciliar-fotos-órfãs) descreve a manutenção offline e a idade mínima de 24 horas para os diretórios. A limpeza automática de fotos expiradas segue a [regra de retenção](data-model.md#retenção). A [matriz de aceite](testing.md#aceite-por-critério) registra o ensaio de orientação e reconhecimento do objeto fotografado.
 
 ## Integrações e ciclo de vida
 
@@ -90,9 +90,9 @@ As telas com polling consultam a cada cinco segundos, com uma requisição ativa
 
 ## Carregamento do painel e do app
 
-Do Brasil até o servidor da demonstração, cada ida e volta leva cerca de 145 ms, enquanto a API responde em poucos milissegundos (C46). Por isso as telas evitam pedidos em sequência:
+No ensaio de 21/11/2026, abrir a fila ou o detalhe em um novo contexto do navegador levou 285 ms para estabelecer a conexão TCP e TLS, dos quais 145 ms foram de TLS. As telas evitam pedidos em sequência. [Medição de latência C46](testing.md#latência-percebida-no-painel-c46)
 
-- **Painel:** cada seção é um arquivo separado, baixado logo depois que a sessão é confirmada. Enquanto o gestor está numa seção, as leituras de entrada das outras (Visão geral, fila padrão e catálogo) são pré-carregadas no cache de memória da sessão (`useWarmUp`). Apontar ou focar uma denúncia na fila pré-carrega o detalhe e o histórico dela (`useWarm`). As URLs ficam em `queue-endpoint.ts`, e as telas e o pré-carregamento usam a mesma chave. Assim, a tela abre com os dados e só revalida.
+- **Painel.** As seções são carregadas sob demanda e pré-carregadas quando a sessão é confirmada. Enquanto o gestor está numa seção, as leituras iniciais das outras (indicadores e ocorrências recentes da Visão geral, fila padrão e catálogo) são pré-carregadas no cache de memória da sessão (`useWarmUp`). Apontar ou focar uma denúncia na fila pré-carrega seu detalhe e histórico (`useWarm`). `queue-endpoint.ts` fornece as mesmas URLs às telas e ao pré-carregamento.
 - **App:** ao abrir uma denúncia, a primeira página do histórico é pedida junto com o detalhe, e não depois dele.
 
 ## Implantação

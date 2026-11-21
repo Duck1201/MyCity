@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parse } from 'yaml';
 import { afterEach, beforeEach, expect, it } from 'vitest';
@@ -10,7 +10,7 @@ let root: string;
 beforeEach(() => {
     root = mkdtempSync('/tmp/mycity-release-');
     writeFileSync(join(root, '.env.production'), 'POSTGRES_PASSWORD=test-db-password\n', { mode: 0o600 });
-    writeFileSync(join(root, 'commands.sh'), 'docker() { printf "%s\\n" "$*" >> "$TRACE"; }\ncurl() { printf "curl %s\\n" "$*" >> "$TRACE"; }\n');
+    writeFileSync(join(root, 'commands.sh'), 'docker() { printf "%s\\n" "$*" >> "$TRACE"; if [[ "${*: -1}" == pull ]]; then printf "%s\\n" "${DOCKER_CONFIG:-}" >> "$TRACE.config"; fi; }\ncurl() { printf "curl %s\\n" "$*" >> "$TRACE"; }\n');
 });
 afterEach(() => rmSync(root, { recursive: true, force: true }));
 
@@ -31,6 +31,52 @@ function deploy(name: string, ...extra: string[]) {
     return run.status;
 }
 const trace = () => (existsSync(join(root, 'trace')) ? readFileSync(join(root, 'trace'), 'utf8') : '');
+
+it('recusa pacote inválido sem bloquear a instalação correta, preserva configuração e aceita autenticação opcional', () => {
+    const packageDir = join(root, 'package');
+    const installation = join(root, 'installation');
+    const build = spawnSync('bash', ['deploy/package-release.sh', packageDir, 'v1.2.3-1', digest, digest, digest], { encoding: 'utf8' });
+    expect(build.status, build.stderr).toBe(0);
+    expect(spawnSync('sha256sum', ['--check', 'mycity-server.tar.gz.sha256'], { cwd: packageDir }).status).toBe(0);
+    expect(spawnSync('tar', ['-xzf', 'mycity-server.tar.gz'], { cwd: packageDir }).status).toBe(0);
+    const install = (args: string[] = [], input = '') =>
+        spawnSync('bash', ['-c', 'source "$COMMANDS"; export -f docker curl; exec bash install.sh "$@"', 'installer', installation, 'mycity.example.org', ...args], {
+            cwd: packageDir,
+            input,
+            env: { PATH: '/usr/bin:/bin', COMMANDS: join(root, 'commands.sh'), TRACE: join(root, 'trace'), DOCKER_CONFIG: join(root, 'user-docker') },
+            encoding: 'utf8',
+        });
+    const manifestPath = join(packageDir, 'images.env');
+    const validManifest = readFileSync(manifestPath, 'utf8');
+    writeFileSync(manifestPath, validManifest.replace(digest, 'latest'));
+    const invalid = install();
+    expect(invalid.status).not.toBe(0);
+    expect(existsSync(installation)).toBe(false);
+    expect(trace()).toBe('');
+    writeFileSync(manifestPath, validManifest);
+    const first = install();
+    expect(first.status, first.stderr).toBe(0);
+    expect(trace()).toContain('profile tools pull');
+    expect(trace()).not.toContain('login ghcr.io');
+    expect(readFileSync(join(root, 'trace.config'), 'utf8').trim()).toBe(join(root, 'user-docker'));
+    const config = join(installation, '.env.production');
+    const original = readFileSync(config, 'utf8');
+    expect(statSync(config).mode & 0o777).toBe(0o600);
+    expect(original).toMatch(/^COMPOSE_PROJECT_NAME=mycity-server-[a-f0-9]{12}$/m);
+    expect(original).toContain('WEB_ORIGIN=https://mycity.example.org');
+    expect(new Set(Array.from(original.matchAll(/^[A-Z_]+_PASSWORD=(.+)$/gm), (match) => match[1])).size).toBe(5);
+    expect(readFileSync(join(installation, 'compose.override.yaml'), 'utf8')).toContain('80:80');
+    expect(readFileSync(join(installation, 'current-release'), 'utf8').trim()).toBe('v1.2.3-1');
+    const second = install(['--registry-user', 'tester'], 'fake-token\n');
+    expect(second.status, second.stderr).toBe(0);
+    expect(trace()).toContain('login ghcr.io --username tester --password-stdin');
+    expect(trace()).not.toContain('fake-token');
+    const [, temporaryConfig] = readFileSync(join(root, 'trace.config'), 'utf8').trim().split('\n');
+    expect(temporaryConfig).toMatch(/\/\.registry\./);
+    expect(existsSync(temporaryConfig!)).toBe(false);
+    expect(readFileSync(config, 'utf8') === original).toBe(true);
+    expect(trace()).toContain('db:sync-deployment-passwords');
+});
 
 it('aplica os digests da release, registra a anterior e aponta current para a nova', () => {
     release('v1.0.0-1');
@@ -143,6 +189,16 @@ it('mantém o compose e o Caddyfile genéricos: endereço público e rede do ser
 });
 
 const workflow = () => parse(readFileSync('.github/workflows/release.yml', 'utf8'));
+
+it('publica o pacote de servidor com os digests da release sem esperar o Android ou a VM', () => {
+    const job = workflow().jobs['server-package'];
+    expect(job.needs).toEqual(['verify', 'images']);
+    expect(job.permissions).toEqual({ contents: 'write' });
+    const definition = JSON.stringify(job);
+    for (const image of ['api', 'tools', 'web']) expect(definition).toContain('needs.images.outputs.' + image);
+    expect(definition).toContain('deploy/package-release.sh');
+    expect(definition).toContain('mycity-server.tar.gz.sha256');
+});
 
 it('publica e implanta somente a partir de tags de versão em commits da main com CI aprovada', () => {
     const { on, jobs } = workflow();

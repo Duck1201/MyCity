@@ -6,16 +6,9 @@ O MVP está entregue (veja [plan.md](plan.md)). Toda mudança agora é manutenç
 
 ## Fluxo de uma mudança
 
-Siga os passos na ordem. Nenhum deles é opcional.
+Para alterações de código, siga os passos 1 a 5 na ordem. Em mudanças só de documentação, confira as afirmações nas fontes e valide a formatação, os links e os artefatos alterados. Os passos 6 e 7 dependem da autorização do responsável.
 
-1. **Ambiente.** Use este checkout, o `.env` e os serviços que já existem; não crie clone, worktree ou cópia sem pedido explícito. Se faltar algo, siga o [README](README.md#executar-localmente):
-
-    ```bash
-    docker compose up -d --wait db                    # banco de desenvolvimento
-    docker compose --profile test up -d --wait test-db # banco da suíte (mycity_test)
-    npm run dev                                       # API :3000 + painel :8090
-    npm run dev:mobile                                # Metro para o app (Expo Go ou APK de dev)
-    ```
+1. **Ambiente.** Use este checkout, o `.env` e os serviços que já existem. Crie clone, worktree ou cópia só a pedido. Se faltar algo, siga o [início rápido](README.md#executar-localmente) para preparar a aplicação e a seção de [testes](README.md#testes-e-qualidade) para iniciar o `test-db`.
 
 2. **Localize a regra** antes de mudar comportamento (tabela abaixo). Se a regra depende de uma decisão aberta em [concerns.md](concerns.md), pergunte ao responsável antes.
 
@@ -33,7 +26,7 @@ Siga os passos na ordem. Nenhum deles é opcional.
 
 5. **Atualize o documento da regra** que mudou (tabela abaixo) e registre pendências em [concerns.md](concerns.md).
 
-6. **Commit, push e PR.**
+6. **Commit, push e PR.** Execute apenas as ações autorizadas.
 
     ```bash
     git add <arquivos> && git commit -m "<tipo>: <resumo em inglês>"
@@ -43,7 +36,7 @@ Siga os passos na ordem. Nenhum deles é opcional.
 
     A CI precisa ficar verde. O merge é **squash** e o título do PR vira o commit na `main`. Diga no PR o que mudou, o que foi verificado e o que ficou pendente.
 
-7. **Release** (só quando o responsável pedir): uma tag `vX.Y.Z` na `main` publica as imagens, implanta no servidor e anexa o APK. Antes da tag, rode os dois revisores sobre a `main`: no Claude Code, os subagentes `security-reviewer` e `regression-reviewer`; no Codex, `security_reviewer` e `regression_reviewer` (`.codex/agents/`). As instruções são as mesmas, em `.claude/agents/`. Veja [docs/deploy.md](docs/deploy.md#fluxo-de-entrega).
+7. **Release.** Siga o [fluxo de entrega](docs/deploy.md#fluxo-de-entrega) só quando o responsável pedir. Antes de criar a tag, rode os dois revisores sobre a `main`. No Claude Code, use `security-reviewer` e `regression-reviewer` em [`.claude/agents/`](.claude/agents/). No Codex, use `security_reviewer` e `regression_reviewer` em [`.codex/agents/`](.codex/agents/), que apontam para as mesmas instruções.
 
 ## Testes vermelhos
 
@@ -51,17 +44,17 @@ Teste falhando é informação sobre o código. Conserte o código, nunca o test
 
 ## Onde está cada regra
 
-| Se a tarefa envolve        | Leia                                                                                                                                                                      | O código fica em                                          |
-| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
-| Regra de negócio, jornada  | [Escopo](docs/scope.md), [vocabulário](docs/context.md), [fluxos](docs/flows.md), [requisitos (AC)](docs/requirements.md)                                                 | `apps/api/src/modules/<módulo>/`                          |
-| API, autenticação, uploads | [Contrato HTTP](docs/api/contract.md), [segurança](docs/security.md). Autorize antes de processar o upload.                                                               | `apps/api/src/`, DTOs e validação em `packages/contracts` |
-| Banco, migração            | [Modelo de dados](docs/data-model.md), [Prisma](docs/prisma.md). Nunca altere migração publicada.                                                                         | `apps/api/prisma/`                                        |
-| Fronteira entre módulos    | [Arquitetura](docs/architecture.md). Interfaces públicas em memória; cada módulo controla seus dados.                                                                     | `apps/api/src/modules/*/index.ts`                         |
-| Painel do gestor           | [Usabilidade](docs/usability.md)                                                                                                                                          | `apps/web/src/` (React, Tailwind, shadcn)                 |
-| App do cidadão             | [Usabilidade](docs/usability.md), [Android](docs/runbook.md#configuração-do-android)                                                                                      | `apps/mobile/src/` (Expo, StyleSheet)                     |
-| Testes e evidências        | [Estratégia de testes](docs/testing.md)                                                                                                                                   | `*/tests/`, `scripts/tests/`                              |
-| Publicação, servidor       | [Publicação e operação](docs/deploy.md). Para mexer no servidor, use a skill `prod-vm` (`.agents/skills/`). Detalhes do servidor ficam no servidor, nunca no repositório. | `deploy/`, `.github/workflows/`                           |
-| Ambiente local             | [README](README.md#executar-localmente), [runbook](docs/runbook.md), `.env.example`. npm workspaces com o lockfile da raiz.                                               | `scripts/`, `compose.yaml`                                |
+| Se a tarefa envolve        | Leia                                                                                                                                                                           | O código fica em                                          |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------- |
+| Regra de negócio, jornada  | [Escopo](docs/scope.md), [vocabulário](docs/context.md), [fluxos](docs/flows.md), [requisitos (AC)](docs/requirements.md)                                                      | `apps/api/src/modules/<módulo>/`                          |
+| API, autenticação, uploads | [Contrato HTTP](docs/api/contract.md), [segurança](docs/security.md). Autorize antes de processar o upload.                                                                    | `apps/api/src/`, DTOs e validação em `packages/contracts` |
+| Banco, migração            | [Modelo de dados](docs/data-model.md), [Prisma](docs/prisma.md). Nunca altere migração publicada.                                                                              | `apps/api/prisma/`                                        |
+| Fronteira entre módulos    | [Arquitetura](docs/architecture.md). Interfaces públicas em memória; cada módulo controla seus dados.                                                                          | `apps/api/src/modules/*/index.ts`                         |
+| Painel do gestor           | [Usabilidade](docs/usability.md)                                                                                                                                               | `apps/web/src/` (React, Tailwind, shadcn)                 |
+| App do cidadão             | [Usabilidade](docs/usability.md), [Android](docs/runbook.md#configuração-do-android)                                                                                           | `apps/mobile/src/` (Expo, StyleSheet)                     |
+| Testes e evidências        | [Estratégia de testes](docs/testing.md)                                                                                                                                        | `*/tests/`, `scripts/tests/`                              |
+| Publicação, servidor       | [Publicação e operação](docs/deploy.md). Para operar o servidor, siga as instruções privadas do operador. Mantenha credenciais e detalhes administrativos fora do repositório. | `deploy/`, `.github/workflows/`                           |
+| Ambiente local             | [README](README.md#executar-localmente), [runbook](docs/runbook.md), `.env.example`. npm workspaces com o lockfile da raiz.                                                    | `scripts/`, `compose.yaml`                                |
 
 As fontes acadêmicas em `docs/references/` são históricas: não as edite.
 

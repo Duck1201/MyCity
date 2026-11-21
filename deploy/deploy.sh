@@ -1,19 +1,13 @@
 #!/usr/bin/env bash
 # Applies or rolls back a release on the server.
 #
-#   deploy.sh <deploy-root> <release-name> <registry-user>   apply a release (registry token on stdin)
+#   deploy.sh <deploy-root> <release-name> [registry-user]  apply a release (token on stdin when authenticated)
 #   deploy.sh <deploy-root> --rollback                       go back to the previous release
 #
-# Called by .github/workflows/release.yml, or by hand through the prod-vm skill.
+# Called by .github/workflows/release.yml, or manually by the operator.
 # <deploy-root>/.env.production holds the server secrets; this script never prints it.
 # <deploy-root>/compose.override.yaml (optional) holds host-specific settings.
 set -Eeuo pipefail
-
-deploy_root=${1:?Diretório de deploy obrigatório}
-[[ "$deploy_root" =~ ^/[a-zA-Z0-9/_-]+$ ]] || exit 2
-env_file="$deploy_root/.env.production"
-[[ -f "$env_file" ]] || { echo "$env_file ausente." >&2; exit 2; }
-release_pattern='^v[0-9]+\.[0-9]+\.[0-9]+-[1-9][0-9]{0,8}$'
 
 load_digests() {
     local manifest index keys=(API_DIGEST TOOLS_DIGEST WEB_DIGEST)
@@ -24,6 +18,18 @@ load_digests() {
         export "${manifest[index]}"
     done
 }
+
+if [[ ${1:-} == --check-manifest ]]; then
+    [[ $# -eq 2 ]] || exit 2
+    load_digests "$2"
+    exit 0
+fi
+
+deploy_root=${1:?Diretório de deploy obrigatório}
+[[ "$deploy_root" =~ ^/[a-zA-Z0-9/_-]+$ ]] || exit 2
+env_file="$deploy_root/.env.production"
+[[ -f "$env_file" ]] || { echo "$env_file ausente." >&2; exit 2; }
+release_pattern='^v[0-9]+\.[0-9]+\.[0-9]+-[1-9][0-9]{0,8}$'
 
 compose_for() {
     compose=(docker compose --env-file "$env_file" -f "$1/compose.yaml")
@@ -61,20 +67,22 @@ if [[ "${2:-}" == --rollback ]]; then
 fi
 
 release_name=${2:?Nome da release obrigatório}
-registry_user=${3:?Usuário do registry obrigatório}
+registry_user=${3:-}
 [[ "$release_name" =~ $release_pattern ]] || exit 2
-[[ "$registry_user" =~ ^[a-zA-Z0-9_-]+$ ]] || exit 2
+[[ $# -le 3 && ( $# -eq 2 || "$registry_user" =~ ^[a-zA-Z0-9_-]+$ ) ]] || exit 2
 release_dir="$deploy_root/releases/$release_name"
 [[ -f "$release_dir/compose.yaml" && -f "$release_dir/images.env" ]] || exit 2
 load_digests "$release_dir"
 
-export DOCKER_CONFIG
-DOCKER_CONFIG=$(mktemp -d "$deploy_root/.registry.XXXXXX")
-trap 'rm -rf -- "$DOCKER_CONFIG"' EXIT
-IFS= read -r registry_token
-[[ -n "$registry_token" ]] || exit 2
-docker login ghcr.io --username "$registry_user" --password-stdin <<< "$registry_token"
-unset registry_token
+if [[ -n "$registry_user" ]]; then
+    IFS= read -r registry_token || true
+    [[ -n "$registry_token" ]] || { echo 'Informe o token do GHCR pela entrada padrão.' >&2; exit 2; }
+    export DOCKER_CONFIG
+    DOCKER_CONFIG=$(mktemp -d "$deploy_root/.registry.XXXXXX")
+    trap 'rm -rf -- "$DOCKER_CONFIG"' EXIT
+    docker login ghcr.io --username "$registry_user" --password-stdin <<< "$registry_token"
+    unset registry_token
+fi
 
 compose_for "$release_dir"
 "${compose[@]}" --profile tools pull

@@ -41,7 +41,8 @@ it('compila a tag aprovada e assina o APK em runner separado do build', () => {
     expect(build.needs).toBe('verify');
     expect(build.environment).toBe('demonstration');
     expect(sign.environment).toBe('demonstration');
-    expect(sign.needs).toBe('android-build');
+    expect(sign.needs).toEqual(['android-build', 'server-package']);
+    expect(sign.if).toBe("${{ !cancelled() && needs.android-build.result == 'success' }}");
     expect(JSON.stringify(build)).not.toMatch(/secrets\.ANDROID_RELEASE/);
     expect(JSON.stringify(sign)).not.toMatch(/checkout@|gradlew|npm ci/);
     const steps = [...build.steps, ...sign.steps] as { name?: string; uses?: string; env?: Record<string, string>; with?: Record<string, string> }[];

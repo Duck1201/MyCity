@@ -5,12 +5,15 @@ A matriz abaixo relaciona os critérios aprovados às jornadas locais e às prov
 ## Interfaces aprovadas
 
 - Unitários: funções ou interfaces públicas das regras do domínio, especialmente transições, cancelamento, prioridade e validação.
-- Integração: painel e API do desenvolvimento com seu PostgreSQL e volume de fotos.
+- Integração automatizada: HTTP real contra a API com o PostgreSQL dedicado `mycity_test` e diretórios de fotos isolados.
+- Integração manual: painel e app contra a API de desenvolvimento, usando dados fictícios.
 - Interface: ações e estados observáveis do app e da web.
 - Ponta a ponta: criar como cidadão, atender como gestor e consultar retorno como cidadão.
 - Manual no destino: APK instalado, permissões reais, câmera, galeria, mapas e servidor hospedado.
 
 Não usar métodos privados como contrato. Não criar funções públicas artificiais só para alcançar detalhes internos em testes. Unitários de regras puras não precisam de banco; comportamento dependente de persistência deve usar PostgreSQL real.
+
+A [regressão de edição hospedada](../apps/api/tests/reports.integration.test.ts) usa, em `mycity_test`, as concessões do papel da API. Verifica a edição com foto mantida e a reabertura com foto nova, incluindo a remoção do vínculo anterior.
 
 ## Ciclo TDD
 
@@ -28,7 +31,7 @@ Regressão acompanha a mesma alteração de feature/bug. Não apagar casos, redu
 | T04 | Interface/integração           | Falha de envio mantém formulário; repetição idempotente não cria outra denúncia. AC02, C15.                                      |
 | T05 | Unitário/interface/dispositivo | Coordenadas válidas e inválidas; GPS permitido, negado e indisponível; negar não envia ponto fictício. AC03.                     |
 | T06 | Interface/dispositivo          | Abrir mapa na localização do aparelho, verificar alternativa em Viçosa e consultar o mesmo ponto manual salvo. AC03/AC08.        |
-| T07 | Integração/interface           | Feed/mapa/filtros e paginação obedecem visibilidade; canceladas não vazam, inclusive por foto direta. AC04/AC08, C04.            |
+| T07 | Integração/interface           | Feed/mapa e paginação respeitam os filtros. Em canceladas, detalhe e foto respeitam a visibilidade de C04. AC04/AC08.            |
 | T08 | Integração                     | B confirma A; repetir em paralelo mantém uma confirmação e uma contagem. AC05.                                                   |
 | T09 | Unitário/integração            | Autor não confirma; estados finais bloqueiam novas confirmações. AC05.                                                           |
 | T10 | Integração                     | Retirada afeta só a confirmação do solicitante; repetir é consistente; estado final preserva as confirmações. AC05.              |
@@ -104,7 +107,7 @@ Na verificação final da revisão `bd39e4f`, o push na `main` passou nos quatro
 
 ## Revisão antes de uma versão
 
-Antes de criar uma tag, rode a suíte completa e os revisores de segurança e regressão (`.claude/agents/` no Claude Code, `.codex/agents/` no Codex), como descreve o [AGENTS.md](../AGENTS.md#fluxo-de-uma-mudança). Eles não substituem a CI, e a CI não substitui o parecer deles.
+Antes de criar uma tag, rode a suíte completa e siga a revisão de segurança e regressão do [fluxo de manutenção](../AGENTS.md#fluxo-de-uma-mudança). A publicação depende da CI e dos dois pareceres.
 
 ## Cenários aprovados para CPF e identificação por denúncia
 
@@ -136,7 +139,7 @@ Em cinco novas sessões autenticadas, o Chrome mediu da navegação até a prime
 
 ## Desenvolvimento e ciclo do banco
 
-Os testes locais cobrem inicialização conjunta, Ctrl+C, persistência e reexecução do seed, recuperação de falhas e reset em PostgreSQL descartável. O banco usado para desenvolvimento fica fora dos testes destrutivos.
+Os testes automatizados cobrem a inicialização conjunta da API e do painel, a finalização dos processos, a persistência e a reexecução do seed e a validação do destino do reset. O reset completo é um ensaio separado em PostgreSQL descartável. Reserve o banco de desenvolvimento existente para testes manuais com dados fictícios.
 
 ## Verificações físicas no Android
 
@@ -171,6 +174,8 @@ Pelo Expo Go, com a API local e um proxy que registrava as requisições e segur
 - ao fechar e reabrir o app com a resposta de "Minhas denúncias" retida, a lista guardada aparece com "Atualizando…" e as miniaturas saem do disco, sem nova requisição;
 - depois de sair e entrar de novo, a lista mostra "Carregando…" sem dados anteriores e as miniaturas são baixadas outra vez: o logout apagou as leituras guardadas e o cache de imagens.
 
+A abertura da lista mudou depois desse ensaio. O [teste de revalidação](../apps/mobile/tests/revalidating.test.tsx) verifica que **Meus registros** mostra o carregamento até receber a primeira resposta. Se a rede falhar, a tela exibe os dados guardados e informa a falha.
+
 ### Retenção das fotos (21/11/2026)
 
 No Chrome e no Galaxy M32 com Expo Go, uma foto aberta em tela cheia saiu da tela no vencimento e o detalhe passou a mostrar “Fotos expiradas”. No Chrome, o aviso também apareceu com a rede desligada e o relógio local cinco minutos atrasado. No Android, a conexão com a API estava interrompida no vencimento e o histórico continuou visível. Em restauração isolada de PostgreSQL e uploads com seis denúncias fictícias, a limpeza removeu o original e a miniatura vencidos e preservou os arquivos das outras cinco.
@@ -179,10 +184,10 @@ No Chrome e no Galaxy M32 com Expo Go, uma foto aberta em tela cheia saiu da tel
 
 Os arquivos ficam em [`docs/images/`](images/). Para trocar as capturas, substitua os PNGs pelos mesmos nomes. Se mudar a tela mostrada, atualize também a legenda e o texto alternativo na [apresentação do README](../README.md#veja-como-funciona).
 
-| Arquivo                 | Tela e enquadramento                                                                           |
-| ----------------------- | ---------------------------------------------------------------------------------------------- |
-| `manager-dashboard.png` | **Atendimento** no painel local com o banco semeado. Use uma janela de cerca de 1440 × 860 px. |
-| `citizen-app.png`       | **Início** no app Android com a API local semeada. Capture com `adb exec-out screencap -p`.    |
-| `citizen-feed.png`      | **Feed → Ativas** no mesmo aparelho, com o mesmo enquadramento da tela **Início**.             |
+| Arquivo                 | Tela e enquadramento                                                                            |
+| ----------------------- | ----------------------------------------------------------------------------------------------- |
+| `manager-dashboard.png` | **Atendimento** no painel local com o banco semeado. Use uma janela de cerca de 1440 × 860 px.  |
+| `citizen-app.png`       | **Início** no app com a API local semeada. No Android, capture com `adb exec-out screencap -p`. |
+| `citizen-feed.png`      | **Feed** com as ocorrências ativas, no mesmo enquadramento de **Início**.                       |
 
-Capture somente a interface com dados fictícios. Abra o README renderizado em largura de desktop e de celular para conferir o enquadramento, a legibilidade e o texto junto de cada imagem.
+Capture somente a interface com dados fictícios. Se usar a [prévia do cidadão no navegador](runbook.md#prévia-do-cidadão-no-navegador), use uma janela com dimensões de celular e indique a origem das capturas no README. Abra o README renderizado em largura de desktop e de celular para conferir o enquadramento, a legibilidade e o texto junto de cada imagem.

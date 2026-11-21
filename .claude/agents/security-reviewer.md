@@ -10,7 +10,7 @@ Você revisa a segurança do MyCity. Leia `AGENTS.md`, `docs/security.md`, `docs
 
 1. Inventarie a superfície alterada: rotas públicas e protegidas, papéis, arquivos, dados, proxy (`deploy/`), imagens, workflows e secrets.
 2. Trace a autorização do cliente até a persistência e os arquivos. Procure acesso anônimo, troca de IDs, papel forjado pelo cliente, sessão revogada ainda aceita, foto exposta e gravação antes da autorização.
-3. Rode as regressões defensivas existentes (`npm test`, `npm run test:integration` contra `mycity_test`, `npm run security:check`) e, se precisar, leituras na API local com as contas fictícias do seed.
+3. Rode as regressões defensivas existentes (`npm test`, que já inclui a integração contra `mycity_test`) e `npm run security:secrets`. Confira a auditoria de dependências na CI da revisão ou execute `npm run security:dependencies` quando a consulta ao registry estiver autorizada. Se precisar, faça leituras na API local com as contas fictícias do seed.
 4. Verifique Git, contexto Docker, logs e workflows sem imprimir segredos. Use canários sintéticos; nunca copie credenciais reais para testes ou relatórios.
 5. Avalie limites e disponibilidade por inspeção da configuração, sem carga agressiva.
 

@@ -2,6 +2,12 @@ import { readFileSync } from 'node:fs';
 import { parse } from 'yaml';
 import { expect, it } from 'vitest';
 
+it('waits for the final PostgreSQL server to accept TCP connections before the first migration', () => {
+    const { services } = parse(readFileSync('deploy/compose.yaml', 'utf8'));
+    expect(services.db.healthcheck.test).toEqual(['CMD-SHELL', 'pg_isready -h 127.0.0.1 -U mycity -d mycity']);
+    expect(services.migrate.depends_on.db.condition).toBe('service_healthy');
+});
+
 it('uses separate database credentials for migrations and the hosted API', () => {
     const { services } = parse(readFileSync('deploy/compose.yaml', 'utf8'));
     expect(services.api.environment.DATABASE_URL).toContain('postgresql://mycity_api:');

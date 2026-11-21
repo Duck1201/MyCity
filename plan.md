@@ -15,13 +15,13 @@ O percurso principal liga cidadão, gestor e autor da denúncia. Um cidadão reg
 | 4     | Feed, mapa, confirmações, prioridade, filtros e cancelamento     | Concluída.                                                    |
 | 5     | Alertas simulados e revisão visual                               | Concluída.                                                    |
 | 6     | Publicação e homologação do APK contra a API hospedada           | Concluída no Galaxy M32 contra o servidor da demonstração.    |
-| 7     | Refinamento do app Android e limpeza do repositório              | Concluída: ajustes do app, fim do protótipo, release por tag. |
+| 7     | Refinamento do app Android e limpeza do repositório              | Concluída. Remoção do protótipo sem API e publicação por tag. |
 
 ## Aceite da entrega
 
 No Galaxy M32, o cidadão publicou uma ocorrência com fotos da câmera e da galeria e escolheu um ponto público no mapa. Outro cidadão confirmou, o gestor atendeu pelo painel e o autor consultou o histórico e o aviso no APK. A sessão e a leitura persistiram após reiniciar o aplicativo. A hospedagem passou pela rotação das contas, restrição do acesso ao banco, deploy por digest e recuperação isolada de banco e foto. Após o aceite, os dados do ensaio foram removidos.
 
-A [matriz de aceite](docs/testing.md#aceite-por-critério) liga cada critério à sua evidência. As limitações conhecidas e o que ficou sem nova medição física estão em [concerns.md](concerns.md#pendências-abertas).
+A [matriz de aceite](docs/testing.md#aceite-por-critério) liga cada critério à sua evidência. O [registro de verificações físicas](docs/testing.md#verificações-físicas-no-android) identifica o ambiente de cada ensaio no Android, e [concerns.md](concerns.md#pendências-abertas) reúne as pendências abertas.
 
 ## Depois da entrega
 

@@ -17,14 +17,14 @@ const dir = await mkdtemp(join(tmpdir(), 'mycity-reports-'));
 const citizen = { id: randomUUID(), role: 'CITIZEN' as const };
 const pageCategory = randomUUID();
 const manager = { id: randomUUID(), role: 'MANAGER' as const };
-const appFor = (actor: typeof citizen | typeof manager, transport: 'cookie' | 'bearer' = 'cookie') =>
+const appFor = (actor: typeof citizen | typeof manager, transport: 'cookie' | 'bearer' = 'cookie', database = db) =>
     express()
         .use((_req, res, next) => {
             res.locals.user = actor;
             res.locals.transport = transport;
             next();
         })
-        .use('/api/v1/reports', createReportsRouter(db, dir));
+        .use('/api/v1/reports', createReportsRouter(database, dir));
 const meta = { category: 'POTHOLE', description: 'Rua do teste', location: { latitude: 0, longitude: -40, source: 'GPS' }, showIdentity: false, clientRequestId: randomUUID() };
 const jpeg = await sharp({ create: { width: 2, height: 3, channels: 3, background: 'red' } })
     .jpeg()
@@ -330,6 +330,47 @@ it('edita e reabre a cancelada sem atendimento uma única vez, preservando priva
     expect(history).toHaveLength(3);
     expect(history[2]).toMatchObject({ type: 'STATUS_CHANGED', actorRole: 'CITIZEN', fromStatus: 'CANCELED', toStatus: 'SENT' });
     expect(await db.notification.count({ where: { reportId: report.id, status: 'SENT', recipientId: citizen.id } })).toBe(1);
+});
+
+it('edita e reabre com as permissões PostgreSQL da API hospedada', async () => {
+    const provision = await readFile(new URL('../../../deploy/provision-api.sql', import.meta.url), 'utf8');
+    const role = 'reports_api_' + randomUUID().replaceAll('-', '');
+    const restrictedUrl = new URL(url);
+    restrictedUrl.searchParams.set('options', '-c role=' + role);
+    const restrictedDb = createDatabase(restrictedUrl.href);
+
+    await db.$executeRawUnsafe('CREATE ROLE ' + role);
+    try {
+        for (const [grant] of provision.matchAll(/^GRANT [^;]+;/gm)) {
+            await db.$executeRawUnsafe(grant.replace('ON DATABASE mycity ', 'ON DATABASE mycity_test ').replace(/\bmycity_api\b/g, role));
+        }
+        expect(await restrictedDb.$queryRaw`SELECT current_user AS role`).toEqual([{ role }]);
+        const api = request(appFor(citizen, 'bearer', restrictedDb));
+        const report = (await upload({ ...meta, clientRequestId: randomUUID() }).expect(201)).body.data;
+        const path = '/api/v1/reports/' + report.id;
+        const metadata = { expectedVersion: 1, category: meta.category, description: 'Relato atualizado', showIdentity: false, location: meta.location, retainedPhotoIds: [report.photos[0].id] };
+
+        const edited = await api.patch(path).field('metadata', JSON.stringify(metadata)).expect(200);
+        expect(edited.body.data).toMatchObject({ status: 'SENT', version: 2, description: metadata.description, photos: [{ id: report.photos[0].id }] });
+        await api
+            .post(path + '/cancellation')
+            .send({ expectedVersion: 2 })
+            .expect(200);
+        const reopened = await api
+            .patch(path)
+            .field('metadata', JSON.stringify({ ...metadata, expectedVersion: 3, retainedPhotoIds: [] }))
+            .attach('photos', jpeg, 'nova.jpg')
+            .expect(200);
+        expect(reopened.body.data).toMatchObject({ status: 'SENT', version: 4 });
+        expect(reopened.body.data.photos).toHaveLength(1);
+        expect(reopened.body.data.photos[0].id).not.toBe(report.photos[0].id);
+        await api.get(report.photos[0].contentPath).expect(404);
+        await api.get(reopened.body.data.photos[0].contentPath).expect(200);
+    } finally {
+        await restrictedDb.$disconnect();
+        await db.$executeRawUnsafe('DROP OWNED BY ' + role);
+        await db.$executeRawUnsafe('DROP ROLE ' + role);
+    }
 });
 
 it('reabre com novas fotos depois do vencimento sem restaurar os anexos antigos', async () => {

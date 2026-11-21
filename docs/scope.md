@@ -34,7 +34,7 @@ O seed cria contas e denúncias fictícias no mesmo backend usado pelo APK e pel
 
 ## Fora desta entrega
 
-Cadastro público, recuperação de senha, avaliação do atendimento, chat, restrição regional do gestor, painel operacional da Defesa Civil, push/e-mail, fila de mensagens, WebSocket, dashboard separado com gráficos, geolocalização contínua, navegação de rotas, funcionamento offline completo e homologação iOS.
+Cadastro público, recuperação de senha, avaliação do atendimento, chat, filtros por região ou bairro, geocodificação, restrição regional do gestor, painel operacional da Defesa Civil, push/e-mail, fila de mensagens, WebSocket, dashboard separado com gráficos, geolocalização contínua, navegação de rotas, funcionamento offline completo e homologação iOS.
 
 Não prometer SLA de emergência ou disponibilidade 24/7. Preservar preenchimento durante uma falha de envio não significa implementar sincronização offline.
 

@@ -10,6 +10,19 @@ it('setup cria uma única conexão na configuração do desenvolvimento', () => 
     expect(new URL(template.DATABASE_URL!).pathname).toBe('/mycity');
     expect(template).not.toHaveProperty('TEST_DATABASE_URL');
 });
+
+it.each(['example.invalid:55432/mycity', '127.0.0.1:55433/mycity_test'])('setup:local recusa o destino %s sem exibir a senha', (target) => {
+    const run = spawnSync('npm', ['run', 'setup:local'], {
+        encoding: 'utf8',
+        env: { ...process.env, DATABASE_URL: 'postgresql://mycity:private-fixture@' + target },
+    });
+    expect(run.status).toBe(1);
+    expect(run.stderr).toContain('banco local mycity do Docker Compose');
+    expect(run.stderr).not.toContain('private-fixture');
+    expect(run.stdout).not.toContain('Preparando o ambiente local');
+    expect(run.stdout).not.toContain('Aplicando migrações');
+});
+
 it('o runner de integração ignora a .env de desenvolvimento e usa seu próprio alvo', () => {
     const dir = mkdtempSync(join(tmpdir(), 'mycity-test-env-'));
     try {
