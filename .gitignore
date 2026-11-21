@@ -18,3 +18,9 @@ apps/api/src/generated/
 
 # Local development photos
 /apps/api/uploads/
+
+# Local operator skills
+/.agents/skills/prod-vm/
+/.claude/skills/prod-vm/
+/.agents/skills/prod-vm-local/
+/.claude/skills/prod-vm-local/

@@ -17,5 +17,6 @@ GRANT UPDATE (modified_at) ON users TO mycity_api;
 GRANT INSERT, DELETE ON sessions, report_confirmations TO mycity_api;
 GRANT INSERT, UPDATE ON reports, report_categories TO mycity_api;
 GRANT INSERT ON report_events, report_photos, notifications TO mycity_api;
+GRANT DELETE ON report_photos TO mycity_api;
 GRANT UPDATE (read_at, modified_at) ON notifications TO mycity_api;
 COMMIT;

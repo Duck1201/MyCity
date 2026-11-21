@@ -4,25 +4,38 @@ Para executar o MyCity no seu computador, siga o [README](../README.md#executar-
 
 ## Ambiente local
 
-- **Portas.** No `.env` da raiz, `WEB_PORT` define a porta do painel (padrão 8090) e `PORT` a porta da API (padrão 3000). Reinicie `npm run dev` ou os dois processos `dev:api` e `dev:web`. Variáveis exportadas no terminal têm precedência sobre as respectivas chaves do arquivo.
-- **Senhas.** No banco de desenvolvimento acessado em loopback, edite a variável da conta e reinicie a API para atualizar a senha da conta habilitada e revogar suas sessões. As senhas podem coincidir nesse ambiente. Bancos em outros destinos e contas legadas exigem [rotação explícita](#rotação-das-senhas-de-demonstração).
+- **Portas no desenvolvimento.** No `.env` da raiz, `WEB_PORT` define a porta do painel (padrão 8090) e `PORT` a porta da API (padrão 3000). Reinicie `npm run dev` ou os dois processos `dev:api` e `dev:web`. Variáveis exportadas no terminal têm precedência sobre as respectivas chaves do arquivo.
+- **Senhas no desenvolvimento.** Com a API executada no host e o banco de desenvolvimento em loopback, edite a variável da conta e reinicie a API para atualizar a senha da conta habilitada e revogar suas sessões. As senhas podem coincidir nesse modo. No Compose e para contas legadas, use a [rotação explícita](#rotação-das-senhas-de-demonstração).
 - **Dados.** `npm run db:seed` cria contas e denúncias fictícias ausentes e preserva registros, fotos e senhas existentes. Se você quiser zerar o banco local `mycity`, encerre o desenvolvimento e as outras conexões, confira host, porta e banco em `DATABASE_URL` e só então use `npm run db:reset`. O reset apaga os dados locais e reaplica as migrações. Execute o seed depois para repor os exemplos. Reserve `mycity_test` para a [suíte automatizada](testing.md#desenvolvimento-e-ciclo-do-banco).
 - **Contratos.** Após editar `packages/contracts` durante a sessão, execute `npm run build:contracts` para atualizar o pacote consumido pela API.
 
+### Preparar um banco de desenvolvimento personalizado
+
+Use `npm run setup` para preparar o código e o `.env`. Inicie seu PostgreSQL de desenvolvimento e confira se `DATABASE_URL` aponta para ele antes de executar `npm run db:migrate` e `npm run db:seed`. Por fim, inicie a API e o painel com `npm run dev`. O início rápido com `npm run setup:local` usa o PostgreSQL do Compose da raiz.
+
 ### Executar com Docker Compose
 
-Para executar as versões compiladas da API e do painel em containers, encerre o Vite e use o Compose da raiz com o `.env` preparado no início rápido. O seed no Compose exige três senhas de demonstração distintas.
+Com Docker em execução, encerre `npm run dev` se estiver aberto e rode na raiz:
 
 ```bash
-docker compose up -d --wait db
-docker compose --profile tools run --rm --build migrate
-docker compose --profile tools run --rm --build seed
-docker compose up -d --build --wait api web
+bash scripts/docker-local.sh
 ```
 
-Abra o painel em `http://localhost:8090` (ou na porta `WEB_PORT`). Confira a API pelo painel em `/api/v1/health/ready`. O Compose guarda banco e anexos nos volumes `database` e `photos`. Os processos de desenvolvimento usam arquivos de upload no host. Use a receita com um banco vazio ou já preparado nesse mesmo modo. Se quiser reaproveitar registros de um modo no outro, preserve também o armazenamento de fotos correspondente. O seed preserva a foto de uma denúncia já criada.
+O script usa um container Node para criar o `.env` quando ele está ausente. Se já existir um arquivo, confira se contém as três senhas distintas de demonstração. As credenciais das contas ficam no `.env`. Use as chaves da [tabela de contas](../README.md#contas-de-demonstração) para entrar.
 
-Para liberar a porta do painel antes de voltar ao Vite, use `docker compose stop web api`. Para publicar em HTTPS, siga o [guia de publicação](deploy.md#preparar-um-servidor).
+| Acesso a partir do host       | Padrão                                      | Configuração            |
+| ----------------------------- | ------------------------------------------- | ----------------------- |
+| Painel                        | `http://localhost:8090`                     | `WEB_PORT`              |
+| Prontidão da API pelo painel  | `http://localhost:8090/api/v1/health/ready` | A mesma porta do painel |
+| PostgreSQL de desenvolvimento | `127.0.0.1:55432`                           | `DATABASE_PORT`         |
+
+O Compose conecta a API ao serviço `db` pela rede interna. Se mudar `DATABASE_PORT` e também usar a API no host, atualize a porta em `DATABASE_URL`. Se mudar `WEB_PORT` com `WEB_ORIGIN` já definida, ajuste a origem para a URL usada no navegador. A prévia mobile e o Android com a API local usam o [ambiente de desenvolvimento](../README.md#para-desenvolver).
+
+- **Subir ou atualizar.** Rode o script novamente ou, com o `.env` preparado, execute `docker compose up -d --build --wait web`. A sequência é banco, migrações, seed, API e painel. Para uma migração incompatível, pare a API antiga e faça backup antes de atualizar.
+- **Diagnosticar.** Use `docker compose ps -a` e `docker compose logs db migrate seed api web`. `migrate` e `seed` terminam com código 0 quando concluem.
+- **Encerrar.** Use `docker compose down` para preservar os volumes `database` e `photos`. A opção `--volumes` remove os dois, incluindo os registros e anexos locais. Para liberar a porta do painel mantendo o banco ativo, use `docker compose stop web api`.
+
+O Compose e a API executada no host usam o mesmo PostgreSQL na configuração padrão. Preserve `POSTGRES_PASSWORD` ao reutilizar o volume do banco. No Compose, os anexos ficam no volume `photos`. Na API executada no host, ficam em `apps/api/uploads` por padrão. Ao trocar de modo e reaproveitar o banco, leve junto o armazenamento das fotos. Para um servidor público com HTTPS, siga o [guia de hospedagem](deploy.md#preparar-um-servidor).
 
 ## Demonstrar os alertas simulados
 
@@ -30,15 +43,17 @@ Entrar no app com uma conta de cidadão e abrir **Alertas**. Conferir os três n
 
 ## Cadastrar uma categoria
 
-No painel, abra **Categorias**, preencha **Nome da categoria** e clique em **Adicionar categoria**. O novo nome já pode ser escolhido no filtro da fila e na criação de denúncias pelo app atualizado. O cadastro independe de já existirem ocorrências do grupo. Nomes que diferem apenas em maiúsculas, acentos ou espaços repetidos são tratados como duplicados.
+No painel, abra **Categorias** e clique em **Adicionar categoria**. Preencha **Nome da categoria**, confira o ícone e clique em **Salvar categoria**. A categoria fica disponível no filtro da fila e na criação de denúncias pelo app atualizado. O cadastro independe de já existirem ocorrências do grupo. Nomes que diferem apenas em maiúsculas, acentos ou espaços repetidos são tratados como duplicados.
 
 ### Atualizar uma instalação anterior ao catálogo
 
 Antes da migração `20261119110000_report_category_catalog`, construa as imagens novas, preserve o arquivo de ambiente e faça backup do PostgreSQL e das fotos. Interrompa a API antiga antes de converter o enum em chave estrangeira, aplique `db:migrate` e inicie API e web atualizadas sobre os mesmos volumes. As seis categorias originais são criadas pela migração. Em caso de reversão para o binário antigo após a migração, recupere também o backup compatível do banco.
 
+No Compose local, depois de parar a API antiga e fazer o backup, use `bash scripts/docker-local.sh` para aplicar a migração e subir o painel atualizado.
+
 ## Demonstrar participação
 
-No app, crie uma denúncia com o cidadão A. Entre como cidadão B, abra a ocorrência no Feed ou no Mapa e toque em “Também vi isso”. A fila de gestão prioriza os casos ativos com mais confirmações; os filtros de categoria e status permitem acompanhar o mesmo registro. O cidadão B pode retirar sua confirmação enquanto o caso estiver ativo. Em Minhas denúncias, A pode cancelar em Enviado ou Em análise. O caso cancelado permanece para A e para o gestor e deixa as consultas públicas autenticadas.
+No app, crie uma denúncia com o cidadão A. Entre como cidadão B, abra a ocorrência no **Feed** ou no **Mapa** e toque em **Também vi isso**. Com a ordenação por **Prioridade**, a fila de gestão mostra primeiro as denúncias ativas com mais confirmações. O cidadão B pode retirar sua confirmação enquanto o caso estiver ativo. Em **Meus registros**, A pode cancelar em Enviado ou Em análise. A denúncia cancelada sai do feed e do mapa e permanece em **Meus registros**. Ela continua acessível ao gestor se ele já alterou a situação ou registrou uma resposta.
 
 ## Rotação das senhas de demonstração
 
@@ -47,7 +62,7 @@ Em um ambiente que usava `DEMO_PASSWORD`, configure três novos segredos aleató
 Confira o banco de destino e execute **uma** das opções abaixo, conforme o ambiente. A rotação exige as três contas já provisionadas e troca as senhas em uma única transação. Entregue cada nova senha apenas ao responsável pela conta e retire a variável legada após a troca. Faça isso antes de habilitar o login HTTP nesse ambiente.
 
 - Execução local: `npm run db:rotate-demo-passwords -w @mycity/api`.
-- Compose local: `docker compose --profile tools run --rm --build seed npm run db:rotate-demo-passwords -w @mycity/api`.
+- Compose local, com o PostgreSQL já em execução e migrado: `docker compose run --rm --no-deps --build seed npm run db:rotate-demo-passwords -w @mycity/api`.
 - Servidor: veja [o `.env.production`](deploy.md#o-envproduction).
 
 Para uma instalação vazia, use o seed normal. Se faltar uma conta em uma instalação anterior, o seed cria a conta ausente e preserva as demais. Depois execute a rotação para substituir as credenciais antigas.
@@ -64,7 +79,7 @@ Para usar um endereço explícito no app, defina `EXPO_PUBLIC_API_URL` terminand
 
 ### Testar com a API local
 
-Inicie a API no computador conforme o [início rápido](../README.md#executar-localmente). Em outro terminal, execute `npm run dev:mobile` para iniciar o Metro. Com o SDK Android e um dispositivo ou emulador disponíveis, use `npm run android -w @mycity/mobile -- --no-bundler` para compilar e instalar a variante de desenvolvimento com esse Metro. O app usa a porta da API configurada em `PORT`, ou `EXPO_PUBLIC_API_PORT` quando definida. Reinicie o Metro ao mudar a configuração.
+Inicie a API no computador conforme o [início rápido](../README.md#para-desenvolver). Em outro terminal, execute `npm run dev:mobile` para iniciar o Metro. Com o SDK Android e um dispositivo ou emulador disponíveis, use `npm run android -w @mycity/mobile -- --no-bundler` para compilar e instalar a variante de desenvolvimento com esse Metro. O app usa a porta da API configurada em `PORT`, ou `EXPO_PUBLIC_API_PORT` quando definida. Reinicie o Metro ao mudar a configuração.
 
 Para um aparelho físico, mantenha computador e celular na mesma rede confiável. Se precisar indicar a API manualmente, use o IP do computador na LAN em `EXPO_PUBLIC_API_URL`, com a porta e o sufixo `/api/v1`. Se o Swagger estiver habilitado com `API_DOCS_ENABLED=true` no ambiente de desenvolvimento, a API escuta só em loopback. Desabilite-o e reinicie a API para permitir teste pela LAN.
 
@@ -82,7 +97,7 @@ Quem distribui o APK configura o mapa para seu pacote e certificado. Use um proj
 
 ### Gerar o APK assinado localmente
 
-Execute na raiz do checkout de desenvolvimento existente, com as [dependências do início rápido](../README.md#executar-localmente) instaladas. A CI usa JDK 21, SDK Android 37, build-tools 37.0.0, NDK 27.1.12297006 e CMake 3.22.1. Use o ADB para testar via USB. O prebuild carrega a chave de mapas do arquivo privado na raiz e gera ou atualiza `apps/mobile/android/`, que fica fora do Git. Para distribuir uma versão com a API da demonstração, use o APK publicado no GitHub Release, conforme a seção seguinte. [Workflow de release](../.github/workflows/release.yml)
+Execute na raiz do checkout de desenvolvimento existente, com as [dependências do início rápido](../README.md#para-desenvolver) instaladas. A CI usa JDK 21, SDK Android 37, build-tools 37.0.0, NDK 27.1.12297006 e CMake 3.22.1. Use o ADB para testar via USB. O prebuild carrega a chave de mapas do arquivo privado na raiz e gera ou atualiza `apps/mobile/android/`, que fica fora do Git. Para distribuir uma versão com a API da demonstração, use o APK publicado no GitHub Release, conforme a seção seguinte. [Workflow de release](../.github/workflows/release.yml)
 
 Defina `ANDROID_BUILD_TOOLS` como o diretório dos build-tools instalados, `RELEASE_KEYSTORE` como o caminho absoluto do keystore com alias `mycity-release`, `RELEASE_PASSWORD_FILE` como o arquivo privado com sua senha e `SIGNED_APK` como o caminho absoluto do APK final fora do Git. Guarde o keystore e uma cópia recuperável sob controle do responsável. O exemplo usa a API da demonstração. Para sua própria instalação, substitua o endereço por uma URL HTTPS acessível ao celular, terminada em `/api/v1`, e provisione as contas nessa instalação.
 
@@ -107,7 +122,7 @@ Confira o pacote `br.edu.mycity.app` e o SHA-1 do signatário contra a restriç�
 
 ### Baixar o APK publicado
 
-Cada versão publicada por tag traz `mycity.apk` e `mycity.apk.sha256` na página **Releases** do GitHub. Baixe os dois e rode `sha256sum --check mycity.apk.sha256` antes de instalar. O [fluxo de entrega](deploy.md#fluxo-de-entrega) explica como o APK é gerado e assinado.
+Na página **Releases** do GitHub, procure `mycity.apk` e `mycity.apk.sha256` na mesma versão. Esses arquivos ficam disponíveis após a conclusão do job **Sign and publish Android APK**. Baixe os dois e rode `sha256sum --check mycity.apk.sha256` antes de instalar. O [fluxo de entrega](deploy.md#fluxo-de-entrega) explica como o APK é gerado e assinado.
 
 ## Roteiro da apresentação
 
@@ -125,7 +140,7 @@ Cada versão publicada por tag traz `mycity.apk` e `mycity.apk.sha256` na págin
 | 10    | Usar outra denúncia para rejeitar                   | Exige justificativa em Em análise.                         |
 | 11    | Abrir alertas climáticos                            | Três níveis claramente simulados, sem afirmar envio real.  |
 
-Para demonstrar a correção, use **Voltar para análise** após iniciar um atendimento. O gestor só pode desfazer o último avanço. Em uma encerrada, **Reabrir solicitação** retorna a Em análise e mantém o encerramento no histórico. Preparar fotos apropriadas sem expor terceiros.
+Para demonstrar a correção, use **Voltar para análise** após iniciar um atendimento. O gestor só pode desfazer o último avanço. Para uma denúncia encerrada que o gestor consegue consultar, **Reabrir solicitação** retorna a Em análise e mantém o encerramento no histórico. Prepare fotos apropriadas sem expor terceiros.
 
 ### Descartar os dados da homologação
 

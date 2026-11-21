@@ -40,7 +40,7 @@ modifiedAt DateTime @default(now()) @updatedAt @map("modified_at")
 - A propriedade e a coluna chamam-se `password`. Seu conteúdo continua sendo **hash seguro**, nunca senha em texto puro.
 - Não mudar o algoritmo ou recalcular hashes apenas para renomear a coluna. O código atual usa scrypt; os hashes existentes são preservados na migração.
 - Não serializar `password` em DTOs, respostas, logs ou documentação de exemplos. Selecionar explicitamente os campos retornados.
-- O provisionamento hospedado e a rotação explícita exigem senhas distintas para as três contas de demonstração. O seed e a sincronização do ambiente local permitem senhas iguais ao usar o banco de desenvolvimento em loopback. [Operação das credenciais de demonstração](runbook.md#rotação-das-senhas-de-demonstração)
+- O seed no Compose local, o provisionamento hospedado e a rotação explícita exigem senhas distintas para as três contas de demonstração. No desenvolvimento com a API no host e o banco em loopback, o seed e a sincronização permitem senhas iguais. [Operação das credenciais de demonstração](runbook.md#rotação-das-senhas-de-demonstração)
 
 ## Relações e constraints
 
@@ -75,6 +75,6 @@ npm run format:check
 
 ## Critério de revisão
 
-Antes de aprovar uma alteração Prisma, conferir: mapeamentos físicos, timestamps, hashes não expostos, compatibilidade do SQL, preservação de dados, recuperação e testes reais. Antes de lançar uma versão com migração, rode os revisores `security-reviewer` e `regression-reviewer` descritos no [AGENTS.md](../AGENTS.md#fluxo-de-uma-mudança).
+Antes de aprovar uma alteração Prisma, confira mapeamentos físicos, timestamps, proteção dos hashes, compatibilidade do SQL, preservação de dados, recuperação e testes reais. Antes de criar a tag, siga a etapa de release no [AGENTS.md](../AGENTS.md#fluxo-de-uma-mudança).
 
 Consulte o SQL da [migração de usuários para CPF](../apps/api/prisma/migrations/20261119040000_user_cpf_mapping/migration.sql).

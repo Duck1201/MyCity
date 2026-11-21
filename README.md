@@ -1,72 +1,100 @@
-# MyCity
+<p align="center">
+  <img src="apps/mobile/assets/icon.png" width="72" height="72" alt="">
+</p>
 
-O MyCity ajuda cidadãos a registrar problemas urbanos com fotos e localização. Quem registra acompanha o atendimento pelo app Android. No painel web, a equipe de gestão organiza a fila, responde aos relatos e atualiza a situação de cada denúncia.
+<h1 align="center">MyCity</h1>
 
-[Executar localmente](#executar-localmente) · [Usar no Android](#usar-o-app-android) · [Hospedar e manter](docs/deploy.md#preparar-um-servidor) · [Contribuir](#contribuir)
+<p align="center"><strong>Sua cidade, sua voz</strong></p>
+
+<p align="center">Denúncias urbanas com foto e localização, do registro ao atendimento.</p>
+
+<p align="center">
+  <a href="https://github.com/Duck1201/MyCity/actions/workflows/ci.yml"><img src="https://github.com/Duck1201/MyCity/actions/workflows/ci.yml/badge.svg?branch=main" alt="Status da integração contínua"></a>
+</p>
+
+<p align="center">
+  <a href="#veja-como-funciona">Capturas</a> ·
+  <a href="#executar-localmente">Instalação local</a> ·
+  <a href="#usar-o-app-android">Android</a> ·
+  <a href="#guias">Guias</a> ·
+  <a href="#referências-do-projeto">Referências</a>
+</p>
 
 ## Veja como funciona
 
 ### Painel do gestor
 
-Em **Atendimento**, o gestor encontra os relatos, filtra por categoria e situação e abre cada ocorrência para consultar fotos, localização e histórico. A captura mostra as denúncias fictícias carregadas pelo seed no banco local.
+Em **Atendimento**, o gestor filtra a fila por categoria, situação ou período. No detalhe da denúncia, pode consultar fotos, localização e histórico, responder ao relato e atualizar sua situação. O [painel da demonstração](https://mycity.private-gateway.site:8080) exige uma conta de gestor fornecida pelo responsável.
 
 ![Fila de atendimento do gestor com denúncias, filtros e situações](docs/images/manager-dashboard.png)
 
 ### App do cidadão
 
-Em **Início**, o cidadão acompanha os próprios registros e pode abrir uma nova denúncia. No **Feed**, consulta ocorrências da cidade e pode confirmar que viu o mesmo problema.
+Em **Início**, o cidadão acompanha os próprios registros e pode abrir uma nova denúncia. No **Feed**, consulta as ocorrências ativas da comunidade e pode confirmar que viu o mesmo problema.
 
 <p align="center">
-  <img src="docs/images/citizen-app.png" width="280" alt="Tela Início, com resumo da cidade e registros do cidadão">
-  <img src="docs/images/citizen-feed.png" width="280" alt="Tela Feed, com ocorrências ativas e seus estados">
+  <img src="docs/images/citizen-app.png" width="280" alt="Tela Início com os registros do cidadão, suas situações e uma ocorrência da comunidade">
+  <img src="docs/images/citizen-feed.png" width="280" alt="Feed com denúncias ativas, fotos e a ação Também vi isso">
 </p>
 
-No Android, o app e o painel compartilham a API e o PostgreSQL. Os alertas climáticos são simulados.
+As capturas mostram exemplos fictícios do seed no banco local. As telas do cidadão foram capturadas na [prévia do app no navegador](docs/runbook.md#prévia-do-cidadão-no-navegador). Os alertas climáticos são simulados.
 
 ## Executar localmente
 
-Você precisa de **Git, Node.js 24.11 ou superior na linha 24, npm 11 e Docker com Compose**. Use um terminal em Linux, macOS ou WSL com acesso ao Docker. A versão de Node usada na CI está em [`.nvmrc`](.nvmrc). Se já tem o checkout, comece em `npm ci` na raiz.
+### Com Docker
+
+Baixe o projeto e, na raiz, execute em um terminal Bash no Linux, macOS ou WSL. Basta ter Docker com Compose.
+
+```bash
+bash scripts/docker-local.sh
+```
+
+O comando cria o `.env` se necessário, compila a API e o painel, aplica as migrações e carrega os dados fictícios. Abra o [painel local](http://localhost:8090) com a [conta de gestor](#contas-de-demonstração). Para ajustar portas, parar ou atualizar, siga o [guia do Compose local](docs/runbook.md#executar-com-docker-compose).
+
+### Para desenvolver
+
+Você precisa de **Git, Node.js 24.11 ou superior na linha 24, npm 11 e Docker com Compose**. Use Linux, macOS ou WSL com acesso ao Docker. A versão de Node usada na CI está em [`.nvmrc`](.nvmrc). Se já tem o checkout, comece em `npm ci` na raiz.
 
 ```bash
 git clone https://github.com/Duck1201/MyCity.git
 cd MyCity
 npm ci
-npm run setup
-```
-
-O setup gera o cliente Prisma, compila os contratos e cria um `.env` com senhas locais aleatórias. Se o arquivo já existe, ele é preservado. Confira se `DATABASE_URL` aponta para o banco de desenvolvimento que você pretende usar antes de migrar e semear.
-
-```bash
-docker compose up -d --wait db
-npm run db:migrate
-npm run db:seed
+npm run setup:local
 npm run dev
 ```
 
-Abra **<http://localhost:8090>** e entre como gestor com o CPF **`00000000003`** e a senha de `DEMO_MANAGER_PASSWORD` no seu `.env`. O seed prepara também os cidadãos `00000000001` e `00000000002`, com senhas em `DEMO_CITIZEN_A_PASSWORD` e `DEMO_CITIZEN_B_PASSWORD`. São contas fictícias provisionadas na instalação.
+O `setup:local` cria o `.env` com senhas aleatórias se ele ainda não existir, gera o cliente Prisma, compila os contratos, inicia o PostgreSQL do Compose e aplica as migrações e o seed. Rode novamente quando precisar aplicar migrações ou carregar exemplos ausentes. Para usar outro PostgreSQL, siga o [guia de banco personalizado](docs/runbook.md#preparar-um-banco-de-desenvolvimento-personalizado).
 
-Abra **Atendimento** para explorar os exemplos. A API atende em **<http://localhost:3000/api/v1/health/ready>** para a verificação de saúde. Ctrl+C encerra o painel e a API.
+Em desenvolvimento, confira a [saúde da API](http://localhost:3000/api/v1/health/ready). Para mudar portas, consulte o [guia de ambiente local](docs/runbook.md#ambiente-local).
 
-Para testar como cidadão no navegador, mantenha `npm run dev` rodando e execute `npm run dev:mobile:web` em outro terminal. Abra **<http://localhost:8093>** e entre com uma das contas de cidadão do seed. A prévia usa a mesma API e o mesmo banco de desenvolvimento do painel: uma denúncia enviada ou reaberta no mobile web aparece em **Atendimento**.
+### Contas de demonstração
 
-Para mudar portas, configurar a API do celular ou executar a versão compilada em containers, consulte o [guia de ambiente local](docs/runbook.md#ambiente-local).
+Abra o [painel local](http://localhost:8090) com a conta de gestor e selecione **Atendimento**. Para experimentar a jornada do cidadão, use uma das contas abaixo na [prévia do app no navegador](docs/runbook.md#prévia-do-cidadão-no-navegador) com `npm run dev` em execução.
+
+| Perfil    | CPF fictício  | Chave da senha no `.env`  |
+| --------- | ------------- | ------------------------- |
+| Gestor    | `00000000003` | `DEMO_MANAGER_PASSWORD`   |
+| Cidadão A | `00000000001` | `DEMO_CITIZEN_A_PASSWORD` |
+| Cidadão B | `00000000002` | `DEMO_CITIZEN_B_PASSWORD` |
 
 ## Usar o app Android
 
-Instale um APK configurado para a API que você pretende usar, em um dispositivo com Android 7.0 (API 24) ou superior. Entre com a conta de cidadão fornecida pelo responsável pela instalação. Autorize a câmera e a localização quando usar esses recursos.
+Baixe `mycity.apk` e o arquivo de verificação correspondente em [GitHub Releases](https://github.com/Duck1201/MyCity/releases). O APK usa a API da demonstração e requer Android 7.0 ou superior. Veja as [instruções de instalação](docs/runbook.md#baixar-o-apk-publicado).
 
-O guia de Android explica como testar com o ambiente local, baixar o APK de uma versão publicada e gerar um APK assinado com a URL da sua API e a configuração do mapa. [Configuração do Android](docs/runbook.md#configuração-do-android)
+Entre com a conta de cidadão fornecida pelo responsável pela instalação. Autorize a câmera e a localização quando usar esses recursos. Para configurar outra API, veja como [testar com a API local](docs/runbook.md#testar-com-a-api-local) ou [gerar um APK assinado](docs/runbook.md#gerar-o-apk-assinado-localmente).
 
 ## Guias
 
-| Quero…                                      | Onde começar                                                                                                       |
-| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| Explorar a demonstração hospedada           | [Painel da demonstração](https://mycity.private-gateway.site:8080), com conta de gestor fornecida pelo responsável |
-| Registrar ou atender uma denúncia           | [Primeiros passos por perfil](docs/flows.md#primeiros-passos)                                                      |
-| Instalar e operar minha própria instância   | [Hospedagem própria](docs/deploy.md#preparar-um-servidor)                                                          |
-| Atualizar uma instalação ou recuperar dados | [Operação e recuperação](docs/deploy.md#backup)                                                                    |
-| Integrar ou entender o código               | [Contrato HTTP](docs/api/contract.md) e [arquitetura](docs/architecture.md)                                        |
-| Entender o recorte do MVP                   | [Escopo](docs/scope.md) e [decisões pendentes](concerns.md)                                                        |
+| Assunto                           | Onde começar                                                                                    |
+| --------------------------------- | ----------------------------------------------------------------------------------------------- |
+| Registrar ou atender uma denúncia | [Primeiros passos por perfil](docs/flows.md#primeiros-passos)                                   |
+| Hospedar o MyCity                 | [Preparação do servidor](docs/deploy.md#preparar-um-servidor) e [backup](docs/deploy.md#backup) |
+| Integrar ou entender o código     | [Contrato HTTP](docs/api/contract.md) e [arquitetura](docs/architecture.md)                     |
+| Entender o recorte do MVP         | [Escopo](docs/scope.md) e [decisões pendentes](concerns.md)                                     |
+
+### Referências do projeto
+
+A pasta [`docs/references/`](docs/references/) reúne o material acadêmico original do MyCity, incluindo [escopo](docs/references/escopo-do-projeto.md), [requisitos](docs/references/requisitos.md), [personas e mapa de empatia](docs/references/personas-mapa-de-empatia.md), [diagrama](docs/references/diagrama-de-casos-de-uso.md), [casos de uso estendidos](docs/references/casos-de-uso-estendidos.md) e [wireframes](docs/references/wireframes/).
 
 ## Contribuir
 
@@ -76,7 +104,7 @@ Encontrou uma vulnerabilidade? Use o [canal privado de segurança](SECURITY.md).
 
 ### Testes e qualidade
 
-Em uma instalação local já preparada, inicie o PostgreSQL de testes e rode as verificações:
+Com o [ambiente de desenvolvimento](#para-desenvolver) preparado no host, inicie apenas o PostgreSQL de testes e rode as verificações na raiz:
 
 ```bash
 docker compose --profile test up -d --wait test-db

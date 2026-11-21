@@ -37,6 +37,7 @@
         "db:seed": "npm run db:seed -w @mycity/api",
         "check": "npm run docs:check -w @mycity/api && npm run lint && npm run typecheck && npm test && npm run build",
         "setup": "node scripts/setup-env.mjs && npm run db:generate -w @mycity/api && npm run build:contracts",
+        "setup:local": "node scripts/setup-local.mjs",
         "security:secrets": "node scripts/security/secrets.mjs",
         "security:dependencies": "npm audit --package-lock-only --audit-level=high",
         "security:check": "npm run security:secrets && npm run security:dependencies"

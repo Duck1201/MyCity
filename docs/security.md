@@ -10,11 +10,14 @@ Para entrar em contato sobre uma vulnerabilidade, siga o [procedimento de relato
 - Denúncias, fotos, mapa e histórico exigem autenticação. As restrições de propriedade e de visibilidade por status são verificadas em cada operação.
 - Adotar negação por padrão nas rotas de negócio. Rotas públicas são exceções explícitas, como login e saúde genérica do serviço.
 - Papel e identidade vêm da sessão validada no servidor. Não confiar em campos enviados pelo cliente, URL, estado da interface ou ocultação de botões.
-- Sessões expiram em 24 horas sem renovação automática. O logout revoga a sessão atual e pede ao navegador, com `Clear-Site-Data: "cache"`, que apague o cache HTTP do domínio; um 401 para uma sessão apresentada e inválida faz o mesmo. Leituras da API só ficam no cache do navegador para revalidação (`private, no-cache` com ETag), e o painel guarda as últimas leituras apenas em memória, durante a sessão do gestor, sem `localStorage` nem IndexedDB. A web usa cookie `HttpOnly`, `Secure` e `SameSite=Lax`. O Android usa Bearer salvo no armazenamento seguro do dispositivo. As fotos das denúncias ficam no cache de disco do `expo-image` (sandbox do app) e são apagadas, com o cache de memória, ao sair e quando a sessão expira. As leituras do próprio cidadão (os próprios registros, o detalhe e o histórico das próprias denúncias, notificações, alertas e categorias) ficam em arquivo no diretório de cache do app, por até 7 dias e separadas por usuário, para a tela abrir com conteúdo; feed, mapa, resolvidas da cidade e denúncias de outras pessoas não são gravados. O arquivo é apagado ao sair, quando a sessão expira e quando a API responde 403 ou 404.
+- Sessões expiram em 24 horas sem renovação automática. O logout revoga a sessão e envia `Clear-Site-Data: "cache"` para o navegador apagar o cache HTTP do domínio. Um 401 para uma sessão apresentada e inválida faz o mesmo. As leituras de negócio do painel ficam no cache HTTP para revalidação (`private, no-cache` com ETag). O cache mantido pelo painel fica em memória durante a sessão do gestor. O painel usa cookie `HttpOnly`, `Secure` e `SameSite=Lax`. O Android usa Bearer em armazenamento seguro, enquanto a prévia web do cidadão guarda a sessão em memória.
+- No Android, fotos de denúncias usam o cache do `expo-image`. A saída e a expiração da sessão acionam a limpeza desse cache em disco e em memória. O app restaura do diretório de cache, por usuário, as leituras com até sete dias dos próprios registros, detalhes, históricos e das listas de notificações, alertas e categorias. Feed, mapa, resolvidas da cidade e registros de outros cidadãos ficam fora desse arquivo. O app solicita sua remoção ao sair, quando a sessão expira ou quando a API responde 403 ou 404.
 - Senhas das contas de demonstração são fornecidas por configuração protegida, nunca pelo código público ou por exemplos de teste. O seed preserva credenciais existentes.
 - Proteger o login contra tentativas repetidas e operações por cookie contra CSRF. Os limites da janela de 15 minutos e o cabeçalho de proteção da web estão no [contrato HTTP](api/contract.md).
 
 A API aplica cotas por IP antes da leitura do corpo do login, da consulta de prontidão e da entrega da documentação habilitada. As cotas são independentes por processo. A implantação hospedada usa uma instância da API e dois proxies (Caddy e Nginx). Os limites e a resposta HTTP 429 estão no [contrato HTTP](api/contract.md).
+
+Na implantação, a API usa o papel PostgreSQL restrito `mycity_api`. Na edição, esse papel pode substituir as linhas de `report_photos` dentro da mesma transação que atualiza a denúncia. A autorização continua sendo verificada pelo servidor antes de alterar os vínculos.
 
 O Nginx aplica ao painel uma CSP que carrega scripts e fontes da mesma origem e permite imagens da mesma origem ou incorporadas como dados. Estilos inline atendem à galeria e ao redimensionamento da navegação. A política bloqueia objetos, alteração de URL base e incorporação em frames. Também envia `X-Frame-Options: DENY` e `Referrer-Policy: strict-origin-when-cross-origin`, inclusive nas respostas de erro.
 
@@ -40,7 +43,7 @@ Testar pela API e pelas interfaces dos clientes:
 4. Upload com quantidade, tipo ou tamanho inválido: rejeição sem denúncia parcial ou arquivo acessível.
 5. Dados, senhas e tokens não aparecem em respostas indevidas, bundles, logs ou mensagens de erro.
 
-Os cenários são detalhados em `docs/testing.md`. Não considerar a proteção entregue apenas por existirem telas de login, documentação ou bloqueios no frontend.
+Os cenários são detalhados na [estratégia de testes](testing.md). Não considerar a proteção entregue apenas por existirem telas de login, documentação ou bloqueios no frontend.
 
 ## Estado atual
 
@@ -52,4 +55,4 @@ O login usa CPF e senha próprios. Nome e foto de perfil aparecem quando o autor
 
 Rode `npm run security:check` e as verificações funcionais aplicáveis. O workflow de release refaz a varredura de segredos e a auditoria antes de publicar imagens: segredos no histórico ou no conteúdo e vulnerabilidades altas ou críticas bloqueiam a versão; as demais ficam visíveis para triagem.
 
-Antes de criar a tag, o revisor `security-reviewer` avalia as fronteiras alteradas, independentemente do autor da mudança, e o `regression-reviewer` repete as jornadas das personas. Achados bloqueantes são corrigidos e reavaliados antes da tag.
+Antes de criar a tag, use os revisores indicados no [AGENTS.md](../AGENTS.md#fluxo-de-uma-mudança). O revisor de segurança avalia as fronteiras alteradas independentemente do autor da mudança, e o de regressão repete as jornadas das personas. Achados bloqueantes são corrigidos e reavaliados antes da tag.

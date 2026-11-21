@@ -43,6 +43,7 @@ export function addBusinessPaths(doc) {
         headers: { 'Retry-After': { schema: { type: 'integer', minimum: 1 } } },
         content: json({ type: 'object', required: ['error'], properties: { error: { type: 'object', required: ['code', 'message'], properties: { code: { type: 'string', enum: ['TOO_MANY_REQUESTS'] }, message: string } } } }),
     };
+    const uploadLimited = { ...limited, description: 'Limite de envios por cidadão ou de uploads simultâneos atingido.' };
     for (const route of ['/health/live', '/health/ready']) doc.paths[prefix + route].get.responses[429] = limited;
     doc.components.securitySchemes = { WebSession: { type: 'apiKey', in: 'cookie', name: '__Host-mycity' }, AndroidSession: { type: 'http', scheme: 'bearer' } };
     const alertProperties = {
@@ -63,7 +64,9 @@ export function addBusinessPaths(doc) {
         properties: { id: string, reportId: string, reportEventId: string, type: { type: 'string', enum: ['STATUS_CHANGED'] }, fromStatus: statusFilter.schema, status: statusFilter.schema, createdAt: { type: 'string', format: 'date-time' }, readAt: { type: 'string', format: 'date-time', nullable: true } },
     };
     const icon = { type: 'string', enum: ['road', 'lighting', 'waste', 'water', 'debris', 'trees', 'access', 'cycling', 'transit', 'works', 'walkway', 'signs', 'drainage', 'energy'] };
-    const category = { type: 'object', required: ['id', 'name', 'archived'], properties: { id: string, name: string, icon, reportCount: { type: 'integer', minimum: 0, description: 'Contagem no catálogo do gestor.' }, archived: { type: 'boolean' } } };
+    const categoryFields = { id: string, name: string, archived: boolean };
+    const category = object({ ...categoryFields, icon }, Object.keys(categoryFields));
+    const catalogCategory = object({ ...category.properties, reportCount: { ...count, description: 'Contagem no catálogo do gestor.' } }, category.required);
     const categoryName = { type: 'object', required: ['name'], additionalProperties: false, properties: { icon, name: { type: 'string', minLength: 1, maxLength: 80 } } };
     const archiveCategory = { type: 'object', required: ['archived'], additionalProperties: false, properties: { archived: { type: 'boolean' } } };
     const location = object({ latitude, longitude, source: { ...string, enum: ['GPS', 'MANUAL'] } });
@@ -97,21 +100,22 @@ export function addBusinessPaths(doc) {
         properties: {
             counts: ref('ReportStatusCounts'),
             oldest: { type: 'object', nullable: true, required: ['id', 'createdAt'], properties: { id: string, createdAt: { type: 'string', format: 'date-time' } } },
-            categories: { type: 'array', items: { ...category, required: [...category.required, 'count'], properties: { ...category.properties, icon: string, count } } },
+            categories: array(object({ ...categoryFields, icon, count })),
             priorities: { type: 'array', maxItems: 3, items: { type: 'object', required: ['id', 'category', 'description', 'status', 'confirmationCount', 'createdAt'], properties: { id: string, category: string, description: string, status: statusFilter.schema, confirmationCount: count, createdAt: { type: 'string', format: 'date-time' }, photoPath: string } } },
         },
     };
     const alert = { $ref: '#/components/schemas/WeatherAlert' };
+    const sessionUser = object({ id: string, role: { ...string, enum: ['CITIZEN', 'MANAGER'] } });
     Object.assign(doc.paths, {
-        [prefix + '/sessions']: { post: { summary: 'Iniciar sessão por CPF e senha', requestBody: { required: true, content: json({ type: 'object', required: ['cpf', 'password', 'transport'], properties: { cpf: string, password: { type: 'string', format: 'password' }, transport: { type: 'string', enum: ['cookie', 'bearer'] } } }) }, responses: { 201: { description: 'Identidade e expiresAt. O transporte bearer também retorna token.' }, 400: { description: 'Entrada inválida.' }, 401: unauthorized, 403: forbidden, 429: limited } } },
-        [prefix + '/me']: { get: { summary: 'Consultar identidade da sessão', security: secured, responses: { 200: { description: 'Identidade da sessão.', headers: { 'X-Session-Expires-At': { description: 'Fim da validade original da sessão, em UTC.', schema: { type: 'string', format: 'date-time' } } } }, 401: unauthorized } } },
+        [prefix + '/sessions']: { post: { summary: 'Iniciar sessão por CPF e senha', requestBody: { required: true, content: json({ type: 'object', required: ['cpf', 'password', 'transport'], properties: { cpf: string, password: { type: 'string', format: 'password' }, transport: { type: 'string', enum: ['cookie', 'bearer'] } } }) }, responses: { 201: { description: 'Sessão criada. O transporte cookie retorna a sessão em Set-Cookie.', content: dataContent(object({ user: sessionUser, expiresAt: timestamp, token: { ...string, description: 'Presente apenas com o transporte bearer.' } }, ['user', 'expiresAt'])), headers: { 'Set-Cookie': { description: 'Presente apenas com o transporte cookie.', schema: string } } }, 400: { description: 'Entrada inválida.' }, 401: unauthorized, 403: forbidden, 429: limited } } },
+        [prefix + '/me']: { get: { summary: 'Consultar identidade da sessão', security: secured, responses: { 200: { description: 'Identidade da sessão.', content: dataContent(sessionUser), headers: { 'X-Session-Expires-At': { description: 'Fim da validade original da sessão, em UTC.', schema: timestamp } } }, 401: unauthorized } } },
         [prefix + '/sessions/current']: { delete: { summary: 'Revogar a sessão atual', security: secured, responses: { 204: { description: 'Sessão revogada.' }, 401: unauthorized, 403: forbidden } } },
         [reports]: {
             get: {
                 ...lookup('Consultar feed, denúncias próprias, resolvidas ou fila de gestão', [{ name: 'scope', in: 'query', required: true, schema: { type: 'string', enum: ['management', 'mine', 'resolved', 'feed'] } }, statusFilter, categoryFilter, { name: 'sort', in: 'query', schema: { type: 'string', enum: ['priority', 'newest'] } }, ...pagination], {}),
                 responses: { 200: { description: 'Lista paginada com page.nextCursor.', content: cursorContent(ref('ReportSummary')) }, 400: invalidPage, 401: unauthorized, 403: forbidden },
             },
-            post: { summary: 'Publicar denúncia como cidadão', security: secured, requestBody: { required: true, content: { 'multipart/form-data': { schema: { type: 'object', required: ['metadata', 'photos'], properties: { metadata: { type: 'string', description: 'JSON com category, description, location, clientRequestId e showIdentity.' }, photos: { type: 'array', minItems: 1, maxItems: 3, items: { type: 'string', format: 'binary' } } } } } } }, responses: { 201: { description: 'Denúncia criada.', content: reportDetailContent }, 200: { description: 'Reenvio da mesma denúncia.', content: reportDetailContent }, 401: unauthorized, 403: forbidden, 409: { description: 'Chave reutilizada com outro conteúdo, perfil indisponível ou categoria arquivada (CATEGORY_ARCHIVED).' }, 413: { description: 'Limite de tamanho excedido.' }, 415: { description: 'Tipo de mídia inválido.' }, 422: { description: 'Dados inválidos.' }, 429: { description: 'Limite de envio atingido.' }, 507: { description: 'Espaço insuficiente para armazenar as fotos.' } } },
+            post: { summary: 'Publicar denúncia como cidadão', security: secured, requestBody: { required: true, content: { 'multipart/form-data': { schema: { type: 'object', required: ['metadata', 'photos'], properties: { metadata: { type: 'string', description: 'JSON com category, description, location, clientRequestId e showIdentity.' }, photos: { type: 'array', minItems: 1, maxItems: 3, items: { type: 'string', format: 'binary' } } } } } } }, responses: { 201: { description: 'Denúncia criada.', content: reportDetailContent }, 200: { description: 'Reenvio da mesma denúncia.', content: reportDetailContent }, 401: unauthorized, 403: forbidden, 409: { description: 'Chave reutilizada com outro conteúdo, perfil indisponível ou categoria arquivada (CATEGORY_ARCHIVED).' }, 413: { description: 'Limite de tamanho excedido.' }, 415: { description: 'Tipo de mídia inválido.' }, 422: { description: 'Dados inválidos.' }, 429: uploadLimited, 507: { description: 'Espaço insuficiente para armazenar as fotos.' } } },
         },
         [reports + '/{id}']: {
             get: lookup('Consultar detalhes da denúncia', [id('id')], { content: reportDetailContent }),
@@ -120,11 +124,11 @@ export function addBusinessPaths(doc) {
                 security: secured,
                 parameters: [id('id')],
                 requestBody: { required: true, content: { 'multipart/form-data': { schema: { type: 'object', required: ['metadata'], properties: { metadata: { type: 'string', description: 'JSON com expectedVersion, category, description, location, showIdentity e retainedPhotoIds em ordem. O conjunto final exige uma a três fotos.' }, photos: { type: 'array', maxItems: 3, items: { type: 'string', format: 'binary' }, description: 'Novas fotos JPEG após as mantidas.' } } } } } },
-                responses: { 200: { description: 'Detalhe com a edição aplicada.', content: reportDetailContent }, 401: unauthorized, 403: forbidden, 404: { description: 'Denúncia não encontrada.' }, 409: { description: 'Conflito de versão, atendimento iniciado ou edição indisponível.' }, 413: { description: 'Limite de tamanho excedido.' }, 415: { description: 'Tipo de mídia inválido.' }, 422: { description: 'Campos ou fotos inválidos.' }, 429: limited, 507: { description: 'Espaço insuficiente.' } },
+                responses: { 200: { description: 'Detalhe com a edição aplicada.', content: reportDetailContent }, 401: unauthorized, 403: forbidden, 404: { description: 'Denúncia não encontrada.' }, 409: { description: 'Conflito de versão, edição indisponível, categoria de destino arquivada ou perfil indisponível.' }, 413: { description: 'Limite de tamanho excedido.' }, 415: { description: 'Tipo de mídia inválido.' }, 422: { description: 'Campos ou fotos inválidos.' }, 429: uploadLimited, 507: { description: 'Espaço insuficiente.' } },
             },
         },
         [reports + '/{id}/photos/{photoId}']: { get: lookup('Ler foto vinculada à denúncia', [id('id'), id('photoId')], { content: { 'image/jpeg': { schema: { type: 'string', format: 'binary' } } } }) },
-        [reports + '/{id}/photos/{photoId}/thumb']: { get: lookup('Ler miniatura (maior lado até 320 px) da foto vinculada à denúncia', [id('id'), id('photoId')], { content: { 'image/jpeg': { schema: { type: 'string', format: 'binary' } } } }) },
+        [reports + '/{id}/photos/{photoId}/thumb']: { get: { ...lookup('Ler miniatura da foto vinculada à denúncia', [id('id'), id('photoId')], { content: { 'image/jpeg': { schema: { type: 'string', format: 'binary' } } } }), description: 'A miniatura tem até 320 px no maior lado. Quando não há miniatura, a rota serve a foto original.' } },
         [reports + '/{id}/history']: { get: { ...lookup('Consultar histórico da denúncia', [id('id'), ...pagination, { name: 'order', in: 'query', schema: { type: 'string', enum: ['oldest', 'newest'], default: 'oldest' } }], {}), responses: { 200: { description: 'Eventos paginados com page.nextCursor.', content: cursorContent(ref('ReportEvent')) }, 400: invalidPage, 401: unauthorized, 404: { description: 'Denúncia não encontrada.' } } } },
         [reports + '/{id}/transitions']: {
             post: reportWrite(
@@ -163,7 +167,7 @@ export function addBusinessPaths(doc) {
         },
         [prefix + '/weather-alerts/{id}']: { get: lookup('Consultar um cenário climático simulado', [id('id')], { content: json({ type: 'object', required: ['data'], properties: { data: alert } }) }) },
         [prefix + '/categories']: {
-            get: { summary: 'Consultar as categorias disponíveis', security: secured, responses: { 200: { description: 'Catálogo completo, incluindo categorias arquivadas e categorias sem denúncias.', content: json({ type: 'object', properties: { data: { type: 'array', items: category } } }) }, 401: unauthorized } },
+            get: { summary: 'Consultar as categorias disponíveis', security: secured, responses: { 200: { description: 'Catálogo completo, incluindo categorias arquivadas e categorias sem denúncias.', content: dataContent(array(catalogCategory)) }, 401: unauthorized } },
             post: { summary: 'Cadastrar categoria como gestor', security: secured, requestBody: { required: true, content: json(categoryName) }, responses: { 201: { description: 'Categoria cadastrada e ativa.', content: json({ type: 'object', required: ['data'], properties: { data: category } }) }, 401: unauthorized, 403: forbidden, 409: { description: 'Nome já cadastrado.' }, 422: { description: 'Nome inválido.' } } },
         },
         [prefix + '/categories/{id}']: {
@@ -183,11 +187,15 @@ export function addBusinessPaths(doc) {
             },
         },
     });
-    const clockHeader = { 'X-MyCity-Server-Time': { description: 'Instante de recebimento da consulta em milissegundos Unix.', schema: { type: 'integer', format: 'int64' } } };
+    const readHeaders = {
+        'Cache-Control': { description: 'O uso de Bearer desativa o cache HTTP e preserva a revalidação.', schema: { ...string, enum: ['private, no-cache', 'no-store'] } },
+        ETag: { description: 'Identificador da versão do conteúdo. Envie em If-None-Match ao revalidar.', schema: string },
+        'X-MyCity-Server-Time': { description: 'Instante de recebimento da consulta em milissegundos Unix.', schema: { type: 'integer', format: 'int64' } },
+    };
     for (const { get } of Object.values(doc.paths)) {
         if (!get?.security || !get.responses[200]) continue;
-        get.responses[200].headers = { ...get.responses[200].headers, ...clockHeader };
-        get.responses[304] = { description: 'Conteúdo inalterado após revalidação.', headers: clockHeader };
+        get.responses[200].headers = { ...get.responses[200].headers, ...readHeaders };
+        get.responses[304] = { description: 'Conteúdo inalterado após revalidação.', headers: readHeaders };
     }
     return doc;
 }

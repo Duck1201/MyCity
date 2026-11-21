@@ -8,7 +8,7 @@ Regras aprovadas estão descritas como confirmadas. A matriz de visibilidade e a
 
 Use uma conta provisionada pelo operador da sua instalação. Para experimentar com contas fictícias, siga o [início rápido](../README.md#executar-localmente).
 
-- **Cidadão.** Entre no app Android e toque no **+** no canto inferior direito. Escolha a categoria, descreva o problema, anexe fotos e confirme o ponto no mapa. Depois de enviar, acompanhe o retorno em **Meus registros** e em **Notificações**, no cabeçalho. Para consultar ocorrências de outras pessoas, abra o **Feed** ou o **Mapa**. O histórico de **Resolvidas** fica no Feed.
+- **Cidadão.** Entre no app Android e toque no **+** no canto inferior direito. Escolha a categoria, descreva o problema, anexe fotos e use o ponto obtido por GPS ou confirme um ponto no mapa. Depois de enviar, acompanhe o retorno em **Meus registros** e em **Notificações**, no cabeçalho. Para consultar ocorrências de outras pessoas, abra o **Feed** ou o **Mapa**. O histórico de **Resolvidas** fica no Feed.
 - **Gestor.** Entre no painel web e abra **Atendimento**. Use a busca e os filtros para encontrar uma denúncia. Abra o relato para conferir os anexos, registrar uma resposta ou mudar a situação do atendimento. Em **Categorias**, gerencie as opções que o cidadão pode escolher ao registrar uma denúncia.
 
 ## Estados confirmados
@@ -30,21 +30,21 @@ stateDiagram-v2
     Cancelado --> Enviado: autor reabre
 ```
 
-Resolvido, Rejeitado e Cancelado são estados encerrados. O gestor pode reabrir os casos que permanecem visíveis em Em análise. O autor pode reabrir sua denúncia cancelada em Enviado. Só é possível desfazer o último avanço de situação: uma resposta não consome essa possibilidade, mas uma correção ou reabertura impede outro recuo até um novo avanço. Corrigir ou reabrir acrescenta um evento com origem e destino e preserva o evento anterior, a justificativa e as respostas. A criação registra o evento inicial; notificações são geradas nas mudanças posteriores, inclusive cancelamento, conforme o requisito de cada mudança de status.
+Resolvido, Rejeitado e Cancelado são estados encerrados. Ao reabrir um caso encerrado visível na gestão, o gestor o devolve a Em análise. O autor pode reabrir sua denúncia cancelada em Enviado. Só é possível desfazer o último avanço de situação: uma resposta não consome essa possibilidade, mas uma correção ou reabertura impede outro recuo até um novo avanço. Corrigir ou reabrir acrescenta um evento com origem e destino e preserva o evento anterior, a justificativa e as respostas. A criação registra o evento inicial. Cada mudança de status posterior, inclusive o cancelamento, gera uma notificação para o autor.
 
 ## Jornadas
 
 ### Entrar
 
-Usuário informa CPF e senha próprios do MyCity, recebe sua identidade e acessa a interface do papel. Credencial inválida exibe erro genérico. Sem conexão, informar falha e permitir tentativa explícita. Sessão expirada exige novo login, sem executar ação pendente automaticamente. Sessão de 24 horas aprovada no contrato HTTP (C05). As contas de demonstração serão fictícias; não há vínculo com gov.br nem e-mail.
+Usuário informa CPF e senha próprios do MyCity, recebe sua identidade e acessa a interface do papel. Credencial inválida exibe erro genérico. Sem conexão, informar falha e permitir tentativa explícita. Sessão expirada exige novo login, sem executar ação pendente automaticamente. Sessão de 24 horas aprovada no contrato HTTP (C05). A demonstração usa contas fictícias. O login usa somente CPF e senha do MyCity.
 
 ### Registrar denúncia
 
 1. Abrir a denúncia pelo **+**. O formulário solicita a localização atual enquanto o cidadão fotografa ou escolhe de uma a três fotos. Ao retomar um rascunho com local definido, preservar esse ponto.
 2. Com uma leitura válida, usar o GPS do aparelho no envio. Se a pessoa quiser ajustar o local, abrir o mapa no ponto obtido. Se a permissão for negada ou o GPS estiver indisponível, oferecer nova tentativa ou seleção manual.
-3. Escolher a categoria ativa e descrever o problema. O gestor pode acrescentar, arquivar e reativar grupos em Categorias. Ocorrências anteriores mantêm seus vínculos e filtros.
+3. Escolher uma categoria ativa e descrever o problema. O gestor pode cadastrar, arquivar e reativar categorias. Ocorrências anteriores mantêm seus vínculos e filtros.
 4. Revisar “Quero mostrar minha cara”. A opção inicia ligada e exibe nome e foto de perfil aos leitores autorizados. Desligada, a denúncia é apresentada como “Anônimo”, inclusive ao gestor. Revisar os dados e enviar. O app prepara as fotos em JPEG e envia tudo em uma única operação.
-5. Durante o envio, impedir disparos duplicados pela interface; servidor também trata repetições.
+5. Durante o envio, impedir disparos duplicados pela interface. A API trata o reenvio da criação com a mesma chave de idempotência.
 6. Ao voltar do formulário, retornar à origem e manter o rascunho na sessão. Se a categoria tiver sido arquivada, pedir uma nova seleção e preservar relato, fotos e ponto. Após publicar, abrir o acompanhamento e voltar ao Início em Meus registros.
 
 O rascunho fica em memória durante a sessão do app. A publicação usa coordenadas válidas do GPS ou um ponto confirmado manualmente. Fechar um formulário que só recebeu a leitura automática permite começar outra denúncia com a posição atual. Endereço, região e geocodificação foram adiados em C03.
@@ -55,9 +55,9 @@ No Início, **Na cidade** apresenta uma ocorrência ativa do feed, mesmo quando 
 
 ### Atender e responder
 
-O gestor entra na Visão geral, abre a fila por indicador ou categoria e seleciona uma denúncia pelo relato. Quando todas as ocorrências estão encerradas, a Visão geral apresenta o total encerrado e os três registros mais recentes com acesso ao detalhe. No detalhe, o relato e a galeria aparecem juntos. Clicar na foto, ou no botão de ampliar, abre a original em tela cheia: setas e teclado passam entre as fotos, um clique alterna entre ajustar à tela e o tamanho real, e Esc fecha. O editor de resposta e os quatro eventos mais recentes ficam logo abaixo, com acesso aos registros anteriores. Ao voltar, recupera os filtros e a página da fila. Somente transições válidas são oferecidas. Rejeição apresenta campo obrigatório de justificativa. O gestor pode responder inclusive após resolução, rejeição ou cancelamento. Respostas e justificativas admitem até 2.000 caracteres após trim. Uma resposta textual gera evento público, sem chat; não gera aviso de mudança de status por si só. Novas notificações específicas de resposta não foram aprovadas.
+O gestor entra na Visão geral, abre a fila por indicador ou categoria e seleciona uma denúncia pelo relato. Quando todas as ocorrências estão encerradas, a Visão geral apresenta o total encerrado e os três registros mais recentes com acesso ao detalhe. No detalhe, o relato e a galeria aparecem juntos. Clicar na foto ou no botão de ampliar abre a original em tela cheia. As setas na tela e no teclado passam entre as fotos. Um clique amplia no ponto clicado em 2,5× e o clique seguinte restaura. Enter ou Espaço alterna a ampliação pelo teclado, e Esc fecha. O editor de resposta e os quatro eventos mais recentes ficam logo abaixo, com acesso aos registros anteriores. Ao voltar, recupera os filtros e a página da fila. Somente transições válidas são oferecidas. Rejeição apresenta campo obrigatório de justificativa. O gestor pode responder inclusive após o encerramento, desde que o registro continue visível na gestão. Respostas e justificativas admitem de 1 a 2.000 caracteres após retirar espaços nas pontas. A resposta aparece como evento público no histórico, sem gerar aviso de mudança de status. Novas notificações específicas de resposta não foram aprovadas.
 
-Se outro comando alterar a denúncia antes da gravação, mostrar conflito e atualizar os detalhes. Não reaplicar automaticamente uma intenção sobre o estado novo.
+Se a versão da denúncia mudar antes de gravar a transição, mostrar conflito e atualizar os detalhes. A próxima transição depende de uma nova ação do gestor. O reenvio de uma resposta usa sua própria chave de idempotência.
 
 ### Editar, cancelar e reabrir
 
@@ -75,16 +75,16 @@ Na navegação principal do app, abrir **Alertas** apresenta os três cenários 
 
 ## Visibilidade aprovada — C04
 
-Decisão aprovada: denúncias, fotos, mapa e histórico exigem login. “Público” significa compartilhado entre usuários autenticados; não haverá consulta anônima desses conteúdos. A identificação do autor é opcional conforme o checkbox aprovado. A matriz abaixo se aplica também ao acesso por link, fotos e histórico de cada denúncia. O app abre detalhes pelo link autenticado `mycity://reports/<id>`.
+Decisão aprovada: denúncias, fotos, mapa e histórico exigem login. “Público” significa compartilhado entre usuários autenticados. A identificação do autor é opcional. Para cidadãos, uma denúncia rejeitada aparece só nos registros do autor ou por link direto. Uma cancelada fica acessível ao autor e, se houve atendimento, também ao gestor. Essas permissões valem para o detalhe, o histórico e as fotos. O app abre o detalhe pelo link autenticado `mycity://reports/<id>`.
 
-| Estado       | Feed/mapa geral                             | Minhas denúncias do autor | Lista do gestor                            | Histórico de resolvidas |
-| ------------ | ------------------------------------------- | ------------------------- | ------------------------------------------ | ----------------------- |
-| Enviado      | Sim                                         | Sim                       | Sim                                        | Não                     |
-| Em análise   | Sim                                         | Sim                       | Sim                                        | Não                     |
-| Em andamento | Sim                                         | Sim                       | Sim                                        | Não                     |
-| Resolvido    | Somente filtro de resolvidas                | Sim                       | Sim                                        | Sim                     |
-| Rejeitado    | Não; detalhes públicos por link autenticado | Sim                       | Sim                                        | Não                     |
-| Cancelado    | Não                                         | Sim                       | Somente com atendimento anterior do gestor | Não                     |
+| Estado       | Feed/mapa geral              | Meus registros do autor | Lista do gestor                            | Histórico de resolvidas |
+| ------------ | ---------------------------- | ----------------------- | ------------------------------------------ | ----------------------- |
+| Enviado      | Sim                          | Sim                     | Sim                                        | Não                     |
+| Em análise   | Sim                          | Sim                     | Sim                                        | Não                     |
+| Em andamento | Sim                          | Sim                     | Sim                                        | Não                     |
+| Resolvido    | Somente filtro de resolvidas | Sim                     | Sim                                        | Sim                     |
+| Rejeitado    | Não                          | Sim                     | Sim                                        | Não                     |
+| Cancelado    | Não                          | Sim                     | Somente com atendimento anterior do gestor | Não                     |
 
 Decisão aprovada: exibir nome e foto de perfil somente quando “Quero mostrar minha cara” estiver marcado. Se desmarcado, ocultar a identidade inclusive para o gestor. CPF não é público e e-mail não faz parte do modelo. O backend mantém o vínculo da conta; a publicação não é anônima perante a persistência interna. Fotos da ocorrência, descrição e localização continuam visíveis conforme as permissões e podem conter identificação inserida pelo próprio autor; orientar sua revisão antes de enviar.
 
@@ -107,4 +107,4 @@ Decisão aprovada: exibir nome e foto de perfil somente quando “Quero mostrar 
 | Web        | Detalhes do gestor      | Fotos, localização, histórico, resposta, transições, rejeição e conflito                                                                                                                                                                                             |
 | Web        | Categorias              | Cadastro, edição de nome e ícone, arquivamento e reativação                                                                                                                                                                                                          |
 
-No app integrado, **Sair** está no cabeçalho da área autenticada. A [apresentação do README](../README.md#veja-como-funciona) mostra capturas atuais do painel e da prévia. Use as [diretrizes de usabilidade](usability.md) para revisar foco, rótulos, navegação, contraste e mensagens.
+No app integrado, **Sair** está no cabeçalho da área autenticada. A [apresentação do README](../README.md#veja-como-funciona) mostra capturas do painel e da prévia do app no navegador. Use as [diretrizes de usabilidade](usability.md) para revisar foco, rótulos, navegação, contraste e mensagens.
