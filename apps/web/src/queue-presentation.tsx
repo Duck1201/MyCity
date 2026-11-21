@@ -80,7 +80,7 @@ export function QueueLayout({ total, changing, revalidating, page, pages, change
 export function Status({ value }: { value: ReportStatus }) {
     return <span className={'status ' + value}>{statusNames[value]}</span>;
 }
-export function ReportTable({ rows, busy = false, showProtocol = false }: { rows: TableRow[]; busy?: boolean; showProtocol?: boolean }) {
+export function ReportTable({ rows, busy = false }: { rows: TableRow[]; busy?: boolean }) {
     return (
         <div className="table-scroll">
             <table aria-label="Denúncias recebidas" aria-busy={busy}>
@@ -106,14 +106,13 @@ export function ReportTable({ rows, busy = false, showProtocol = false }: { rows
                                             onClick={(event) => {
                                                 if (busy) event.preventDefault();
                                             }}
-                                            aria-label={showProtocol ? 'Abrir denúncia ' + row.id : 'Abrir denúncia: ' + row.description}
-                                            aria-describedby={(showProtocol ? 'queue-title-' : 'queue-meta-') + row.id}
+                                            aria-label={'Abrir denúncia: ' + row.description}
+                                            aria-describedby={'queue-meta-' + row.id}
                                             className="preview-row-link"
                                         >
                                             <strong id={'queue-title-' + row.id}>{row.description}</strong>
                                         </Link>
                                         <small className="preview-case-meta" id={'queue-meta-' + row.id}>
-                                            {showProtocol && <span className="queue-protocol">{row.id}</span>}
                                             <span className="preview-category-label">
                                                 <CategorySymbol icon={row.categoryIcon} size={14} />
                                                 {row.categoryName}

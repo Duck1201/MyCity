@@ -29,7 +29,9 @@ it('consulta a fila do gestor e abre o protocolo anônimo com as fotos em ordem'
     expect(link).toHaveAttribute('id', 'open-' + report.id);
     await userEvent.click(link);
     expect(await screen.findByRole('img', { name: /Foto 1 de 2/ })).toBeVisible();
-    expect(screen.getByText(report.id)).toBeVisible();
+    // The protocol stays in the URL only.
+    expect(screen.queryByText(report.id)).toBeNull();
+    expect(document.title).not.toContain(report.id);
     expect(screen.getByRole('img', { name: /Foto 1 de 2/ })).toHaveAttribute('src', photos[0]!.contentPath);
     await userEvent.click(screen.getByRole('button', { name: 'Próxima foto' }));
     expect(screen.getByRole('img', { name: /Foto 2 de 2/ })).toHaveAttribute('src', photos[1]!.contentPath);

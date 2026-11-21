@@ -13,9 +13,16 @@ import { QueueLoading } from './components/queue-loading';
 import { useLiveQuery } from './use-live-query';
 export const statuses: Record<ReportStatus, string> = { SENT: 'Enviado', UNDER_REVIEW: 'Em análise', IN_PROGRESS: 'Em andamento', RESOLVED: 'Resolvido', REJECTED: 'Rejeitado', CANCELED: 'Cancelado' };
 export const formatDate = (value: string) => new Date(value).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
-function CaseText({ text, description = false }: { text: string; description?: boolean }) {
+function CaseText({ text, description = false, label }: { text: string; description?: boolean; label?: string }) {
     const className = description ? 'occurrence-description' : undefined;
-    if (text.length <= 220) return <p className={className}>{text}</p>;
+    const lead = label && <strong className="case-text-label">{label} </strong>;
+    if (text.length <= 220)
+        return (
+            <p className={className}>
+                {lead}
+                {text}
+            </p>
+        );
     return (
         <details className="case-long-text">
             <summary>
@@ -23,7 +30,10 @@ function CaseText({ text, description = false }: { text: string; description?: b
                 <span className="case-read">{description ? 'Ler relato completo' : 'Ler texto completo'}</span>
                 <span className="case-collapse">Recolher texto</span>
             </summary>
-            <p className={className}>{text}</p>
+            <p className={className}>
+                {lead}
+                {text}
+            </p>
         </details>
     );
 }
@@ -150,7 +160,6 @@ export function ReportService({ id, onSessionExpired, onChange }: Props) {
                     <header className="occurrence-head">
                         <div>
                             <div className="occurrence-identity">
-                                <span>{report.id}</span>
                                 <span className="case-status" key={report.status} data-updated={!!success || undefined}>
                                     <Status value={report.status} />
                                 </span>
@@ -164,6 +173,12 @@ export function ReportService({ id, onSessionExpired, onChange }: Props) {
                                 <CategorySymbol icon={categoryIconFor(report.category, category?.icon)} size={26} />
                                 {report.categoryName ?? category?.name ?? reportCategoryLabels[report.category] ?? report.category}
                             </h1>
+                            {report.status === 'REJECTED' && report.rejectionReason && (
+                                <p role="note" aria-label="Motivo da rejeição" className="occurrence-rejection-reason">
+                                    <strong>Motivo da rejeição</strong>
+                                    <span>{report.rejectionReason}</span>
+                                </p>
+                            )}
                         </div>
                         <ManagerStatusActions status={report.status} allowed={report.allowedActions ?? []} disabled={busy || rejecting} triggerRef={rejectButton} transition={(target) => (target === 'REJECTED' ? setRejecting(true) : transition(target))} />
                     </header>
@@ -252,7 +267,7 @@ export function ReportService({ id, onSessionExpired, onChange }: Props) {
                             text: (
                                 <>
                                     {event.type !== 'REPLY' && <span>{event.type === 'CREATED' ? 'Denúncia enviada' : (event.fromStatus && event.toStatus && isReopening(event.fromStatus, event.toStatus) ? 'Reaberta: ' : '') + statuses[event.fromStatus!] + ' → ' + statuses[event.toStatus!]}</span>}
-                                    {event.text && <CaseText text={event.text} />}
+                                    {event.text && <CaseText text={event.text} {...(event.type === 'STATUS_CHANGED' && event.toStatus === 'REJECTED' && { label: 'Justificativa:' })} />}
                                 </>
                             ),
                             metadata: (

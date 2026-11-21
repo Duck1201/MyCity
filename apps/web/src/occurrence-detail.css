@@ -637,3 +637,24 @@
         transform: none;
     }
 }
+.occurrence-rejection-reason {
+    display: grid;
+    gap: 2px;
+    margin: 10px 0 0;
+    padding: 8px 12px;
+    max-width: 62ch;
+    border-left: 3px solid #b42318;
+    border-radius: 0 6px 6px 0;
+    background: #fdf1f0;
+    color: #5d1a14;
+    font-size: 14px;
+}
+.occurrence-rejection-reason strong {
+    font-size: 12px;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: #9a2a20;
+}
+.case-text-label {
+    font-weight: 700;
+}

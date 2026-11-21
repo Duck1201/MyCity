@@ -102,6 +102,8 @@ export interface ReportDetail extends ReportSummary {
     version: number;
     photos: ReportPhoto[];
     allowedActions: string[];
+    // Present while the report is rejected: the justification the manager gave.
+    rejectionReason?: string;
 }
 
 export interface ReportEvent {

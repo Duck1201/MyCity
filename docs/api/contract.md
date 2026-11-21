@@ -109,7 +109,7 @@ No formulário, “Quero mostrar minha cara” começa marcado (`showIdentity: t
 | DTO                | Campos públicos                                                                                                                                               |
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | ReportSummary      | id, category, categoryName, description, status, location, createdAt, updatedAt, confirmationCount, confirmedByMe, isMine, coverPhoto?, showIdentity, author? |
-| ReportDetail       | Campos do resumo + version, photos[], allowedActions[]; histórico paginado em rota própria                                                                    |
+| ReportDetail       | Campos do resumo + version, photos[], allowedActions[] e, enquanto rejeitada, rejectionReason (justificativa em vigor); histórico paginado em rota própria    |
 | Photo              | id, position, width, height, byteSize, contentPath, thumbnailPath; nenhum storageKey                                                                          |
 | ReportMarker       | id, latitude, longitude, category, categoryName, status, confirmationCount                                                                                    |
 | ReportEvent        | id, type, actorRole, fromStatus?, toStatus?, text?, createdAt. `actorRole` indica o papel, sem dados de perfil.                                               |

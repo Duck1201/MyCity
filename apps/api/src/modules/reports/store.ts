@@ -21,7 +21,7 @@ export const latestStatusChange = {
     where: { type: 'STATUS_CHANGED' },
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     take: 1,
-    select: { fromStatus: true, toStatus: true },
+    select: { fromStatus: true, toStatus: true, text: true },
 } satisfies Prisma.Report$eventsArgs;
 
 export function previousStatusOf(row: { status: ReportStatus; events?: { fromStatus: ReportStatus | null; toStatus: ReportStatus | null }[] }) {
@@ -75,10 +75,13 @@ export function visibleReports(viewer: { id: string; role: Role }): Prisma.Repor
 export async function readDetail(reader: Pick<Database, 'report' | 'profile'>, id: string, viewer: { id: string; role: Role }) {
     const row = await reader.report.findFirst({
         where: { id, ...visibleReports(viewer) },
-        include: { ...relations(viewer.id), events: viewer.role === 'MANAGER' && latestStatusChange },
+        include: { ...relations(viewer.id), events: latestStatusChange },
     });
     if (!row) throw reportNotFound();
-    return detail(row, viewer.id, await readPublicProfiles(reader, row.showIdentity ? [row.authorId] : []), viewer.role, previousStatusOf(row));
+    const dto = detail(row, viewer.id, await readPublicProfiles(reader, row.showIdentity ? [row.authorId] : []), viewer.role, previousStatusOf(row));
+    // The justification of the rejection in force, so readers need not search the history for it.
+    const last = row.events[0];
+    return row.status === 'REJECTED' && last?.toStatus === 'REJECTED' && last.text ? { ...dto, rejectionReason: last.text } : dto;
 }
 
 export function createReportStore(db: Database, root: string) {
