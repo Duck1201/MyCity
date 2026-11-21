@@ -2,7 +2,7 @@
 
 @font-face {
     font-family: Nunito;
-    src: url('/fonts/nunito-latin-wght-normal.woff2') format('woff2');
+    src: url('./assets/fonts/nunito-latin-wght-normal.woff2') format('woff2');
     font-style: normal;
     font-weight: 200 1000;
     font-display: swap;
