@@ -72,7 +72,6 @@ export function ManagementReports({ onSessionExpired }: { onSessionExpired: () =
             <QueueLayout
                 total={data?.total}
                 changing={changing}
-                revalidating={query.revalidating}
                 page={page}
                 pages={pages}
                 changePage={changePage}

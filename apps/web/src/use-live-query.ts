@@ -98,7 +98,5 @@ export function useLiveQuery<T>(url: string | null, onSessionExpired: () => void
     const current = result?.url === url ? result.data : undefined;
     const cached = url && current === undefined ? (cache?.get(url) as T | undefined) : undefined;
     const failed = result?.url === url && result.failed;
-    // A remembered read is on screen but the network has not confirmed it yet.
-    const revalidating = current === undefined && cached !== undefined && !failed;
-    return { previousData: result?.url !== url && cached === undefined ? result?.data : undefined, data: current ?? cached, failed, revalidating, refresh, replace };
+    return { previousData: result?.url !== url && cached === undefined ? result?.data : undefined, data: current ?? cached, failed, refresh, replace };
 }

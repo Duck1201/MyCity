@@ -21,7 +21,6 @@ export { queuePageSize } from './queue-endpoint';
 type QueueLayoutProps = {
     total?: number | undefined;
     changing?: boolean;
-    revalidating?: boolean;
     page: number;
     pages: number;
     changePage: (page: number, direction: 'previous' | 'next') => void;
@@ -30,7 +29,7 @@ type QueueLayoutProps = {
     children: ReactNode;
 };
 
-export function QueueLayout({ total, changing, revalidating, page, pages, changePage, filters, exportAction, children }: QueueLayoutProps) {
+export function QueueLayout({ total, changing, page, pages, changePage, filters, exportAction, children }: QueueLayoutProps) {
     const download = (
         <>
             <Download size={16} aria-hidden="true" /> Exportar CSV
@@ -45,7 +44,7 @@ export function QueueLayout({ total, changing, revalidating, page, pages, change
                     </h1>
                     <span className="muted queue-total" aria-live="polite">
                         {total !== undefined && total + (total === 1 ? ' ocorrência' : ' ocorrências')}
-                        {(changing || revalidating) && ' · Atualizando…'}
+                        {changing && ' · Atualizando…'}
                     </span>
                 </div>
                 {'run' in exportAction ? (

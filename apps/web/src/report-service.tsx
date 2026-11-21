@@ -181,11 +181,6 @@ export function ReportService({ id, onSessionExpired, onChange }: Props) {
                                 <span className="case-status" key={report.status} data-updated={!!success || undefined}>
                                     <Status value={report.status} />
                                 </span>
-                                {detail.revalidating && (
-                                    <span role="status" className="occurrence-updating">
-                                        Atualizando…
-                                    </span>
-                                )}
                             </div>
                             <h1 className="occurrence-category-title">
                                 <CategorySymbol icon={categoryIconFor(report.category, category?.icon)} size={26} />
