@@ -383,6 +383,8 @@ it('limita a três fotos e envia o multipart na ordem visível depois de remover
     try {
         await render(<CitizenReport apiBase="https://example.test/api/v1" token="test-token" onSessionExpired={jest.fn()} draftRef={draftRef} />);
         for (const id of [1, 2, 3]) {
+            const addPhoto = screen.getByRole('button', { name: 'Adicionar foto' });
+            expect(addPhoto).toHaveStyle(id === 1 ? { width: '100%' } : { width: '31%', aspectRatio: 1 });
             jest.mocked(pickReportPhoto).mockResolvedValueOnce(uri(id));
             await fireEvent.press(screen.getByRole('button', { name: 'Adicionar foto' }));
             await fireEvent.press(await screen.findByRole('button', { name: 'Escolher da galeria' }));

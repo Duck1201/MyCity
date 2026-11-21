@@ -1,6 +1,6 @@
 import { categoryLabel } from './category-catalog';
-import { mobileStyles, colors, statusTint } from './theme';
-import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react';
+import { mobileStyles, colors, floatingActionClearance, statusTint } from './theme';
+import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import * as Location from 'expo-location';
 import { readDevicePosition } from './device-position';
 import { cityRegion, pointRegion } from './map-region';
@@ -42,7 +42,7 @@ function queryBounds([west, south, east, north]: Bounds) {
 type MarkersPage = { data: ReportMarker[]; page: { nextCursor: string | null } };
 export type MapViewport = { region: Region; deviceLocation: LatLng | null; selectedId?: string | null };
 const emptyGroup: ReadonlySet<string> = new Set();
-export function CommunityMap({ request, filters, setFilters, viewport, setViewport, showList, setShowList, open }: { request: CitizenRequest; filters: ReportFilters; setFilters: (v: ReportFilters) => void; viewport: MapViewport | null; setViewport: Dispatch<SetStateAction<MapViewport | null>>; showList: boolean; setShowList: (show: boolean) => void; open: (id: string) => void }) {
+export const CommunityMap = memo(function CommunityMap({ active, request, filters, setFilters, viewport, setViewport, showList, setShowList, open }: { active: boolean; request: CitizenRequest; filters: ReportFilters; setFilters: (v: ReportFilters) => void; viewport: MapViewport | null; setViewport: Dispatch<SetStateAction<MapViewport | null>>; showList: boolean; setShowList: (show: boolean) => void; open: (id: string) => void }) {
     const map = useRef<MapView>(null);
     const [mapSize, setMapSize] = useState({ width: 0, height: 0 });
     const [groupIds, setGroupIds] = useState<ReadonlySet<string>>(() => new Set());
@@ -92,15 +92,26 @@ export function CommunityMap({ request, filters, setFilters, viewport, setViewpo
         [setViewport],
     );
     useEffect(() => {
-        if (!viewport) void centerOnDevice();
-    }, [viewport, centerOnDevice]);
-    useEffect(
-        () => () => {
+        if (active && !viewport) void centerOnDevice();
+    }, [active, viewport, centerOnDevice]);
+    const applyCameraTarget = useCallback(() => {
+        if (mapReady.current && cameraTarget.current) {
+            map.current?.animateToRegion(cameraTarget.current, 0);
+            cameraTarget.current = null;
+        }
+    }, []);
+    useLayoutEffect(() => {
+        if (!active) {
+            setLocating(false);
+            setGroupIds(emptyGroup);
+            return;
+        }
+        applyCameraTarget();
+        return () => {
             attempt.current?.abort();
             attempt.current = null;
-        },
-        [],
-    );
+        };
+    }, [active, applyCameraTarget]);
 
     const visible = boundsFor(viewport?.region ?? cityRegion);
     const area = visible.map(queryBounds).join(';');
@@ -125,7 +136,7 @@ export function CommunityMap({ request, filters, setFilters, viewport, setViewpo
         },
         [area, path, request],
     );
-    const query = useActiveQuery(load, true, path + ':' + area);
+    const query = useActiveQuery(load, active, path + ':' + area);
     const current = query.data?.path === path && query.data.area === area;
     const pins = query.data?.markers.filter(({ latitude, longitude }) => visible.some(([west, south, east, north]) => longitude >= west && longitude <= east && latitude >= south && latitude <= north));
     const selected = pins?.find((point) => point.id === viewport?.selectedId);
@@ -138,7 +149,7 @@ export function CommunityMap({ request, filters, setFilters, viewport, setViewpo
         },
         [setViewport],
     );
-    const inspecting = !showList && (!!selected || group.length > 0);
+    const inspecting = active && !showList && (!!selected || group.length > 0);
     useEffect(() => {
         if (!inspecting || Platform.OS === 'web') return;
         const handler = BackHandler.addEventListener('hardwareBackPress', () => {
@@ -159,7 +170,7 @@ export function CommunityMap({ request, filters, setFilters, viewport, setViewpo
         setViewport((previous) => ({ ...previous, deviceLocation: previous?.deviceLocation ?? null, region: cityRegion }));
         map.current?.animateToRegion(cityRegion, motion ? 200 : 0);
     }
-    const tools = (
+    const tools = active && (
         <View pointerEvents="box-none" style={styles.tools}>
             <View style={styles.filterButton}>
                 <Filters
@@ -209,7 +220,7 @@ export function CommunityMap({ request, filters, setFilters, viewport, setViewpo
         </View>
     );
     return (
-        <View style={styles.page}>
+        <View style={[styles.page, !active && styles.hidden]} importantForAccessibility={active ? 'auto' : 'no-hide-descendants'} accessibilityElementsHidden={!active}>
             {showList && (
                 <View style={styles.listHeader}>
                     <Text style={mobileStyles.heading} accessibilityRole="header">
@@ -237,17 +248,22 @@ export function CommunityMap({ request, filters, setFilters, viewport, setViewpo
                         nativeEvent: {
                             layout: { width, height },
                         },
-                    }) => setMapSize((prev) => (prev.width === width && prev.height === height ? prev : { width, height }))}
+                    }) => {
+                        if (active && width > 0 && height > 0) setMapSize((prev) => (prev.width === width && prev.height === height ? prev : { width, height }));
+                    }}
                 >
                     <MapView
                         ref={map}
                         toolbarEnabled={false}
+                        loadingEnabled
+                        loadingIndicatorColor={colors.teal}
+                        loadingBackgroundColor={colors.canvas}
                         rotateEnabled={false}
                         pitchEnabled={false}
                         poiClickEnabled={false}
                         customMapStyle={basemapStyle}
                         onPress={(event) => {
-                            if (event.nativeEvent.action !== 'marker-press' && (selected || group.length)) select(null);
+                            if (active && event.nativeEvent.action !== 'marker-press' && (selected || group.length)) select(null);
                         }}
                         moveOnMarkerPress={false}
                         showsMyLocationButton={false}
@@ -260,13 +276,13 @@ export function CommunityMap({ request, filters, setFilters, viewport, setViewpo
                         style={StyleSheet.absoluteFill}
                         onMapReady={() => {
                             mapReady.current = true;
-                            if (cameraTarget.current) map.current?.animateToRegion(cameraTarget.current, 0);
-                            cameraTarget.current = null;
+                            if (active) applyCameraTarget();
                         }}
                         onRegionChangeStart={(_, details) => {
-                            if (details?.isGesture) explore();
+                            if (active && details?.isGesture) explore();
                         }}
                         onRegionChangeComplete={(region, details) => {
+                            if (!active) return;
                             if (details?.isGesture) explore();
                             if (region.latitudeDelta > 0 && region.longitudeDelta > 0) setViewport((previous) => ({ deviceLocation: null, ...previous, region }));
                         }}
@@ -292,7 +308,7 @@ export function CommunityMap({ request, filters, setFilters, viewport, setViewpo
                             {feedback}
                         </View>
                     )}
-                    {!inspecting && (
+                    {active && !inspecting && (
                         <MotionPressable accessibilityRole="button" accessibilityLabel="Minha localização" disabled={locating} accessibilityState={{ busy: locating, disabled: locating }} style={styles.locate} onPress={() => void centerOnDevice(!!viewport?.deviceLocation)}>
                             {locating ? <ActivityIndicator color={colors.teal} /> : <Icon name="pin" size={22} />}
                         </MotionPressable>
@@ -322,12 +338,12 @@ export function CommunityMap({ request, filters, setFilters, viewport, setViewpo
                             </ScrollView>
                         </View>
                     )}
-                    {selected && <MarkerSummary key={selected.id} marker={selected} motion={motion} open={open} close={() => select(null)} />}
+                    {active && selected && <MarkerSummary key={selected.id} marker={selected} motion={motion} open={open} close={() => select(null)} />}
                 </View>
             )}
         </View>
     );
-}
+});
 
 function MarkerSummary({ marker, motion, open, close }: { marker: ReportMarker; motion: boolean; open: (id: string) => void; close: () => void }) {
     const [progress] = useState(() => new Animated.Value(motion ? 0 : 1));
@@ -373,6 +389,7 @@ const basemapStyle = [
 
 const styles = StyleSheet.create({
     page: { flex: 1, backgroundColor: colors.canvas },
+    hidden: { display: 'none' },
     listHeader: { padding: 14, gap: 8 },
     overlayTools: { position: 'absolute', left: 12, top: 12, right: 74 },
     tools: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
@@ -392,6 +409,6 @@ const styles = StyleSheet.create({
     category: { ...mobileStyles.heading, flex: 1 },
     close: { width: 48, minHeight: 48, alignItems: 'center', justifyContent: 'center' },
     closeLabel: { color: colors.muted, fontSize: 26 },
-    list: { padding: 12, paddingBottom: 88, gap: 8 },
+    list: { ...mobileStyles.page, paddingHorizontal: 12, paddingBottom: floatingActionClearance },
     listItem: { ...mobileStyles.card },
 });

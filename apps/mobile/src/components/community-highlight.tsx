@@ -8,9 +8,9 @@ import { ReportThumbnail, type PhotoSource } from './report-photo';
 import { Text } from './typography';
 
 type Highlight = { description: string; category: string; status: ReportStatus; photo?: PhotoSource | undefined };
-type Props = { report?: Highlight | undefined; message?: string | undefined; open: () => void; feed: () => void };
+type Props = { report?: Highlight | undefined; message?: string | undefined; open: () => void; feed: () => void; onPhotoSettled?: (() => void) | undefined };
 
-export function CommunityHighlight({ report, message, open, feed }: Props) {
+export function CommunityHighlight({ report, message, open, feed, onPhotoSettled }: Props) {
     return (
         <View style={styles.section}>
             <View style={styles.heading}>
@@ -24,7 +24,7 @@ export function CommunityHighlight({ report, message, open, feed }: Props) {
             </View>
             {report && (
                 <MotionPressable accessibilityRole="button" accessibilityLabel={'Abrir ocorrência: ' + report.description} accessibilityHint={report.category + '. ' + statusLabels[report.status]} onPress={open} style={({ pressed }) => [styles.story, pressed && styles.pressed]}>
-                    {report.photo && <ReportThumbnail source={report.photo} />}
+                    {report.photo && <ReportThumbnail source={report.photo} onSettled={onPhotoSettled} />}
                     <View style={styles.copy}>
                         <Text style={styles.category}>{report.category}</Text>
                         <Text style={styles.title} numberOfLines={2}>
@@ -45,7 +45,7 @@ export function CommunityHighlight({ report, message, open, feed }: Props) {
 const styles = StyleSheet.create({
     section: { gap: 4 },
     heading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' },
-    link: { flexDirection: 'row', alignItems: 'center', gap: 3, minHeight: 48, paddingHorizontal: 4 },
+    link: { ...mobileStyles.textButton, flexDirection: 'row', gap: 6 },
     linkText: { color: colors.teal, fontWeight: '700', fontSize: 14 },
     story: { flexDirection: 'row', alignItems: 'center', borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.line, paddingVertical: 8, gap: 10 },
     copy: { flex: 1, gap: 3, minWidth: 0 },

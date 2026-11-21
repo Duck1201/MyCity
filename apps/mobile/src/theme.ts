@@ -28,13 +28,18 @@ export function statusTint(status: ReportStatus) {
     return statusTints[status];
 }
 
+export const floatingAction = { size: 56, inset: 16 };
+export const floatingActionClearance = floatingAction.size + floatingAction.inset + 8;
+
 export const mobileStyles = StyleSheet.create({
-    page: { paddingHorizontal: 14, paddingTop: 12, paddingBottom: 18, gap: 8, backgroundColor: colors.canvas },
+    page: { flexGrow: 1, justifyContent: 'flex-start', paddingHorizontal: 14, paddingVertical: 12, gap: 8, backgroundColor: colors.canvas },
     title: { color: colors.ink, fontSize: 24, letterSpacing: -0.6, fontWeight: '700' },
     heading: { color: colors.deepTeal, fontSize: 20, fontWeight: '700' },
     label: { color: colors.ink, fontSize: 16, fontWeight: '700' },
     body: { color: colors.ink, fontSize: 16, lineHeight: 23 },
     meta: { color: colors.muted, fontSize: 14, lineHeight: 20 },
+    textButton: { minHeight: 48, minWidth: 48, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+    headerButtonPressed: { backgroundColor: 'rgba(255, 255, 255, 0.14)' },
     card: { padding: 16, gap: 8, backgroundColor: colors.surface, borderColor: colors.line, borderWidth: 1, borderRadius: 12 },
     status: { alignSelf: 'flex-start', borderRadius: 6, overflow: 'hidden', paddingHorizontal: 8, paddingVertical: 3, fontSize: 14, fontWeight: '700' },
     message: { gap: 10, borderLeftWidth: 3, borderLeftColor: colors.teal, padding: 14, backgroundColor: colors.surface },

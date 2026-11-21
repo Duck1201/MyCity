@@ -1,3 +1,6 @@
+import { fetchWithServerTime } from '@mycity/contracts';
+import { usePhotoExpiry } from '../src/use-photo-expiry';
+import { useEffect } from 'react';
 import { act, render, screen, waitFor } from '@testing-library/react-native';
 import { AppState, Text } from 'react-native';
 import { ApiFailure } from '../src/citizen-api';
@@ -77,4 +80,50 @@ it.each([403, 404])('discards related cached and in-flight results after a %i re
     await ui.rerender(view(false, false));
     await ui.rerender(view(true, false));
     expect(screen.getByText('Lista sem dados')).toBeVisible();
+});
+
+it('revalida em segundo plano sem redesenhar conteúdo idêntico', async () => {
+    jest.useFakeTimers();
+    try {
+        const body = { label: 'Lista confirmada' };
+        const load = jest.fn().mockResolvedValue(body);
+        const committed = jest.fn();
+        function Page() {
+            const query = useActiveQuery<typeof body>(load, true, '/reports');
+            useEffect(committed);
+            return <Text>{query.data?.label}</Text>;
+        }
+        await render(
+            <QueryCacheProvider>
+                <Page />
+            </QueryCacheProvider>,
+        );
+        expect(screen.getByText(body.label)).toBeVisible();
+        committed.mockClear();
+        await act(() => jest.advanceTimersByTimeAsync(5000));
+        expect(load).toHaveBeenCalledTimes(2);
+        expect(committed).not.toHaveBeenCalled();
+    } finally {
+        jest.useRealTimers();
+    }
+});
+
+it('uma resposta de outra tela não redesenha uma lista sem fotos a vencer', async () => {
+    const committed = jest.fn();
+    function Page() {
+        usePhotoExpiry([{}]);
+        useEffect(committed);
+        return <Text>Lista aberta</Text>;
+    }
+    await render(<Page />);
+    committed.mockClear();
+    jest.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 304, headers: { 'X-MyCity-Server-Time': String(Date.now()) } }));
+    try {
+        await act(async () => {
+            await fetchWithServerTime('https://example.test/api/v1/reports');
+        });
+        expect(committed).not.toHaveBeenCalled();
+    } finally {
+        jest.restoreAllMocks();
+    }
 });

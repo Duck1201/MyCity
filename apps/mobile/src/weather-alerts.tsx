@@ -1,10 +1,11 @@
+import { ScreenLoading } from './components/screen-loading';
 import { useCallback, useEffect } from 'react';
 import { BackHandler, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { MotionPressable as Pressable } from './components/motion-pressable';
 import { Text } from './components/typography';
 import type { WeatherAlert } from '@mycity/contracts';
 import type { CitizenRequest } from './citizen-api';
-import { colors, mobileStyles } from './theme';
+import { colors, floatingActionClearance, mobileStyles } from './theme';
 import { Icon } from './components/civic-header';
 import { ActionButton } from './components/action-button';
 import { useActiveQuery } from './use-active-query';
@@ -32,7 +33,7 @@ function Heading({ title }: { title: string }) {
     );
 }
 
-function Feedback({ failed, retry, loading }: { failed: boolean; retry: () => void; loading: boolean }) {
+function Feedback({ failed, retry }: { failed: boolean; retry: () => void }) {
     if (failed)
         return (
             <View style={styles.feedback}>
@@ -41,12 +42,6 @@ function Feedback({ failed, retry, loading }: { failed: boolean; retry: () => vo
                 </Text>
                 <ActionButton label="Tentar novamente" onPress={retry} />
             </View>
-        );
-    if (loading)
-        return (
-            <Text style={styles.body} accessibilityLiveRegion="polite">
-                Carregando cenários…
-            </Text>
         );
     return null;
 }
@@ -57,14 +52,14 @@ function AlertList({ request, cursors, setCursors, open }: { request: CitizenReq
     const path = cursor ? '/weather-alerts?cursor=' + encodeURIComponent(cursor) : '/weather-alerts';
     const load = useCallback((signal: AbortSignal) => request<Page>(path, signal), [request, path]);
     const query = useActiveQuery(load, true, path);
+    if (!query.data && !query.failed) return <ScreenLoading label="Carregando cenários…" />;
     const nextCursor = query.updating ? null : query.data?.page.nextCursor;
     return (
         <ScrollView contentContainerStyle={styles.page}>
             <Heading title="Alertas climáticos" />
             <Text style={styles.description}>Cenários fictícios de 25 de novembro de 2026.</Text>
-            <Feedback loading={!query.data} failed={query.failed} retry={query.retry} />
+            <Feedback failed={query.failed} retry={query.retry} />
             {query.updating && <Text accessibilityLiveRegion="polite">Exibindo os resultados anteriores.</Text>}
-            {query.revalidating && !query.updating && <Text accessibilityLiveRegion="polite">Atualizando…</Text>}
             {!query.updating && query.data?.data.length === 0 && <Text style={styles.body}>Nenhum cenário disponível.</Text>}
             {query.data?.data.map((alert) => (
                 <Pressable key={alert.id} accessibilityRole="button" accessibilityLabel={[levels[alert.level].label, alert.title, alert.regionLabel].join(', ')} onPress={() => open(alert.id)} style={({ pressed }) => [styles.card, pressed && styles.pressed]}>
@@ -104,8 +99,10 @@ function AlertDetail({ request, id, back }: { request: CitizenRequest; id: strin
                 <Text accessibilityLiveRegion="polite" style={styles.body}>
                     Este cenário está indisponível.
                 </Text>
+            ) : !alert && !query.failed ? (
+                <ScreenLoading label="Carregando cenário…" />
             ) : (
-                <Feedback loading={!alert} failed={query.failed} retry={query.retry} />
+                <Feedback failed={query.failed} retry={query.retry} />
             )}
             {alert && (
                 <>
@@ -147,7 +144,7 @@ export function WeatherAlerts({ request, id, setId, cursors, setCursors }: { req
 }
 
 const styles = StyleSheet.create({
-    page: { ...mobileStyles.page, paddingBottom: 88 },
+    page: { ...mobileStyles.page, paddingBottom: floatingActionClearance },
     headingBlock: { gap: 4 },
     simulation: { color: colors.teal, fontSize: 14, fontWeight: '700' },
     title: mobileStyles.title,

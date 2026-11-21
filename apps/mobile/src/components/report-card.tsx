@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 import type { ReportStatus } from '@mycity/contracts';
 import { Icon } from './civic-header';
 import { statusLabels } from '../report-overview';
@@ -16,6 +16,8 @@ type Props = {
     status: ReportStatus;
     when: string;
     photo?: PhotoSource | undefined;
+    onPhotoSettled?: () => void;
+    onLayout?: (event: LayoutChangeEvent) => void;
     place?: string;
     update?: string | undefined;
     onPress: () => void;
@@ -23,10 +25,10 @@ type Props = {
     children: ReactNode;
 };
 
-export function ReportCard({ feed, protocol, category, description, status, when, photo, place, update, onPress, children, confirmations }: Props) {
+export function ReportCard({ feed, protocol, category, description, status, when, photo, onPhotoSettled, onLayout, place, update, onPress, children, confirmations }: Props) {
     const tint = statusTint(status);
     return (
-        <View style={styles.card}>
+        <View style={styles.card} onLayout={onLayout}>
             <MotionPressable accessibilityRole="button" accessibilityLabel={'Abrir ' + category} accessibilityHint={[protocol && 'Protocolo ' + protocol, statusLabels[status], description, confirmations, update].filter(Boolean).join('. ')} onPress={onPress} style={({ pressed }) => pressed && styles.pressed}>
                 <View style={styles.body}>
                     <View style={styles.topline}>
@@ -57,7 +59,7 @@ export function ReportCard({ feed, protocol, category, description, status, when
                                 {confirmations && <Text style={styles.date}>{confirmations}</Text>}
                             </View>
                         </View>
-                        {photo && <ReportThumbnail source={photo} label={'Foto da ocorrência: ' + description} />}
+                        {photo && <ReportThumbnail source={photo} label={'Foto da ocorrência: ' + description} onSettled={onPhotoSettled} />}
                         {!feed && !photo && <Icon name="next" size={17} color={colors.muted} />}
                     </View>
                     {!!update && (

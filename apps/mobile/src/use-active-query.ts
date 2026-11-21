@@ -42,7 +42,7 @@ export function useActiveQuery<T>(load: (signal: AbortSignal) => Promise<T>, ena
                 const result = await load(controller.signal);
                 if (!controller.signal.aborted && startedAt === (session?.epoch() ?? 0)) {
                     if (key) session?.remember(key, result);
-                    setResult({ version: startedAt, key, value: result });
+                    setResult((previous) => (previous?.version === startedAt && previous.key === key && Object.is(previous.value, result) ? previous : { version: startedAt, key, value: result }));
                     setFailed(false);
                     setUnavailable(false);
                 }
