@@ -8,14 +8,7 @@ O MVP está entregue (veja [plan.md](plan.md)). Toda mudança agora é manutenç
 
 Siga os passos na ordem. Nenhum deles é opcional.
 
-1. **Branch.** Nunca commite na `main`.
-
-    ```bash
-    git switch main && git pull
-    git switch -c <tipo>/<assunto>   # tipo: feat, fix, refactor, docs, ci, build, test, chore
-    ```
-
-2. **Ambiente.** Use este checkout, o `.env` e os serviços que já existem; não crie clone, worktree ou cópia sem pedido explícito. Se faltar algo, siga o [README](README.md#executar-localmente):
+1. **Ambiente.** Use este checkout, o `.env` e os serviços que já existem; não crie clone, worktree ou cópia sem pedido explícito. Se faltar algo, siga o [README](README.md#executar-localmente):
 
     ```bash
     docker compose up -d --wait db                    # banco de desenvolvimento
@@ -24,11 +17,11 @@ Siga os passos na ordem. Nenhum deles é opcional.
     npm run dev:mobile                                # Metro para o app (Expo Go ou APK de dev)
     ```
 
-3. **Localize a regra** antes de mudar comportamento (tabela abaixo). Se a regra depende de uma decisão aberta em [concerns.md](concerns.md), pergunte ao responsável antes.
+2. **Localize a regra** antes de mudar comportamento (tabela abaixo). Se a regra depende de uma decisão aberta em [concerns.md](concerns.md), pergunte ao responsável antes.
 
-4. **Teste primeiro.** Escreva o teste de regressão, veja-o **falhar** pelo motivo certo e só então implemente. Teste pela interface pública (rota HTTP, componente, função exportada), na pasta `tests/` do workspace. Banco e regra de negócio nunca são mockados; mock só na fronteira externa (relógio, Maps, rede do aparelho).
+3. **Teste primeiro.** Escreva o teste de regressão, veja-o **falhar** pelo motivo certo e só então implemente. Teste pela interface pública (rota HTTP, componente, função exportada), na pasta `tests/` do workspace. Banco e regra de negócio nunca são mockados; mock só na fronteira externa (relógio, Maps, rede do aparelho).
 
-5. **Verifique tudo**, nesta ordem:
+4. **Verifique tudo**, nesta ordem:
 
     ```bash
     npm run format:check
@@ -38,9 +31,9 @@ Siga os passos na ordem. Nenhum deles é opcional.
 
     Mudou o painel? Confira o fluxo no navegador contra a API local. Mudou câmera, GPS, mapa ou build Android? Valide no Android físico; se não der, registre a lacuna em [docs/testing.md](docs/testing.md).
 
-6. **Atualize o documento da regra** que mudou (tabela abaixo) e registre pendências em [concerns.md](concerns.md).
+5. **Atualize o documento da regra** que mudou (tabela abaixo) e registre pendências em [concerns.md](concerns.md).
 
-7. **Commit, push e PR.**
+6. **Commit, push e PR.**
 
     ```bash
     git add <arquivos> && git commit -m "<tipo>: <resumo em inglês>"
@@ -50,7 +43,7 @@ Siga os passos na ordem. Nenhum deles é opcional.
 
     A CI precisa ficar verde. O merge é **squash** e o título do PR vira o commit na `main`. Diga no PR o que mudou, o que foi verificado e o que ficou pendente.
 
-8. **Release** (só quando o responsável pedir): uma tag `vX.Y.Z` na `main` publica as imagens, implanta no servidor e anexa o APK. Antes da tag, rode os dois revisores sobre a `main`: no Claude Code, os subagentes `security-reviewer` e `regression-reviewer`; no Codex, `security_reviewer` e `regression_reviewer` (`.codex/agents/`). As instruções são as mesmas, em `.claude/agents/`. Veja [docs/deploy.md](docs/deploy.md#fluxo-de-entrega).
+7. **Release** (só quando o responsável pedir): uma tag `vX.Y.Z` na `main` publica as imagens, implanta no servidor e anexa o APK. Antes da tag, rode os dois revisores sobre a `main`: no Claude Code, os subagentes `security-reviewer` e `regression-reviewer`; no Codex, `security_reviewer` e `regression_reviewer` (`.codex/agents/`). As instruções são as mesmas, em `.claude/agents/`. Veja [docs/deploy.md](docs/deploy.md#fluxo-de-entrega).
 
 ## Testes vermelhos
 
