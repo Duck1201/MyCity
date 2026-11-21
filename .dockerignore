@@ -31,3 +31,4 @@ apps/api/src/generated
 !apps/web/public/images/*.webp
 !apps/web/public/images/*.txt
 !deploy/nginx.conf
+!deploy/panel-security.conf

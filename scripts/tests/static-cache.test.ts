@@ -52,3 +52,15 @@ it('leva a fonte e a licença dela para a imagem do painel', () => {
         expect(allowed).toContain(file);
     }
 });
+
+it('entrega a política de segurança inclusive nas rotas estáticas com cache próprio', () => {
+    const include = 'include /etc/nginx/panel-security.conf;';
+    expect(config.slice(config.indexOf('server {'), config.indexOf('location /api/'))).toContain(include);
+    for (const [, block] of config.matchAll(/location [^{]+\{([^{}]+)\}/g)) {
+        if (block.includes('add_header ')) expect(block).toContain(include);
+    }
+    const policy = readFileSync('deploy/panel-security.conf', 'utf8');
+    expect(policy).toMatch(/add_header Content-Security-Policy "[^"]*default-src 'self'[^"]*frame-ancestors 'none'[^"]*" always;/);
+    expect(policy).toContain('add_header X-Frame-Options "DENY" always;');
+    expect(policy).toContain('add_header Referrer-Policy "strict-origin-when-cross-origin" always;');
+});
