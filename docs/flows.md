@@ -87,21 +87,21 @@ Decisão aprovada: exibir nome e foto de perfil somente quando “Quero mostrar 
 
 ## Inventário de telas
 
-| Plataforma | Tela                    | Estados essenciais                                                                |
-| ---------- | ----------------------- | --------------------------------------------------------------------------------- |
-| App        | Login                   | Inicial, enviando, erro de credenciais, sem conexão                               |
-| App        | Feed                    | Lista, filtros, vazio, carregando, falha mantendo dados                           |
-| App        | Nova denúncia           | Campos, prévias, compressão, GPS negado/indisponível, seleção manual, envio/falha |
-| App        | Detalhes                | Fotos, localização, confirmações, histórico, ações conforme papel/estado          |
-| App        | Mapa                    | Marcadores, filtro, seleção, vazio, erro de provedor                              |
-| App        | Início / Meus registros | Destaque da comunidade, registros próprios, status, cancelamento e filtros        |
-| App        | Resolvidas              | Histórico das denúncias resolvidas                                                |
-| App        | Notificações            | Lida/não lida, vazio, erro e navegação                                            |
-| App        | Alertas                 | Três níveis simulados e detalhes; indisponibilidade de dados                      |
-| Web        | Login                   | Credenciais, erro, sessão expirada                                                |
-| Web        | Visão geral             | Indicadores, categorias e prioridades                                             |
-| Web        | Atendimento             | Filtros, prioridade, contadores, paginação, exportação e estados de consulta      |
-| Web        | Detalhes do gestor      | Fotos, localização, histórico, resposta, transições, rejeição e conflito          |
-| Web        | Categorias              | Cadastro, edição de nome e ícone, arquivamento e reativação                       |
+| Plataforma | Tela                    | Estados essenciais                                                                                                                                                                                                                                                   |
+| ---------- | ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| App        | Login                   | Inicial, enviando, erro de credenciais, sem conexão                                                                                                                                                                                                                  |
+| App        | Feed                    | Lista, filtros, vazio, carregando, falha mantendo dados                                                                                                                                                                                                              |
+| App        | Nova denúncia           | Campos, prévias, compressão, GPS negado/indisponível, seleção manual, envio/falha                                                                                                                                                                                    |
+| App        | Detalhes                | Fotos (tocar amplia em tela cheia, com swipe; zoom por pinça no ponto entre os dedos e no nível escolhido, até 6×; toque duplo amplia no ponto tocado ou restaura; no TalkBack, ação “Aproximar”), localização, confirmações, histórico, ações conforme papel/estado |
+| App        | Mapa                    | Marcadores, filtro, seleção, vazio, erro de provedor                                                                                                                                                                                                                 |
+| App        | Início / Meus registros | Destaque da comunidade, registros próprios, status, cancelamento e filtros                                                                                                                                                                                           |
+| App        | Resolvidas              | Histórico das denúncias resolvidas                                                                                                                                                                                                                                   |
+| App        | Notificações            | Lida/não lida, vazio, erro e navegação                                                                                                                                                                                                                               |
+| App        | Alertas                 | Três níveis simulados e detalhes; indisponibilidade de dados                                                                                                                                                                                                         |
+| Web        | Login                   | Credenciais, erro, sessão expirada                                                                                                                                                                                                                                   |
+| Web        | Visão geral             | Indicadores, categorias e prioridades                                                                                                                                                                                                                                |
+| Web        | Atendimento             | Filtros, prioridade, contadores, paginação, exportação e estados de consulta                                                                                                                                                                                         |
+| Web        | Detalhes do gestor      | Fotos, localização, histórico, resposta, transições, rejeição e conflito                                                                                                                                                                                             |
+| Web        | Categorias              | Cadastro, edição de nome e ícone, arquivamento e reativação                                                                                                                                                                                                          |
 
 No app integrado, **Sair** está no cabeçalho da área autenticada. A [apresentação do README](../README.md#veja-como-funciona) mostra capturas atuais do painel e da prévia. Use as [diretrizes de usabilidade](usability.md) para revisar foco, rótulos, navegação, contraste e mensagens.

@@ -1,5 +1,7 @@
 import { categoryLabel } from './category-catalog';
-import { ReportPhoto } from './components/report-photo';
+import { useState } from 'react';
+import { ReportPhoto, reportPhotoSource } from './components/report-photo';
+import { PhotoViewer } from './components/photo-viewer';
 import { mobileStyles, colors, statusTint } from './theme';
 import { Image, StyleSheet, View } from 'react-native';
 import { Text } from './components/typography';
@@ -8,6 +10,11 @@ import { type ReportDetail, type ReportStatus } from '@mycity/contracts';
 export const statusLabels: Record<ReportStatus, string> = { SENT: 'Enviado', UNDER_REVIEW: 'Em análise', IN_PROGRESS: 'Em andamento', RESOLVED: 'Resolvido', REJECTED: 'Rejeitado', CANCELED: 'Cancelado' };
 
 export function ReportOverview({ detail, apiBase, token }: { detail: ReportDetail; apiBase: string; token: string }) {
+    const [viewing, setViewing] = useState<number | null>(null);
+    const viewable = detail.photos.flatMap((photo) => {
+        const source = reportPhotoSource(photo.contentPath, apiBase, token);
+        return source ? [{ id: photo.id, source }] : [];
+    });
     return (
         <View style={styles.overview}>
             <View style={styles.heading}>
@@ -27,8 +34,9 @@ export function ReportOverview({ detail, apiBase, token }: { detail: ReportDetai
                 </Text>
             </View>
             {detail.photos.map((photo, i) => (
-                <ReportPhoto key={photo.id} apiBase={apiBase} token={token} path={photo.contentPath} index={i} width={photo.width} height={photo.height} />
+                <ReportPhoto key={photo.id} apiBase={apiBase} token={token} path={photo.contentPath} index={i} width={photo.width} height={photo.height} onExpand={() => setViewing(i)} />
             ))}
+            {viewing !== null && <PhotoViewer photos={viewable} start={Math.min(viewing, viewable.length - 1)} onClose={() => setViewing(null)} />}
         </View>
     );
 }
