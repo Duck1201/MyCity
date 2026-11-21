@@ -1,17 +1,81 @@
 import { useRef, useState } from 'react';
-import { Camera, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Dialog } from 'radix-ui';
+import { Camera, ChevronLeft, ChevronRight, X } from 'lucide-react';
+type Zoom = { scale: number; x: number; y: number };
+const unzoomed: Zoom = { scale: 1, x: 0, y: 0 };
+const tapScale = 2.5;
+const maxScale = 6;
+type Size = { width: number; height: number };
+// The picture drawn inside the image box by object-fit: contain, which is smaller than the box on one axis.
+function pictureOf(image: HTMLImageElement | null, box: Size): Size {
+    const width = image?.clientWidth || box.width;
+    const height = image?.clientHeight || box.height;
+    if (!image?.naturalWidth || !image.naturalHeight) return { width, height };
+    const ratio = image.naturalWidth / image.naturalHeight;
+    return width / height > ratio ? { width: height * ratio, height } : { width, height: width / ratio };
+}
+// Where the zoomed picture is still smaller than the stage it stays centred; where it is larger,
+// its edges may reach the stage edges but never pull away from them.
+function bounded(zoom: Zoom, box: Size, picture: Size = box): Zoom {
+    const limitX = Math.max(0, (picture.width * zoom.scale - box.width) / 2);
+    const limitY = Math.max(0, (picture.height * zoom.scale - box.height) / 2);
+    return { scale: zoom.scale, x: Math.min(limitX, Math.max(-limitX, zoom.x)), y: Math.min(limitY, Math.max(-limitY, zoom.y)) };
+}
 type GalleryPhoto = { image: string; width?: number; height?: number; credit?: { source: string; author: string; licenseUrl: string; license: string } };
 
 export function PhotoGallery({ photos, category }: { photos: readonly GalleryPhoto[]; category: string }) {
     const [index, setIndex] = useState(0);
     const start = useRef<{ x: number; y: number; id: number } | null>(null);
+    const swiped = useRef(false);
+    const [viewing, setViewing] = useState(false);
+    const [zoom, setZoom] = useState<Zoom>(unzoomed);
+    const stage = useRef<HTMLDivElement>(null);
+    const image = useRef<HTMLImageElement>(null);
+    const drag = useRef<{ x: number; y: number; from: Zoom; moved: boolean } | null>(null);
     const multiple = photos.length > 1;
     const position = Math.min(index, photos.length - 1);
     const photo = photos[position];
     if (!photo) return null;
     function step(amount: number) {
         setIndex((value) => Math.min(photos.length - 1, Math.max(0, Math.min(value, photos.length - 1) + amount)));
+        setZoom(unzoomed);
     }
+    // Whether a click landed on the picture as drawn (contained in the stage, then zoomed), not on the dark band around it.
+    function onPicture(clientX: number, clientY: number) {
+        const element = stage.current;
+        if (!element) return false;
+        const box = element.getBoundingClientRect();
+        const style = getComputedStyle(element);
+        const [left, right, top, bottom] = [style.paddingLeft, style.paddingRight, style.paddingTop, style.paddingBottom].map((value) => parseFloat(value) || 0) as [number, number, number, number];
+        const content = { width: box.width - left - right, height: box.height - top - bottom };
+        const picture = pictureOf(image.current, content);
+        const centreX = box.left + left + content.width / 2 + zoom.x;
+        const centreY = box.top + top + content.height / 2 + zoom.y;
+        return Math.abs(clientX - centreX) <= (picture.width * zoom.scale) / 2 && Math.abs(clientY - centreY) <= (picture.height * zoom.scale) / 2;
+    }
+    // Scale around a point of the stage (in client coordinates) so that point stays under the cursor.
+    function zoomAt(scale: number, clientX?: number, clientY?: number) {
+        setZoom((current) => {
+            const box = stage.current?.getBoundingClientRect();
+            const next = Math.min(maxScale, Math.max(1, scale));
+            if (!box || next === 1) return unzoomed;
+            const fx = (clientX ?? box.left + box.width / 2) - (box.left + box.width / 2);
+            const fy = (clientY ?? box.top + box.height / 2) - (box.top + box.height / 2);
+            const ratio = next / current.scale;
+            return bounded({ scale: next, x: fx - ratio * (fx - current.x), y: fy - ratio * (fy - current.y) }, box, pictureOf(image.current, box));
+        });
+    }
+    const label = multiple ? 'Foto ' + (position + 1) + ' de ' + photos.length + ' da ocorrência de ' + category : (photo.credit ? 'Foto demonstrativa da ocorrência de ' : 'Foto da ocorrência de ') + category;
+    const navigation = (
+        <>
+            <button type="button" className="case-gallery-previous" aria-label="Foto anterior" aria-disabled={position === 0} onClick={() => step(-1)}>
+                <ChevronLeft size={21} aria-hidden="true" />
+            </button>
+            <button type="button" className="case-gallery-next" aria-label="Próxima foto" aria-disabled={position === photos.length - 1} onClick={() => step(1)}>
+                <ChevronRight size={21} aria-hidden="true" />
+            </button>
+        </>
+    );
     return (
         <figure
             aria-label="Fotos da ocorrência"
@@ -23,35 +87,125 @@ export function PhotoGallery({ photos, category }: { photos: readonly GalleryPho
             }}
         >
             <div className="case-gallery-frame" role={multiple ? 'group' : undefined} aria-label={multiple ? 'Visualização das fotos' : undefined} data-multiple={multiple || undefined}>
-                <img
-                    src={photo.image}
-                    width={photo.width}
-                    height={photo.height}
-                    alt={multiple ? 'Foto ' + (position + 1) + ' de ' + photos.length + ' da ocorrência de ' + category : (photo.credit ? 'Foto demonstrativa da ocorrência de ' : 'Foto da ocorrência de ') + category}
-                    onPointerDown={(event) => {
-                        if (multiple && event.pointerType === 'touch' && event.isPrimary) start.current = { x: event.clientX, y: event.clientY, id: event.pointerId };
+                <Dialog.Root
+                    open={viewing}
+                    onOpenChange={(open) => {
+                        setViewing(open);
+                        setZoom(unzoomed);
                     }}
-                    onPointerCancel={() => {
-                        start.current = null;
-                    }}
-                    onPointerUp={(event) => {
-                        const initial = start.current;
-                        start.current = null;
-                        if (!initial || event.pointerId !== initial.id) return;
-                        const horizontal = event.clientX - initial.x;
-                        if (Math.abs(horizontal) >= 40 && Math.abs(horizontal) > Math.abs(event.clientY - initial.y) * 1.5) step(horizontal < 0 ? 1 : -1);
-                    }}
-                />
-                {multiple && (
-                    <>
-                        <button type="button" className="case-gallery-previous" aria-label="Foto anterior" aria-disabled={position === 0} onClick={() => step(-1)}>
-                            <ChevronLeft size={21} aria-hidden="true" />
+                >
+                    {/* The photo itself opens the viewer; no separate button. As the dialog trigger it also gets focus back on close. */}
+                    <Dialog.Trigger asChild>
+                        <button
+                            type="button"
+                            className="case-gallery-open"
+                            aria-label={multiple ? 'Ampliar foto ' + (position + 1) + ' de ' + photos.length : 'Ampliar foto'}
+                            onClick={(event) => {
+                                // A swipe between photos ends with a click; only a tap opens the viewer.
+                                if (!swiped.current) return;
+                                swiped.current = false;
+                                event.preventDefault();
+                            }}
+                            onPointerDown={(event) => {
+                                if (multiple && event.pointerType === 'touch' && event.isPrimary) start.current = { x: event.clientX, y: event.clientY, id: event.pointerId };
+                            }}
+                            onPointerCancel={() => {
+                                start.current = null;
+                            }}
+                            onPointerUp={(event) => {
+                                const initial = start.current;
+                                start.current = null;
+                                if (!initial || event.pointerId !== initial.id) return;
+                                const horizontal = event.clientX - initial.x;
+                                if (Math.abs(horizontal) >= 40 && Math.abs(horizontal) > Math.abs(event.clientY - initial.y) * 1.5) {
+                                    swiped.current = true;
+                                    step(horizontal < 0 ? 1 : -1);
+                                }
+                            }}
+                        >
+                            <img src={photo.image} width={photo.width} height={photo.height} alt={label} />
                         </button>
-                        <button type="button" className="case-gallery-next" aria-label="Próxima foto" aria-disabled={position === photos.length - 1} onClick={() => step(1)}>
-                            <ChevronRight size={21} aria-hidden="true" />
-                        </button>
-                    </>
-                )}
+                    </Dialog.Trigger>
+                    <Dialog.Portal>
+                        <Dialog.Overlay className="photo-viewer-scrim" />
+                        <Dialog.Content
+                            className="photo-viewer"
+                            aria-describedby={undefined}
+                            onKeyDown={(event) => {
+                                if (!multiple || (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight')) return;
+                                event.preventDefault();
+                                step(event.key === 'ArrowLeft' ? -1 : 1);
+                            }}
+                        >
+                            <Dialog.Title className="sr-only">{label}</Dialog.Title>
+                            <div className="photo-viewer-bar">
+                                {multiple && (
+                                    <span role="status" aria-atomic="true">
+                                        Foto {position + 1} de {photos.length}
+                                    </span>
+                                )}
+                                <Dialog.Close aria-label="Fechar">
+                                    <X size={22} aria-hidden="true" />
+                                </Dialog.Close>
+                            </div>
+                            <div
+                                className="photo-viewer-stage"
+                                ref={stage}
+                                data-zoomed={zoom.scale > 1 || undefined}
+                                data-dragging={drag.current?.moved || undefined}
+                                onPointerDown={(event) => {
+                                    if (zoom.scale <= 1 || event.button !== 0) return;
+                                    drag.current = { x: event.clientX, y: event.clientY, from: zoom, moved: false };
+                                    event.currentTarget.setPointerCapture?.(event.pointerId);
+                                }}
+                                onPointerMove={(event) => {
+                                    const start = drag.current;
+                                    if (!start) return;
+                                    const dx = event.clientX - start.x;
+                                    const dy = event.clientY - start.y;
+                                    if (Math.abs(dx) + Math.abs(dy) > 3) start.moved = true;
+                                    const box = stage.current?.getBoundingClientRect();
+                                    if (box) setZoom(bounded({ scale: start.from.scale, x: start.from.x + dx, y: start.from.y + dy }, box, pictureOf(image.current, box)));
+                                }}
+                                // The click is read on the stage: after a drag the pointer is captured there, not on the photo.
+                                onClick={(event) => {
+                                    if (drag.current?.moved) return;
+                                    // Outside the photo a click closes the viewer; on it, it zooms in or out.
+                                    if (!onPicture(event.clientX, event.clientY)) {
+                                        setViewing(false);
+                                        setZoom(unzoomed);
+                                        return;
+                                    }
+                                    if (zoom.scale > 1) setZoom(unzoomed);
+                                    else zoomAt(tapScale, event.clientX, event.clientY);
+                                }}
+                                onPointerUp={() => {
+                                    // Let the click that ends a drag know it was a drag.
+                                    setTimeout(() => (drag.current = null));
+                                }}
+                            >
+                                <img
+                                    src={photo.image}
+                                    width={photo.width}
+                                    height={photo.height}
+                                    alt={label}
+                                    ref={image}
+                                    style={{ transform: 'translate(' + zoom.x + 'px, ' + zoom.y + 'px) scale(' + zoom.scale + ')' }}
+                                    tabIndex={0}
+                                    // Zoom is a click: in at the clicked point, out on the next click. Enter does the same from the keyboard.
+                                    onKeyDown={(event) => {
+                                        if (event.key !== 'Enter' && event.key !== ' ') return;
+                                        event.preventDefault();
+                                        if (zoom.scale > 1) setZoom(unzoomed);
+                                        else zoomAt(tapScale);
+                                    }}
+                                />
+                            </div>
+                            {multiple && <div className="photo-viewer-nav">{navigation}</div>}
+                        </Dialog.Content>
+                    </Dialog.Portal>
+                </Dialog.Root>
+                {multiple && navigation}
             </div>
             <figcaption>
                 {multiple && (
