@@ -1,37 +1,48 @@
 import { useEffect, useRef, useState } from 'react';
-import { Animated, FlatList, Modal, StyleSheet, useWindowDimensions, View } from 'react-native';
-import { GestureDetector, GestureHandlerRootView, useExclusiveGestures, usePanGesture, usePinchGesture, useSimultaneousGestures, useTapGesture } from 'react-native-gesture-handler';
+import { Animated, Modal, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { FlatList, GestureDetector, GestureHandlerRootView, useExclusiveGestures, usePanGesture, usePinchGesture, useSimultaneousGestures, useTapGesture } from 'react-native-gesture-handler';
 import { Image } from 'expo-image';
 import { MotionPressable } from './motion-pressable';
 import { Text } from './typography';
 import type { PhotoSource } from './report-photo';
 
-const maxScale = 4;
+const maxScale = 6;
 const tapScale = 2.5;
 
 export type ViewerPhoto = { id: string; source: PhotoSource };
 
 // One photo at a time, so the gestures run on the JS thread and drive React Native's Animated values.
+// The stage does not move, so gesture coordinates stay in its frame; only the inner layer is transformed.
 function ZoomablePhoto({ photo, index, total, zoomed, onZoomedChange, width, height }: { photo: ViewerPhoto; index: number; total: number; zoomed: boolean; onZoomedChange: (zoomed: boolean) => void; width: number; height: number }) {
     const animated = useRef({ scale: new Animated.Value(1), x: new Animated.Value(0), y: new Animated.Value(0) }).current;
-    const current = useRef({ scale: 1, x: 0, y: 0, pinchStart: 1, panStart: { x: 0, y: 0 } }).current;
-    function apply(scale: number, x: number, y: number, smooth: boolean) {
-        Object.assign(current, { scale, x, y });
-        if (!smooth) {
-            animated.scale.setValue(scale);
-            animated.x.setValue(x);
-            animated.y.setValue(y);
-            return;
-        }
-        Animated.parallel([Animated.timing(animated.scale, { toValue: scale, duration: 180, useNativeDriver: true }), Animated.timing(animated.x, { toValue: x, duration: 180, useNativeDriver: true }), Animated.timing(animated.y, { toValue: y, duration: 180, useNativeDriver: true })]).start();
-    }
+    // anchor: the photo point (relative to its centre, unscaled) that sits under the fingers.
+    const current = useRef({ scale: 1, x: 0, y: 0, pinchStart: 1, anchor: { x: 0, y: 0 }, panStart: { x: 0, y: 0 } }).current;
     const bounded = (scale: number, x: number, y: number) => {
         const limitX = ((scale - 1) * width) / 2;
         const limitY = ((scale - 1) * height) / 2;
         return [Math.min(limitX, Math.max(-limitX, x)), Math.min(limitY, Math.max(-limitY, y))] as const;
     };
+    function apply(scale: number, x: number, y: number, smooth: boolean) {
+        const [boundX, boundY] = bounded(scale, x, y);
+        Object.assign(current, { scale, x: boundX, y: boundY });
+        if (!smooth) {
+            animated.scale.setValue(scale);
+            animated.x.setValue(boundX);
+            animated.y.setValue(boundY);
+            return;
+        }
+        Animated.parallel([Animated.timing(animated.scale, { toValue: scale, duration: 200, useNativeDriver: true }), Animated.timing(animated.x, { toValue: boundX, duration: 200, useNativeDriver: true }), Animated.timing(animated.y, { toValue: boundY, duration: 200, useNativeDriver: true })]).start();
+    }
+    // Keep the photo point under (focusX, focusY) in place while the scale becomes `scale`.
+    const zoomAround = (focusX: number, focusY: number, scale: number, smooth: boolean) => {
+        const fx = focusX - width / 2;
+        const fy = focusY - height / 2;
+        const anchorX = (fx - current.x) / current.scale;
+        const anchorY = (fy - current.y) / current.scale;
+        apply(scale, fx - scale * anchorX, fy - scale * anchorY, smooth);
+    };
 
-    // The zoom button and double tap set the target; gestures report where they ended.
+    // The screen reader action toggles the zoom from outside the gestures.
     useEffect(() => {
         if (zoomed && current.scale <= 1.01) apply(tapScale, 0, 0, true);
         if (!zoomed && current.scale > 1) apply(1, 0, 0, true);
@@ -43,9 +54,16 @@ function ZoomablePhoto({ photo, index, total, zoomed, onZoomedChange, width, hei
         onBegin: () => {
             current.pinchStart = current.scale;
         },
+        onActivate: (event) => {
+            current.pinchStart = current.scale;
+            const fx = event.focalX - width / 2;
+            const fy = event.focalY - height / 2;
+            current.anchor = { x: (fx - current.x) / current.scale, y: (fy - current.y) / current.scale };
+        },
         onUpdate: (event) => {
             const scale = Math.min(maxScale, Math.max(1, current.pinchStart * event.scale));
-            apply(scale, ...bounded(scale, current.x, current.y), false);
+            // Moving both fingers also moves the photo, because the anchor follows the current focal point.
+            apply(scale, event.focalX - width / 2 - scale * current.anchor.x, event.focalY - height / 2 - scale * current.anchor.y, false);
         },
         onDeactivate: () => {
             if (current.scale <= 1.01) apply(1, 0, 0, true);
@@ -59,20 +77,39 @@ function ZoomablePhoto({ photo, index, total, zoomed, onZoomedChange, width, hei
         onBegin: () => {
             current.panStart = { x: current.x, y: current.y };
         },
-        onUpdate: (event) => apply(current.scale, ...bounded(current.scale, current.panStart.x + event.translationX, current.panStart.y + event.translationY), false),
+        onUpdate: (event) => apply(current.scale, current.panStart.x + event.translationX, current.panStart.y + event.translationY, false),
     });
     const doubleTap = useTapGesture({
         testID: 'photo-viewer-double-tap-' + index,
         runOnJS: true,
         numberOfTaps: 2,
-        onActivate: () => onZoomedChange(current.scale <= 1.01),
+        onActivate: (event) => {
+            if (current.scale > 1.01) {
+                apply(1, 0, 0, true);
+                onZoomedChange(false);
+                return;
+            }
+            zoomAround(event.x ?? width / 2, event.y ?? height / 2, tapScale, true);
+            onZoomedChange(true);
+        },
     });
     const gestures = useExclusiveGestures(doubleTap, useSimultaneousGestures(pinch, pan));
     return (
         <GestureDetector gesture={gestures}>
-            <Animated.View style={[{ width, height }, styles.page, { transform: [{ translateX: animated.x }, { translateY: animated.y }, { scale: animated.scale }] }]}>
-                <Image source={photo.source} cachePolicy="disk" contentFit="contain" style={StyleSheet.absoluteFill} accessibilityLabel={'Foto ' + (index + 1) + ' de ' + total + ' da denúncia, ampliada'} />
-            </Animated.View>
+            <View testID={'photo-viewer-stage-' + index} style={[{ width, height }, styles.page]}>
+                <Animated.View testID={'photo-viewer-zoom-' + index} style={[StyleSheet.absoluteFill, { transform: [{ translateX: animated.x }, { translateY: animated.y }, { scale: animated.scale }] }]}>
+                    <Image
+                        source={photo.source}
+                        cachePolicy="disk"
+                        contentFit="contain"
+                        style={StyleSheet.absoluteFill}
+                        accessibilityLabel={'Foto ' + (index + 1) + ' de ' + total + ' da denúncia, ampliada'}
+                        // Zoom is a pinch; screen readers get the same toggle as an action instead of a visible button.
+                        accessibilityActions={[{ name: 'activate', label: zoomed ? 'Restaurar zoom' : 'Aproximar' }]}
+                        onAccessibilityAction={() => onZoomedChange(!zoomed)}
+                    />
+                </Animated.View>
+            </View>
         </GestureDetector>
     );
 }
@@ -88,9 +125,6 @@ export function PhotoViewer({ photos, start, onClose }: { photos: ViewerPhoto[];
                     <Text style={styles.counter} accessibilityLiveRegion="polite">
                         Foto {index + 1} de {photos.length}
                     </Text>
-                    <MotionPressable accessibilityRole="button" accessibilityLabel={zoomed ? 'Restaurar zoom' : 'Aproximar'} onPress={() => setZoomed(!zoomed)} style={styles.action}>
-                        <Text style={styles.actionText}>{zoomed ? 'Restaurar zoom' : 'Aproximar'}</Text>
-                    </MotionPressable>
                     <MotionPressable accessibilityRole="button" accessibilityLabel="Fechar" onPress={onClose} style={styles.action}>
                         <Text style={styles.actionText}>Fechar</Text>
                     </MotionPressable>

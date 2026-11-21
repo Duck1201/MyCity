@@ -17,9 +17,10 @@ it('amplia a foto tocada em tela cheia, troca de foto e fecha', async () => {
     expect(screen.queryByText('Foto 2 de 2')).toBeNull();
 });
 
-it('aproxima com pinça, trava a troca de foto enquanto ampliada e restaura pelo botão', async () => {
+it('aproxima com pinça, trava a troca de foto enquanto ampliada e volta com toque duplo, sem botão de zoom', async () => {
     await render(<ReportOverview detail={detail} apiBase={apiBase} token="sessao" />);
     await fireEvent.press(screen.getByRole('button', { name: 'Ampliar foto 1 da denúncia' }));
+    expect(screen.queryByRole('button', { name: /Aproximar|Restaurar zoom/ })).toBeNull();
     expect(screen.getByTestId('photo-viewer-pages')).toHaveProp('scrollEnabled', true);
     await act(async () => {
         fireGestureHandler(getByGestureTestId('photo-viewer-pinch-0'), [
@@ -30,9 +31,41 @@ it('aproxima com pinça, trava a troca de foto enquanto ampliada e restaura pelo
         ]);
     });
     expect(screen.getByTestId('photo-viewer-pages')).toHaveProp('scrollEnabled', false);
-    await fireEvent.press(screen.getByRole('button', { name: 'Restaurar zoom' }));
+    await act(async () => {
+        fireGestureHandler(getByGestureTestId('photo-viewer-double-tap-0'), [{ state: State.BEGAN }, { state: State.ACTIVE }, { state: State.END }]);
+    });
     expect(screen.getByTestId('photo-viewer-pages')).toHaveProp('scrollEnabled', true);
-    // Without pinching (TalkBack), the same button zooms in.
-    await fireEvent.press(screen.getByRole('button', { name: 'Aproximar' }));
+});
+
+it('oferece o zoom ao TalkBack como ação de acessibilidade da foto ampliada', async () => {
+    await render(<ReportOverview detail={detail} apiBase={apiBase} token="sessao" />);
+    await fireEvent.press(screen.getByRole('button', { name: 'Ampliar foto 1 da denúncia' }));
+    const photo = screen.getByLabelText('Foto 1 de 2 da denúncia, ampliada');
+    expect(photo.props.accessibilityActions).toEqual(expect.arrayContaining([expect.objectContaining({ name: 'activate', label: 'Aproximar' })]));
+    await act(async () => fireEvent(photo, 'accessibilityAction', { nativeEvent: { actionName: 'activate' } }));
     expect(screen.getByTestId('photo-viewer-pages')).toHaveProp('scrollEnabled', false);
+});
+
+it('amplia no ponto entre os dedos e no nível que a pinça escolher', async () => {
+    await render(<ReportOverview detail={detail} apiBase={apiBase} token="sessao" />);
+    await fireEvent.press(screen.getByRole('button', { name: 'Ampliar foto 1 da denúncia' }));
+    const zoomLayer = () => screen.getByTestId('photo-viewer-zoom-0');
+    const stage = screen.getByTestId('photo-viewer-stage-0');
+    const { width, height } = stage.props.style.find((style: { width?: number }) => style?.width !== undefined);
+    // Pinch around a point a quarter of the way in from the top-left corner.
+    const focalX = width / 4;
+    const focalY = height / 4;
+    await act(async () => {
+        fireGestureHandler(getByGestureTestId('photo-viewer-pinch-0'), [
+            { state: State.BEGAN, scale: 1, focalX, focalY },
+            { state: State.ACTIVE, scale: 1.7, focalX, focalY },
+            { state: State.ACTIVE, scale: 3.3, focalX, focalY },
+            { state: State.END, scale: 3.3, focalX, focalY },
+        ]);
+    });
+    const transform = Object.assign({}, ...zoomLayer().props.style.transform);
+    // Any level, not a preset, and the point under the fingers stays put: x = (focal - centre) * (1 - scale).
+    expect(transform.scale).toBeCloseTo(3.3);
+    expect(transform.translateX).toBeCloseTo((focalX - width / 2) * (1 - 3.3));
+    expect(transform.translateY).toBeCloseTo((focalY - height / 2) * (1 - 3.3));
 });
