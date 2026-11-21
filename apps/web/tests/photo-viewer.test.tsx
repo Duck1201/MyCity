@@ -1,7 +1,13 @@
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { expect, it } from 'vitest';
 import { PhotoGallery } from '../src/components/photo-gallery';
+
+// Read a CSS transform by its meaning: translate(x) is translate(x, 0).
+const transformOf = (element: HTMLElement) => {
+    const [, x, y = '0', scale] = /translate\((-?[\d.]+)px(?:, (-?[\d.]+)px)?\) scale\(([\d.]+)\)/.exec(element.style.transform)!;
+    return { x: Number(x), y: Number(y), scale: Number(scale) };
+};
 
 const photos = [
     { image: '/api/v1/reports/r/photos/1', width: 1600, height: 1200 },
@@ -27,16 +33,37 @@ it('amplia a foto em tela cheia, navega pelo teclado e devolve o foco ao fechar'
     expect(screen.getByRole('button', { name: 'Ampliar foto 2 de 2' })).toHaveFocus();
 });
 
-it('alterna entre ajustar à tela e o tamanho real ao clicar na foto ampliada', async () => {
+it('abre o visualizador pela própria foto, sem botão de ampliar separado', async () => {
+    const user = userEvent.setup();
+    render(<PhotoGallery category="Buraco na via" photos={[photos[0]!]} />);
+    const openers = screen.getAllByRole('button', { name: /^Ampliar foto/ });
+    expect(openers).toHaveLength(1);
+    expect(openers[0]).toContainElement(screen.getByRole('img', { name: 'Foto da ocorrência de Buraco na via' }));
+    await user.click(screen.getByRole('img', { name: 'Foto da ocorrência de Buraco na via' }));
+    expect(screen.getByRole('dialog', { name: 'Foto da ocorrência de Buraco na via' })).toBeVisible();
+});
+
+it('amplia no ponto clicado e volta no clique seguinte, também pelo teclado, sem botão de zoom', async () => {
     const user = userEvent.setup();
     render(<PhotoGallery category="Buraco na via" photos={[photos[0]!]} />);
     await user.click(screen.getByRole('img', { name: 'Foto da ocorrência de Buraco na via' }));
     const viewer = within(screen.getByRole('dialog', { name: 'Foto da ocorrência de Buraco na via' }));
-    const zoom = viewer.getByRole('button', { name: 'Ver em tamanho real' });
-    expect(zoom).toHaveAttribute('aria-pressed', 'false');
-    await user.click(zoom);
-    expect(viewer.getByRole('button', { name: 'Ver em tamanho real' })).toHaveAttribute('aria-pressed', 'true');
-    expect(viewer.queryByRole('button', { name: 'Próxima foto' })).toBeNull();
+    expect(viewer.queryByRole('button', { name: /Aproximar|Ajustar|tamanho real/ })).toBeNull();
+    const stage = document.querySelector('.photo-viewer-stage') as HTMLElement;
+    stage.getBoundingClientRect = () => ({ left: 0, top: 0, width: 800, height: 600, right: 800, bottom: 600, x: 0, y: 0, toJSON: () => ({}) });
+    const image = viewer.getByRole('img', { name: 'Foto da ocorrência de Buraco na via' });
+    expect(transformOf(image)).toEqual({ x: 0, y: 0, scale: 1 });
+    // A click a quarter of the way in zooms there: translate = (point - centre) * (1 - scale).
+    fireEvent.click(image, { clientX: 200, clientY: 150 });
+    expect(transformOf(image)).toEqual({ x: 300, y: 225, scale: 2.5 });
+    fireEvent.click(image, { clientX: 200, clientY: 150 });
+    expect(transformOf(image)).toEqual({ x: 0, y: 0, scale: 1 });
+    // From the keyboard, Enter on the photo zooms at its centre and back.
+    image.focus();
+    await user.keyboard('{Enter}');
+    expect(transformOf(image)).toEqual({ x: 0, y: 0, scale: 2.5 });
+    await user.keyboard('{Enter}');
+    expect(transformOf(image)).toEqual({ x: 0, y: 0, scale: 1 });
     await user.click(viewer.getByRole('button', { name: 'Fechar' }));
     expect(screen.queryByRole('dialog')).toBeNull();
 });
