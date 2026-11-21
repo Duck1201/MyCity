@@ -64,6 +64,7 @@ function AlertList({ request, cursors, setCursors, open }: { request: CitizenReq
             <Text style={styles.description}>Cenários fictícios de 25 de novembro de 2026.</Text>
             <Feedback loading={!query.data} failed={query.failed} retry={query.retry} />
             {query.updating && <Text accessibilityLiveRegion="polite">Exibindo os resultados anteriores.</Text>}
+            {query.revalidating && !query.updating && <Text accessibilityLiveRegion="polite">Atualizando…</Text>}
             {!query.updating && query.data?.data.length === 0 && <Text style={styles.body}>Nenhum cenário disponível.</Text>}
             {query.data?.data.map((alert) => (
                 <Pressable key={alert.id} accessibilityRole="button" accessibilityLabel={[levels[alert.level].label, alert.title, alert.regionLabel].join(', ')} onPress={() => open(alert.id)} style={({ pressed }) => [styles.card, pressed && styles.pressed]}>

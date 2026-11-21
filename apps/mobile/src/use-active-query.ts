@@ -19,6 +19,8 @@ export function useActiveQuery<T>(load: (signal: AbortSignal) => Promise<T>, ena
     const cached = key ? (cache?.get(key) as T | undefined) : undefined;
     const data = result?.key === key ? (result?.value ?? cached) : (cached ?? result?.value);
     const updating = data !== undefined && result?.key !== key && cached === undefined;
+    // A remembered read for this key is on screen until this mount gets the network's answer.
+    const revalidating = cached !== undefined && result?.key !== key;
     const currentData = useRef(data);
     useEffect(() => {
         currentData.current = data;
@@ -100,6 +102,7 @@ export function useActiveQuery<T>(load: (signal: AbortSignal) => Promise<T>, ena
     return {
         data,
         updating,
+        revalidating: revalidating && !failed,
         failed,
         unavailable,
         retry: () => retry.current(),
