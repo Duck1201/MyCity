@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, userEvent } from '@testing-library/react-native';
+import { act, fireEvent, render, screen, userEvent } from '@testing-library/react-native';
 import { AppState, Text } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { Image } from 'expo-image';
@@ -45,6 +45,63 @@ it('mostra a miniatura nas listas e a original no detalhe, ambas com cache em di
     const full = await screen.findByLabelText('Foto 1 da denúncia');
     expect(full).toHaveProp('source', [{ uri: 'http://192.168.2.19:3000' + photo.contentPath, headers: { Authorization: 'Bearer token-teste' } }]);
     expect(full).toHaveProp('cachePolicy', 'disk');
+});
+
+it('retira a miniatura já exibida no feed assim que vence o prazo recebido', async () => {
+    jest.useFakeTimers();
+    try {
+        const serverTime = Date.now() + 3_600_000;
+        const deadline = serverTime + 3000;
+        const closing = { ...report, status: 'RESOLVED', photosExpireAt: new Date(deadline).toISOString() };
+        jest.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+            const path = String(input).replace(base, '');
+            if (path === '/me') return ok({ data: { id: 'autor', role: 'CITIZEN' } });
+            if (path.startsWith('/reports?scope=feed')) return new Response(JSON.stringify(page([closing])), { headers: { 'X-MyCity-Server-Time': String(serverTime) } });
+            return ok(page([]));
+        });
+        await render(<App />);
+        await fireEvent.press(await screen.findByRole('tab', { name: 'Feed' }));
+        const label = 'Foto da ocorrência: ' + report.description;
+        expect(await screen.findByLabelText(label)).toBeVisible();
+        await act(async () => {
+            jest.advanceTimersByTime(3000);
+        });
+        expect(screen.queryByLabelText(label)).toBeNull();
+        expect(screen.getByText(report.description)).toBeVisible();
+    } finally {
+        jest.useRealTimers();
+    }
+});
+
+it('recalcula a validade da miniatura com o horário novo de uma resposta 304', async () => {
+    jest.useFakeTimers();
+    try {
+        const serverTime = Date.now() + 7_200_000;
+        const photosExpireAt = new Date(serverTime + 60_000).toISOString();
+        const fetcher = jest.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+            const path = String(input).replace(base, '');
+            if (path === '/me') return ok({ data: { id: 'autor', role: 'CITIZEN' } });
+            if (!path.startsWith('/reports?scope=feed')) return ok(page([]));
+            if (new Headers(init?.headers).has('If-None-Match')) return new Response(null, { status: 304, headers: { 'X-MyCity-Server-Time': String(serverTime + 59_000) } });
+            return Response.json(page([{ ...report, photosExpireAt }]), { headers: { ETag: '"v1"', 'X-MyCity-Server-Time': String(serverTime) } });
+        });
+        await render(<App />);
+        await fireEvent.press(await screen.findByRole('tab', { name: 'Feed' }));
+        const label = 'Foto da ocorrência: ' + report.description;
+        expect(await screen.findByLabelText(label)).toBeVisible();
+        await act(async () => {
+            jest.advanceTimersByTime(5000);
+        });
+        expect(fetcher.mock.calls.some(([, init]) => new Headers(init?.headers).has('If-None-Match'))).toBe(true);
+        expect(screen.getByLabelText(label)).toBeVisible();
+        await act(async () => {
+            jest.advanceTimersByTime(1000);
+        });
+        expect(screen.queryByLabelText(label)).toBeNull();
+        expect(screen.getByText(report.description)).toBeVisible();
+    } finally {
+        jest.useRealTimers();
+    }
 });
 
 it.each(['sair', 'expirar'])('apaga as fotos guardadas no aparelho ao %s', async (how) => {

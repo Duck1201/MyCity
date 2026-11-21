@@ -106,6 +106,8 @@ model Report {
   showIdentity       Boolean                  @map("show_identity")
   status             ReportStatus             @default(SENT) @map("status")
   version            Int                      @default(1) @map("version")
+  photosExpireAt     DateTime?                @map("photos_expire_at")
+  photosPurgedAt     DateTime?                @map("photos_purged_at")
   photos             ReportPhoto[]
   confirmations      ReportConfirmation[]
   notifications      Notification[]
@@ -113,6 +115,7 @@ model Report {
   createdAt          DateTime                 @default(now()) @map("created_at")
   modifiedAt         DateTime                 @default(now()) @updatedAt @map("modified_at")
 
+  @@index([photosPurgedAt, photosExpireAt])
   @@unique([authorId, clientRequestId])
   @@index([createdAt, id])
   @@map("reports")

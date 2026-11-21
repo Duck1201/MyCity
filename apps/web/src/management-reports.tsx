@@ -1,3 +1,4 @@
+import { usePhotoExpiry } from './use-photo-expiry';
 import { usePanelLoading, usePanelVisible } from './panel-loading';
 import { useLayoutEffect, useRef, useState } from 'react';
 import { categoryIconFor, managementQueueSchema, type ManagementQueuePage } from '@mycity/contracts';
@@ -34,10 +35,11 @@ export function ManagementReports({ onSessionExpired }: { onSessionExpired: () =
     const data = valid ? (query.data ?? query.previousData) : undefined;
     usePanelLoading(valid && !data && !query.failed);
     const changing = valid && !query.data && !!query.previousData && !query.failed;
+    const { hidden } = usePhotoExpiry(data?.data);
     const rows = data?.data.map((row) => ({
         ...row,
         count: row.confirmationCount,
-        photo: row.coverPhotoId ? { image: '/api/v1/reports/' + encodeURIComponent(row.id) + '/photos/' + encodeURIComponent(row.coverPhotoId) + '/thumb' } : undefined,
+        photo: row.coverPhotoId && !hidden(row.photosExpireAt) ? { image: '/api/v1/reports/' + encodeURIComponent(row.id) + '/photos/' + encodeURIComponent(row.coverPhotoId) + '/thumb' } : undefined,
         address: row.latitude + ', ' + row.longitude,
         date: dateFormat.format(new Date(row.createdAt)),
         categoryIcon: categoryIconFor(row.category, catalog.find((item) => item.id === row.category)?.icon),

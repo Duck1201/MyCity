@@ -1,3 +1,4 @@
+import { usePhotoExpiry } from './use-photo-expiry';
 import { categoryLabel } from './category-catalog';
 import { useState } from 'react';
 import { ReportPhoto, reportPhotoSource } from './components/report-photo';
@@ -11,7 +12,10 @@ export const statusLabels: Record<ReportStatus, string> = { SENT: 'Enviado', UND
 
 export function ReportOverview({ detail, apiBase, token }: { detail: ReportDetail; apiBase: string; token: string }) {
     const [viewing, setViewing] = useState<number | null>(null);
-    const viewable = detail.photos.flatMap((photo) => {
+    const { hidden, waitingForTime } = usePhotoExpiry([detail]);
+    const photosHidden = hidden(detail.photosExpireAt) || (!!detail.photosExpireAt && !detail.photos.length);
+    const photos = photosHidden ? [] : detail.photos;
+    const viewable = photos.flatMap((photo) => {
         const source = reportPhotoSource(photo.contentPath, apiBase, token);
         return source ? [{ id: photo.id, source }] : [];
     });
@@ -33,10 +37,15 @@ export function ReportOverview({ detail, apiBase, token }: { detail: ReportDetai
                     Coordenadas: {detail.location.latitude}, {detail.location.longitude}
                 </Text>
             </View>
-            {detail.photos.map((photo, i) => (
+            {photosHidden && (
+                <Text style={mobileStyles.meta} accessibilityLiveRegion="polite">
+                    {detail.photos.length && waitingForTime ? 'Conecte-se para verificar a validade das fotos.' : 'Fotos expiradas'}
+                </Text>
+            )}
+            {photos.map((photo, i) => (
                 <ReportPhoto key={photo.id} apiBase={apiBase} token={token} path={photo.contentPath} index={i} width={photo.width} height={photo.height} onExpand={() => setViewing(i)} />
             ))}
-            {viewing !== null && <PhotoViewer photos={viewable} start={Math.min(viewing, viewable.length - 1)} onClose={() => setViewing(null)} />}
+            {viewing !== null && viewable.length > 0 && <PhotoViewer photos={viewable} start={Math.min(viewing, viewable.length - 1)} onClose={() => setViewing(null)} />}
         </View>
     );
 }

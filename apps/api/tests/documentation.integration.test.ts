@@ -63,6 +63,11 @@ describe('documentação OpenAPI local', () => {
         expect(queue.properties).toMatchObject({ data: { items: { $ref: '#/components/schemas/ManagementQueueRow' } }, counts: { $ref: '#/components/schemas/ReportStatusCounts' }, page: { type: 'integer', minimum: 1 }, total: { type: 'integer', minimum: 0 } });
         expect(reportResponse('/summary', 'get')).toMatchObject({ required: ['data'], properties: { data: { $ref: '#/components/schemas/ReportStatusCounts' } } });
         const { ReportSummary, ReportDetail, ManagementQueueRow } = response.body.components.schemas;
+        for (const schema of [ReportSummary, ManagementQueueRow]) {
+            expect(schema.properties.photosExpireAt).toMatchObject({ type: 'string', format: 'date-time' });
+            expect(schema.required).not.toContain('photosExpireAt');
+        }
+        expect(ReportDetail.allOf[1].properties.photos.minItems).toBe(0);
         expect(ReportSummary.required).toContain('categoryName');
         expect(ReportSummary.required).not.toContain('author');
         expect(ReportSummary.properties.author.properties).toEqual({ name: { type: 'string' }, photoUrl: { type: 'string' } });

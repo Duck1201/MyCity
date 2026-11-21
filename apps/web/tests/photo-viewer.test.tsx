@@ -1,6 +1,7 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { expect, it } from 'vitest';
+import { expect, it, vi } from 'vitest';
+import { useLiveQuery } from '../src/use-live-query';
 import { PhotoGallery } from '../src/components/photo-gallery';
 
 // Read a CSS transform by its meaning: translate(x) is translate(x, 0).
@@ -114,4 +115,30 @@ it('fecha o visualizador ao clicar fora da foto e só amplia com clique sobre el
     // Zoomed, the photo is 500 px wide (x 150..650): the background still showing at x 100 closes it too.
     fireEvent.click(stage, { clientX: 100, clientY: 300 });
     expect(screen.queryByRole('dialog')).toBeNull();
+});
+
+const expiredSession = () => {};
+function LiveGallery() {
+    const { data } = useLiveQuery<{ photosExpireAt: string }>('/api/v1/reports/r', expiredSession);
+    return data ? <PhotoGallery category="Iluminação" photos={photos} photosExpireAt={data.photosExpireAt} /> : null;
+}
+
+it('fecha a imagem ampliada e remove as fotos no instante do vencimento com relógio local atrasado', async () => {
+    vi.useFakeTimers();
+    try {
+        const serverTime = Date.now() + 3_600_000;
+        vi.stubGlobal('fetch', async () => Response.json({ photosExpireAt: new Date(serverTime + 3000).toISOString() }, { headers: { 'X-MyCity-Server-Time': String(serverTime) } }));
+        await act(async () => {
+            render(<LiveGallery />);
+        });
+        fireEvent.click(screen.getByRole('button', { name: 'Ampliar foto 1 de 2' }));
+        expect(screen.getByRole('dialog')).toBeVisible();
+        act(() => vi.advanceTimersByTime(3000));
+        expect(screen.queryByRole('dialog')).toBeNull();
+        expect(screen.queryByRole('img')).toBeNull();
+        expect(screen.getByText('Fotos expiradas')).toBeVisible();
+    } finally {
+        vi.unstubAllGlobals();
+        vi.useRealTimers();
+    }
 });

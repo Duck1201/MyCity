@@ -253,6 +253,7 @@ export function ReportService({ id, onSessionExpired, onChange }: Props) {
                             </>
                         }
                         category={report.categoryName ?? category?.name ?? reportCategoryLabels[report.category] ?? report.category}
+                        photosExpireAt={report.photosExpireAt}
                         photos={report.photos.map((photo) => ({ image: photo.contentPath, width: photo.width, height: photo.height }))}
                         reply={
                             report.allowedActions?.includes('REPLY') && (

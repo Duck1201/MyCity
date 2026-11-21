@@ -134,7 +134,7 @@ mc up -d --wait api
 
 ## Restaurar
 
-Ensaie a restauração num projeto Compose isolado, sem tráfego público, com o mesmo `images.env` do backup e um `.env` próprio (novas senhas de banco, `WEB_ORIGIN=http://localhost:18090`). O override precisa remover o `edge` e publicar o painel na porta do ensaio:
+Ensaie a restauração num projeto Compose isolado, sem tráfego público, com o `images.env` da versão do backup (para backups anteriores à retenção, use o da versão de destino que implementa a regra) e um `.env` próprio (novas senhas de banco, `WEB_ORIGIN=http://localhost:18090`). O override precisa remover o `edge` e publicar o painel na porta do ensaio:
 
 ```yaml
 services:
@@ -153,12 +153,14 @@ r up -d --wait db
 r exec -T db psql -U mycity -d mycity -v ON_ERROR_STOP=1 -c 'CREATE ROLE mycity_api NOLOGIN;'
 r exec -T db pg_restore --exit-on-error -U mycity -d mycity < "$MYCITY_BACKUP_DIR/database.dump"
 r --profile tools run --rm --no-deps -T --entrypoint tar seed --no-same-owner -C /app/uploads -xf - < "$MYCITY_BACKUP_DIR/photos.tar"
+r --profile tools run --rm -T migrate
 r --profile tools run --rm -T provision
+r --profile tools run --rm -T thumbnails npm run photos:purge-expired -w @mycity/api
 r up -d --wait api web
 curl --fail --silent --show-error http://localhost:18090/api/v1/health/ready
 ```
 
-Entre como gestor e abra uma denúncia conhecida com foto e histórico. Depois, `r down` encerra o ensaio sem tocar na instância original.
+Os backups têm ciclo de guarda próprio. Antes de liberar tráfego, execute a limpeza com a versão que implementa a retenção e confirme sua conclusão. Se faltar a pasta de uma denúncia vencida, confira a montagem do volume restaurado e repita a limpeza. Entre como gestor, confira uma foto vigente e verifique que uma denúncia com prazo vencido exibe “Fotos expiradas” e preserva o histórico. Depois, `r down` encerra o ensaio sem tocar na instância original.
 
 ## Miniaturas das fotos
 

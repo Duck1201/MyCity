@@ -94,6 +94,7 @@ export interface ReportSummary {
     confirmationCount: number;
     confirmedByMe: boolean;
     isMine: boolean;
+    photosExpireAt?: string;
     coverPhoto?: ReportPhoto;
     showIdentity: boolean;
     author?: { name: string; photoUrl: string };
@@ -175,3 +176,5 @@ export { cpfDigits, formatCpfInput } from './cpf-input.js';
 export * from './management-queue.js';
 
 export type { ManagementOverview } from './management-overview.js';
+
+export { fetchWithServerTime, serverTimeHeader, serverTimeOffset, subscribeServerTime } from './server-clock.js';

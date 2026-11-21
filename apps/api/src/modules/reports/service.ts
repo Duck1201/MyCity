@@ -2,7 +2,7 @@ import type { ReportEvent, ReportTransition, ReportReply, Role } from '@mycity/c
 import type { Database } from '../../database.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { notifyStatusChange } from '../notifications/index.js';
-import { canTransition, isOpenForConfirmation } from './rules.js';
+import { canTransition, isOpenReportStatus, photosAvailable } from './rules.js';
 import { ReportError } from './upload.js';
 import { visibleReports, reportNotFound, readDetail, latestStatusChange, previousStatusOf } from './store.js';
 
@@ -36,7 +36,7 @@ export async function setConfirmation(tx: Prisma.TransactionClient, reportId: st
     const report = await tx.report.findFirst({ where: { id: reportId, ...visibleReports({ id: citizenId, role: 'CITIZEN' }) }, select: { authorId: true, status: true } });
     if (!report) throw reportNotFound();
     if (report.authorId === citizenId) throw new ReportError(403, 'FORBIDDEN', 'O autor não pode confirmar a própria denúncia.');
-    if (!isOpenForConfirmation(report.status)) throw new ReportError(409, 'REPORT_CLOSED', 'A denúncia está encerrada.');
+    if (!isOpenReportStatus(report.status)) throw new ReportError(409, 'REPORT_CLOSED', 'A denúncia está encerrada.');
     const key = { reportId, userId: citizenId };
     if (confirmed) await tx.reportConfirmation.upsert({ where: { reportId_userId: key }, create: key, update: {} });
     else await tx.reportConfirmation.deleteMany({ where: key });
@@ -45,13 +45,18 @@ export async function setConfirmation(tx: Prisma.TransactionClient, reportId: st
 
 export async function transitionReport(tx: Prisma.TransactionClient, reportId: string, actor: { id: string; role: Role }, input: ReportTransition) {
     await lockReport(tx, reportId);
-    const report = await tx.report.findFirst({ where: { id: reportId, ...visibleReports(actor) }, select: { authorId: true, status: true, version: true, events: actor.role === 'MANAGER' && latestStatusChange } });
+    const report = await tx.report.findFirst({ where: { id: reportId, ...visibleReports(actor) }, select: { authorId: true, status: true, photosExpireAt: true, version: true, events: actor.role === 'MANAGER' && latestStatusChange } });
     if (!report) throw reportNotFound();
     if (actor.role === 'CITIZEN' && report.authorId !== actor.id) throw new ReportError(403, 'FORBIDDEN', 'Somente o autor pode cancelar a denúncia.');
     if (report.version !== input.expectedVersion) throw new ReportError(409, 'VERSION_CONFLICT', 'A denúncia foi atualizada. Consulte o estado atual.');
     if (!canTransition({ from: report.status, to: input.targetStatus, role: actor.role, previousStatus: previousStatusOf(report), isAuthor: actor.id === report.authorId })) throw new ReportError(409, 'INVALID_TRANSITION', 'Esta mudança de status não está disponível.');
-    await tx.report.update({ where: { id: reportId }, data: { status: input.targetStatus, version: { increment: 1 } } });
-    const event = await tx.reportEvent.create({ data: { reportId, actorId: actor.id, type: 'STATUS_CHANGED', fromStatus: report.status, toStatus: input.targetStatus, ...(input.reason && { text: input.reason }), createdAt: await eventTime(tx, reportId) }, select: { id: true, createdAt: true } });
+    const createdAt = await eventTime(tx, reportId);
+    let photosExpireAt = report.photosExpireAt;
+    if (photosAvailable(photosExpireAt)) {
+        photosExpireAt = isOpenReportStatus(input.targetStatus) ? null : new Date(createdAt.getTime() + 30 * 86400_000);
+    }
+    await tx.report.update({ where: { id: reportId }, data: { status: input.targetStatus, photosExpireAt, version: { increment: 1 } } });
+    const event = await tx.reportEvent.create({ data: { reportId, actorId: actor.id, type: 'STATUS_CHANGED', fromStatus: report.status, toStatus: input.targetStatus, ...(input.reason && { text: input.reason }), createdAt }, select: { id: true, createdAt: true } });
     await notifyStatusChange(tx, { reportId, eventId: event.id, recipientId: report.authorId, status: input.targetStatus, createdAt: event.createdAt });
     return readDetail(tx, reportId, actor);
 }

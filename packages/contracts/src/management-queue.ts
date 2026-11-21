@@ -26,6 +26,7 @@ export interface ManagementQueueRow {
     status: ReportStatus;
     createdAt: string;
     confirmationCount: number;
+    photosExpireAt?: string;
     coverPhotoId: string | null;
 }
 export interface ManagementQueuePage {

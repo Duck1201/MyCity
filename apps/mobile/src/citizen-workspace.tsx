@@ -1,3 +1,4 @@
+import { usePhotoExpiry } from './use-photo-expiry';
 import { CommunityHighlight } from './components/community-highlight';
 import { categoryLabel } from './category-catalog';
 import { mobileStyles, colors } from './theme';
@@ -71,7 +72,8 @@ function HomeCommunity({ request, open, feed, apiBase, token }: { request: Reque
     const load = useCallback((signal: AbortSignal) => request<Page<ReportSummary>>('/reports?scope=feed&limit=1', signal), [request]);
     const query = useActiveQuery(load, true, '/reports?scope=feed&limit=1');
     const row = query.data?.data[0];
-    return <CommunityHighlight report={row && { description: row.description, category: categoryLabel(row), status: row.status, photo: row.coverPhoto && reportPhotoSource(listPhotoPath(row.coverPhoto), apiBase, token) }} message={query.failed ? 'Não foi possível atualizar as ocorrências da cidade.' : !query.data ? 'Consultando o feed…' : !row ? 'Nenhuma ocorrência ativa no feed.' : undefined} open={() => row && open({ id: row.id })} feed={feed} />;
+    const { hidden } = usePhotoExpiry(query.data?.data);
+    return <CommunityHighlight report={row && { description: row.description, category: categoryLabel(row), status: row.status, photo: row.coverPhoto && !hidden(row.photosExpireAt) ? reportPhotoSource(listPhotoPath(row.coverPhoto), apiBase, token) : undefined }} message={query.failed ? 'Não foi possível atualizar as ocorrências da cidade.' : !query.data ? 'Consultando o feed…' : !row ? 'Nenhuma ocorrência ativa no feed.' : undefined} open={() => row && open({ id: row.id })} feed={feed} />;
 }
 
 function ReportList({ request, feed, resolved, offsets, open, pages, setPages, scope, filters, onChange, apiBase, token }: ListProps & { feed: () => void; resolved: () => void; offsets: Map<string, number>; apiBase: string; token: string; scope: 'mine' | 'feed' | 'resolved'; filters: ReportFilters; onChange: (f: ReportFilters) => void }) {
@@ -82,6 +84,7 @@ function ReportList({ request, feed, resolved, offsets, open, pages, setPages, s
     const contentOffset = useMemo(() => ({ x: 0, y: offsets.get(path) ?? 0 }), [offsets, path]);
     const completeHome = !query.updating && scope === 'mine' && !filters.category && !filters.status && pages.length === 1 && !!query.data && !query.data.page.nextCursor;
     const rows = query.data?.data ?? [];
+    const { hidden } = usePhotoExpiry(rows);
     const openCount = rows.filter((row) => activeStatuses.includes(row.status)).length;
     const filterButton = <Filters request={request} filters={filters} statuses={scope === 'resolved' ? [] : scope === 'mine' ? reportStatusSchema.options : [...activeStatuses, 'RESOLVED']} onChange={onChange} />;
     return (
@@ -114,7 +117,7 @@ function ReportList({ request, feed, resolved, offsets, open, pages, setPages, s
             )}
             {!query.updating && query.data?.data.length === 0 && <Text style={styles.emptyList}>{scope === 'mine' && !filters.status && !filters.category ? 'Você ainda não registrou denúncias.' : 'Nenhuma denúncia encontrada.'}</Text>}
             {query.data?.data.map((report) => (
-                <ReportCard key={report.id} feed={scope === 'feed'} category={categoryLabel(report)} description={report.description} status={report.status} when={date(report.createdAt)} photo={report.coverPhoto && reportPhotoSource(listPhotoPath(report.coverPhoto), apiBase, token)} onPress={() => open({ id: report.id })}>
+                <ReportCard key={report.id} feed={scope === 'feed'} category={categoryLabel(report)} description={report.description} status={report.status} when={date(report.createdAt)} photo={report.coverPhoto && !hidden(report.photosExpireAt) ? reportPhotoSource(listPhotoPath(report.coverPhoto), apiBase, token) : undefined} onPress={() => open({ id: report.id })}>
                     {scope === 'feed' && !query.updating ? <ApiConfirmation report={report} onError={(message) => setVoteError({ id: report.id, message })} request={request} update={(vote) => query.replace((previous) => previous && { ...previous, data: previous.data.map((row) => (row.id === report.id ? { ...row, ...vote } : row)) })} refresh={query.retry} /> : <Text style={styles.meta}>{confirmationLabel(report.confirmationCount)}</Text>}
                 </ReportCard>
             ))}

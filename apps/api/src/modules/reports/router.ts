@@ -116,11 +116,10 @@ export function createReportsRouter(database: Database, uploadDir: string) {
         const root = resolve(uploadDir, report.id);
         // Photos predating thumbnails fall back to the original until the backfill runs.
         const file = thumbnail && (await stat(resolve(root, thumbnailFile(photo.id))).catch(() => undefined))?.isFile() ? thumbnailFile(photo.id) : photo.id + '.jpg';
-        // A photo ID never changes content; access is checked before the first download.
-        // The app caches photos itself (expo-image) and clears them on sign-out, so its HTTP stack stores nothing.
+        if (report.photosExpireAt && Date.parse(report.photosExpireAt) <= Date.now()) throw reportNotFound();
         res.type('jpeg')
             .set('X-Content-Type-Options', 'nosniff')
-            .sendFile(file, { root, cacheControl: false, headers: { 'Cache-Control': res.locals.transport === 'bearer' ? 'no-store' : 'private, max-age=31536000, immutable' } });
+            .sendFile(file, { root, cacheControl: false, headers: { 'Cache-Control': res.locals.transport === 'bearer' ? 'no-store' : 'private, no-cache' } });
     };
     router.get('/:id/photos/:photoId', (req, res) => sendPhoto(req, res, false));
     router.get('/:id/photos/:photoId/thumb', (req, res) => sendPhoto(req, res, true));

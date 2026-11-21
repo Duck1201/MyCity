@@ -1,6 +1,7 @@
 import { csvLine, type ManagementQueuePage, type ManagementQueueRequest, type ManagementQueueRow, type QueueFilters, type ReportStatusCounts } from '@mycity/contracts';
 import { Prisma } from '../../generated/prisma/client.js';
 import type { Database } from '../../database.js';
+import { photosAvailable } from './rules.js';
 
 const active = Prisma.sql`r.status IN ('sent','under_review','in_progress')`;
 const zone = 'America/Sao_Paulo';
@@ -22,13 +23,13 @@ function matching(filters: QueueFilters) {
 
 const names = { SENT: 'Enviado', UNDER_REVIEW: 'Em análise', IN_PROGRESS: 'Em andamento', RESOLVED: 'Resolvido', REJECTED: 'Rejeitado', CANCELED: 'Cancelado' };
 const dateFormat = new Intl.DateTimeFormat('pt-BR', { timeZone: zone });
-type Row = Omit<ManagementQueueRow, 'createdAt'> & { createdAt: Date };
+type Row = Omit<ManagementQueueRow, 'createdAt' | 'photosExpireAt'> & { createdAt: Date; photosExpireAt: Date | null };
 async function rows(db: Prisma.TransactionClient, filters: QueueFilters, where: Prisma.Sql, page: Prisma.Sql) {
     const status = filters.status === 'pending' ? active : filters.status ? Prisma.sql`r.status=${filters.status.toLowerCase()}::report_status` : Prisma.sql`true`;
     const order = filters.ordem === 'recentes' ? Prisma.sql`r.created_at DESC,r.id DESC` : filters.ordem === 'antigas' ? Prisma.sql`r.created_at ASC,r.id ASC` : Prisma.sql`CASE WHEN ${active} THEN 0 ELSE 1 END, CASE WHEN ${active} THEN v.n END DESC, CASE WHEN ${active} THEN r.created_at END ASC, CASE WHEN NOT (${active}) THEN r.created_at END DESC,r.id ASC`;
     return db.$queryRaw<Row[]>`WITH matches AS (SELECT r.* FROM reports r ${where})
       SELECT r.id,r.category,c.name AS "categoryName",r.description,r.latitude,r.longitude,upper(r.status::text) AS status,
-        r.created_at AS "createdAt", v.n AS "confirmationCount",(SELECT id FROM report_photos p WHERE p.report_id=r.id ORDER BY position LIMIT 1) AS "coverPhotoId"
+        r.created_at AS "createdAt", r.photos_expire_at AS "photosExpireAt", v.n AS "confirmationCount",(SELECT id FROM report_photos p WHERE p.report_id=r.id ORDER BY position LIMIT 1) AS "coverPhotoId"
       FROM matches r JOIN report_categories c ON c.id=r.category
       CROSS JOIN LATERAL (SELECT count(*)::integer AS n FROM report_confirmations WHERE report_id=r.id) v
       WHERE ${status} ORDER BY ${order} ${page}`;
@@ -43,7 +44,7 @@ export async function managementQueue(db: Database, filters: ManagementQueueRequ
             const total = filters.status === 'pending' ? counts.SENT + counts.UNDER_REVIEW + counts.IN_PROGRESS : filters.status ? counts[filters.status] : Object.values(counts).reduce((sum, n) => sum + n, 0);
             const page = Math.min(filters.pagina, Math.max(1, Math.ceil(total / filters.limit)));
             const result = await rows(tx, filters, where, Prisma.sql`LIMIT ${filters.limit} OFFSET ${(page - 1) * filters.limit}`);
-            return { counts, total, page, data: result.map((row) => ({ ...row, createdAt: row.createdAt.toISOString() })) };
+            return { counts, total, page, data: result.map(({ photosExpireAt, coverPhotoId, ...row }) => ({ ...row, createdAt: row.createdAt.toISOString(), ...(photosExpireAt && { photosExpireAt: photosExpireAt.toISOString() }), coverPhotoId: photosAvailable(photosExpireAt) ? coverPhotoId : null })) };
         },
         { isolationLevel: 'RepeatableRead' },
     );

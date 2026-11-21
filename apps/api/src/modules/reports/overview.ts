@@ -1,6 +1,7 @@
 import type { ManagementOverview, ReportStatus } from '@mycity/contracts';
 import { categoryIconFor } from '@mycity/contracts';
 import type { Database } from '../../database.js';
+import { photosAvailable } from './rules.js';
 
 const pending: ReportStatus[] = ['SENT', 'UNDER_REVIEW', 'IN_PROGRESS'];
 
@@ -21,13 +22,13 @@ export function managementOverview(db: Database): Promise<ManagementOverview> {
                 where,
                 orderBy: [{ confirmations: { _count: 'desc' } }, { createdAt: 'asc' }, { id: 'asc' }],
                 take: 3,
-                select: { id: true, description: true, category: true, status: true, createdAt: true, _count: { select: { confirmations: true } }, photos: { orderBy: { position: 'asc' }, take: 1, select: { id: true } } },
+                select: { id: true, description: true, category: true, status: true, createdAt: true, photosExpireAt: true, _count: { select: { confirmations: true } }, photos: { orderBy: { position: 'asc' }, take: 1, select: { id: true } } },
             });
             return {
                 counts,
                 oldest: oldest && { id: oldest.id, createdAt: oldest.createdAt.toISOString() },
                 categories: catalog.map(({ id, name, archived, icon }) => ({ id, name, archived, icon: categoryIconFor(id, icon), count: pendingByCategory.get(id) ?? 0 })).sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, 'pt-BR') || a.id.localeCompare(b.id)),
-                priorities: rows.map(({ id, description, category, status, createdAt, _count, photos }) => ({ id, description, category, status, confirmationCount: _count.confirmations, createdAt: createdAt.toISOString(), ...(photos[0] && { photoPath: '/api/v1/reports/' + id + '/photos/' + photos[0].id + '/thumb' }) })),
+                priorities: rows.map(({ id, description, category, status, createdAt, photosExpireAt, _count, photos }) => ({ id, description, category, status, confirmationCount: _count.confirmations, createdAt: createdAt.toISOString(), ...(photosAvailable(photosExpireAt) && photos[0] && { photoPath: '/api/v1/reports/' + id + '/photos/' + photos[0].id + '/thumb' }) })),
             };
         },
         { isolationLevel: 'RepeatableRead' },

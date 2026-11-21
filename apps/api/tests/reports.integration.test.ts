@@ -180,7 +180,7 @@ it('protege detalhe e foto cancelados contra acesso de outro cidadão', async ()
     }
 });
 
-const immutablePrivate = 'private, max-age=31536000, immutable';
+const revalidatedPrivate = 'private, no-cache';
 const binary = (res: request.Response, callback: (error: Error | null, body: Buffer) => void) => {
     const chunks: Buffer[] = [];
     res.on('data', (chunk: Buffer) => chunks.push(chunk));
@@ -196,7 +196,7 @@ it('não deixa o cache HTTP do app guardar as fotos', async () => {
     }
 });
 
-it('gera no envio uma miniatura de até 320 px servida com cache privado e imutável', async () => {
+it('gera no envio uma miniatura de até 320 px servida com cache privado com revalidação', async () => {
     const large = await sharp({ create: { width: 1200, height: 900, channels: 3, background: 'blue' } })
         .jpeg()
         .toBuffer();
@@ -209,10 +209,10 @@ it('gera no envio uma miniatura de até 320 px servida com cache privado e imut�
         .parse(binary)
         .expect('Content-Type', /image\/jpeg/)
         .expect(200);
-    expect(thumb.headers['cache-control']).toBe(immutablePrivate);
+    expect(thumb.headers['cache-control']).toBe(revalidatedPrivate);
     expect(await sharp(thumb.body).metadata()).toMatchObject({ format: 'jpeg', width: 320, height: 240 });
     const original = await request(appFor(manager)).get(wide.contentPath).buffer(true).parse(binary).expect(200);
-    expect(original.headers['cache-control']).toBe(immutablePrivate);
+    expect(original.headers['cache-control']).toBe(revalidatedPrivate);
     expect(await sharp(original.body).metadata()).toMatchObject({ width: 1200, height: 900 });
     expect(thumb.body.length).toBeLessThan(original.body.length);
     // Small photos are never enlarged.
@@ -230,7 +230,7 @@ it('aplica à miniatura a mesma autorização da foto original', async () => {
     const other = await request(appFor({ id: randomUUID(), role: 'CITIZEN' }))
         .get(first.photos[0].thumbnailPath)
         .expect(404);
-    expect(other.headers['cache-control']).not.toBe(immutablePrivate);
+    expect(other.headers['cache-control']).not.toBe(revalidatedPrivate);
     await request(appFor(citizen)).get(first.photos[0].thumbnailPath).expect(200);
 });
 
@@ -239,4 +239,32 @@ it('serve a original no lugar de uma miniatura ainda não gerada', async () => {
     await rm(join(dir, report.id, report.photos[0].id + '.thumb.jpg'));
     const response = await request(appFor(manager)).get(report.photos[0].thumbnailPath).buffer(true).parse(binary).expect(200);
     expect(response.body.equals(await readFile(join(dir, report.id, report.photos[0].id + '.jpg')))).toBe(true);
+});
+
+it('vence o acesso às fotos e capas no instante do prazo, antes da limpeza', async () => {
+    const report = (await upload({ ...meta, clientRequestId: randomUUID() }).expect(201)).body.data;
+    const viewer = request(appFor(manager));
+    const path = '/api/v1/reports/' + report.id;
+    const deadline = new Date('2031-05-04T12:00:00.000Z');
+    await db.report.update({ where: { id: report.id }, data: { status: 'RESOLVED', photosExpireAt: deadline } });
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+        vi.setSystemTime(deadline.getTime() - 1);
+        const before = await viewer.get(path).expect(200);
+        expect(before.body.data).toMatchObject({ photosExpireAt: deadline.toISOString(), coverPhoto: { id: report.photos[0].id } });
+        for (const url of [report.photos[0].contentPath, report.photos[0].thumbnailPath]) await viewer.get(url).expect(200);
+        vi.setSystemTime(deadline);
+        for (const url of [report.photos[0].contentPath, report.photos[0].thumbnailPath]) await viewer.get(url).expect(404);
+        const expired = (await viewer.get(path).expect(200)).body.data;
+        expect(expired).toMatchObject({ photosExpireAt: deadline.toISOString(), photos: [] });
+        expect(expired).not.toHaveProperty('coverPhoto');
+        const list = (await viewer.get('/api/v1/reports').query({ scope: 'resolved' }).expect(200)).body.data;
+        const entry = list.find((row: { id: string }) => row.id === report.id);
+        expect(entry).toMatchObject({ photosExpireAt: deadline.toISOString() });
+        expect(entry).not.toHaveProperty('coverPhoto');
+        const queue = await viewer.get('/api/v1/reports/queue').query({ q: report.id }).expect(200);
+        expect(queue.body.data).toMatchObject([{ id: report.id, coverPhotoId: null, photosExpireAt: deadline.toISOString() }]);
+    } finally {
+        vi.useRealTimers();
+    }
 });
