@@ -337,3 +337,24 @@ it('recupera a miniatura e a foto ampliada quando o carregador nativo rejeita a 
     expect(downloads).toHaveLength(2);
     for (const [, init] of downloads) expect(init).toMatchObject({ headers: { Authorization: 'Bearer token-teste' }, redirect: 'error' });
 });
+
+it('pede o histórico junto com o detalhe ao abrir uma denúncia, sem esperar o detalhe chegar', async () => {
+    const requested: string[] = [];
+    let releaseDetail!: () => void;
+    jest.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+        const path = String(input).replace(base, '');
+        requested.push(path);
+        if (path === '/categories') return categoryResponse();
+        if (path === '/me') return ok({ data: { id: 'autor', role: 'CITIZEN' } });
+        if (path === '/reports?scope=mine') return ok(page([report]));
+        if (path === '/reports/' + report.id) return new Promise<Response>((resolve) => (releaseDetail = () => resolve(ok({ data: report }))));
+        if (path === '/reports/' + report.id + '/history') return ok(page([event]));
+        throw Error('Rota inesperada');
+    });
+    await render(<App />);
+    await fireEvent.press(await screen.findByText('Poste da praça'));
+    expect(requested).toContain('/reports/' + report.id);
+    expect(requested).toContain('/reports/' + report.id + '/history');
+    await act(async () => releaseDetail());
+    expect(await screen.findByText('Manutenção já realizada')).toBeVisible();
+});

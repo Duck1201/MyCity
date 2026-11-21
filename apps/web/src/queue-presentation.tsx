@@ -3,6 +3,8 @@ import { Download, MapPin, Search, ThumbsUp } from 'lucide-react';
 import type { ReportStatus, ReportStatusCounts } from '@mycity/contracts';
 import { CategorySymbol, type CategoryIcon } from './components/category-symbol';
 import { Link } from './navigation';
+import { reportEndpoint, reportHistoryEndpoint } from './queue-endpoint';
+import { useWarm } from './use-live-query';
 import { statusKeys, statusNames } from './report-status-labels';
 export interface TableRow {
     id: string;
@@ -80,6 +82,8 @@ export function Status({ value }: { value: ReportStatus }) {
     return <span className={'status ' + value}>{statusNames[value]}</span>;
 }
 export function ReportTable({ rows, busy = false }: { rows: TableRow[]; busy?: boolean }) {
+    // Pointing at or focusing a row loads its detail, so opening it does not wait for the network.
+    const warm = useWarm();
     return (
         <div className="table-scroll">
             <table aria-label="Denúncias recebidas" aria-busy={busy}>
@@ -107,6 +111,8 @@ export function ReportTable({ rows, busy = false }: { rows: TableRow[]; busy?: b
                                             }}
                                             aria-label={'Abrir denúncia: ' + row.description}
                                             aria-describedby={'queue-meta-' + row.id}
+                                            onPointerEnter={() => warm([reportEndpoint(row.id), reportHistoryEndpoint(row.id)])}
+                                            onFocus={() => warm([reportEndpoint(row.id), reportHistoryEndpoint(row.id)])}
                                             className="preview-row-link"
                                         >
                                             <strong id={'queue-title-' + row.id}>{row.description}</strong>

@@ -88,9 +88,12 @@ O Android usa GPS, câmera, galeria e Google Maps. A geocodificação foi adiada
 
 As telas com polling consultam a cada cinco segundos, com uma requisição ativa por consulta. O Android pausa em segundo plano e o navegador deixa de consultar enquanto a aba está oculta. Ambos consultam ao voltar. Falhas transitórias podem manter o último resultado válido. Notificações são lidas pelo próprio cliente, sem fila, push ou WebSocket.
 
-## Carregamento do painel
+## Carregamento do painel e do app
 
-Cada seção do painel é um arquivo separado. Depois que a sessão é confirmada, o painel baixa todos esses arquivos em segundo plano. Enquanto o gestor está em outra seção, ele também pré-carrega a fila padrão e o catálogo no cache de memória da sessão (`useWarmUp` em `use-live-query.ts`), com a mesma chave que a fila usa (`queue-endpoint.ts`). Assim, abrir **Atendimento** mostra a fila na hora e só revalida. O motivo é a distância: do Brasil até o servidor da demonstração, cada ida e volta leva cerca de 145 ms, enquanto a API responde em poucos milissegundos.
+Do Brasil até o servidor da demonstração, cada ida e volta leva cerca de 145 ms, enquanto a API responde em poucos milissegundos (C46). Por isso as telas evitam pedidos em sequência:
+
+- **Painel:** cada seção é um arquivo separado, baixado logo depois que a sessão é confirmada. Enquanto o gestor está numa seção, as leituras de entrada das outras (Visão geral, fila padrão e catálogo) são pré-carregadas no cache de memória da sessão (`useWarmUp`). Apontar ou focar uma denúncia na fila pré-carrega o detalhe e o histórico dela (`useWarm`). As URLs ficam em `queue-endpoint.ts`, e as telas e o pré-carregamento usam a mesma chave. Assim, a tela abre com os dados e só revalida.
+- **App:** ao abrir uma denúncia, a primeira página do histórico é pedida junto com o detalhe, e não depois dele.
 
 ## Implantação
 

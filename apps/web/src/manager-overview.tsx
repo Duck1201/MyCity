@@ -1,3 +1,4 @@
+import { overviewEndpoint, recentReportsEndpoint } from './queue-endpoint';
 import { usePanelLoading } from './panel-loading';
 import { categoryIconFor, type ManagementOverview, type ManagementQueuePage } from '@mycity/contracts';
 import { useLiveQuery } from './use-live-query';
@@ -10,7 +11,7 @@ const ageLabel = (createdAt: string) => {
 };
 
 function RecentQueue({ categories, onSessionExpired }: { categories: ManagementOverview['categories']; onSessionExpired: () => void }) {
-    const query = useLiveQuery<ManagementQueuePage>('/api/v1/reports/queue?ordem=recentes&limit=3', onSessionExpired);
+    const query = useLiveQuery<ManagementQueuePage>(recentReportsEndpoint, onSessionExpired);
     const rows = (query.data?.data ?? []).map((row) => ({ ...row, categoryIcon: categoryIconFor(row.category, categories.find((c) => c.id === row.category)?.icon), photo: row.coverPhotoId ? '/api/v1/reports/' + encodeURIComponent(row.id) + '/photos/' + encodeURIComponent(row.coverPhotoId) + '/thumb' : undefined }));
     return (
         <RecentReports
@@ -28,7 +29,7 @@ function RecentQueue({ categories, onSessionExpired }: { categories: ManagementO
     );
 }
 export function ManagerOverview({ onSessionExpired }: { onSessionExpired: () => void }) {
-    const query = useLiveQuery<{ data: ManagementOverview }>('/api/v1/reports/overview', onSessionExpired);
+    const query = useLiveQuery<{ data: ManagementOverview }>(overviewEndpoint, onSessionExpired);
     const overview = query.data?.data;
     usePanelLoading(!overview && !query.failed);
     const byCategory = new Map(overview?.categories.map((c) => [c.id, c]));

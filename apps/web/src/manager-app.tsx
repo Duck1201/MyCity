@@ -1,7 +1,7 @@
 import { lazy, useEffect } from 'react';
 import { ManagerAccess } from './manager-access';
 import type { QueueNavigation } from './manager-shell';
-import { defaultQueueEndpoint } from './queue-endpoint';
+import { categoriesEndpoint, defaultQueueEndpoint, overviewEndpoint, recentReportsEndpoint } from './queue-endpoint';
 import { useWarmUp } from './use-live-query';
 
 // Each section is a separate chunk. Every round trip to the server costs about
@@ -25,12 +25,17 @@ function preloadSections() {
     for (const load of Object.values(sections)) void load().catch(() => {});
 }
 
-// While the manager is elsewhere, the default queue and the category catalog are
-// fetched into the session cache, so opening "Atendimento" shows the queue at once.
-const queueReads = [defaultQueueEndpoint, '/api/v1/categories'] as const;
+// While the manager is on one section, the entry reads of the others are fetched
+// into the session cache, so switching sections shows data at once and only revalidates.
+const sectionReads: Record<QueueNavigation['section'], readonly string[]> = {
+    overview: [overviewEndpoint, recentReportsEndpoint],
+    queue: [defaultQueueEndpoint, categoriesEndpoint],
+    categories: [categoriesEndpoint],
+};
 function WarmUp({ navigation }: { navigation: QueueNavigation }) {
     useEffect(preloadSections, []);
-    useWarmUp(navigation.section === 'queue' && !navigation.id ? [] : queueReads);
+    const current = navigation.id ? undefined : navigation.section;
+    useWarmUp((Object.keys(sectionReads) as QueueNavigation['section'][]).filter((section) => section !== current).flatMap((section) => sectionReads[section]));
     return null;
 }
 

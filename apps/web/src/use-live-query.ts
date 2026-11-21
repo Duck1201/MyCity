@@ -13,24 +13,35 @@ export function LiveQueryCacheProvider({ children }: { children: ReactNode }) {
 // Fetches reads the manager is likely to open next into the session cache, so the
 // screen renders at once and only revalidates. Failures are ignored: the screen's
 // own query reports them when it is opened.
-export function useWarmUp(urls: readonly string[]) {
+export function useWarm() {
     const cache = useContext(LiveQueryCache);
+    const [inFlight] = useState(() => new Set<string>());
+    return useCallback(
+        (urls: readonly string[]) => {
+            if (!cache) return;
+            for (const url of urls) {
+                if (cache.has(url) || inFlight.has(url)) continue;
+                inFlight.add(url);
+                void fetch(url, { cache: 'no-cache' })
+                    .then(async (response) => {
+                        if (!response.ok) return;
+                        const data: unknown = await response.json();
+                        if (!cache.has(url)) cache.set(url, data);
+                    })
+                    .catch(() => {})
+                    .finally(() => inFlight.delete(url));
+            }
+        },
+        [cache, inFlight],
+    );
+}
+
+export function useWarmUp(urls: readonly string[]) {
+    const warm = useWarm();
     const key = urls.join('\n');
     useEffect(() => {
-        if (!cache) return;
-        const controller = new AbortController();
-        for (const url of key.split('\n')) {
-            if (!url || cache.has(url)) continue;
-            void fetch(url, { cache: 'no-cache', signal: controller.signal })
-                .then(async (response) => {
-                    if (!response.ok || controller.signal.aborted) return;
-                    const data: unknown = await response.json();
-                    if (!controller.signal.aborted && !cache.has(url)) cache.set(url, data);
-                })
-                .catch(() => {});
-        }
-        return () => controller.abort();
-    }, [cache, key]);
+        if (key) warm(key.split('\n'));
+    }, [key, warm]);
 }
 
 // Views keep their last confirmed result while a refresh is pending or unavailable.
