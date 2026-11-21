@@ -126,18 +126,33 @@ Com PostgreSQL local, medição de 21/11/2026 do tempo de conclusão e do pico d
 | 12.000         | 1                     | 0,66 → 1,11 s        | 252,2 → 199,3 MiB          |
 | 12.000         | 4                     | 1,17 → 1,89 s        | 416,2 → 357,8 MiB          |
 
+## Latência percebida no painel (C46)
+
+Para repetir a medição com usuários no Brasil, abrir a fila e um detalhe primeiro em uma conexão nova e depois na conexão reutilizada. No navegador, anotar por tarefa o tempo do clique até o conteúdo aparecer e, na aba Rede, os tempos de conexão, TLS e espera da resposta. Registrar se a espera atrapalhou o atendimento. Guardar somente os tempos, o tipo de conexão e a avaliação, sem capturas de tráfego ou dados de usuários. Usar a medição e o relato para decidir se vale mudar a região da instância.
+
+Em 21/11/2026, no Chrome contra o painel hospedado, a abertura direta em contextos novos, já autenticados, levou 1.686 ms até a primeira linha da fila e 1.675 ms até o título do detalhe. A conexão TCP + TLS levou 285 ms em cada navegação, incluindo 145 ms de TLS. Em uma sessão já aberta, a primeira ida da fila ao detalhe levou 487 ms. Voltar à fila e reabrir o mesmo detalhe levaram 32 ms cada, com o conteúdo disponível na sessão. Esses tempos correspondem a uma execução automatizada local.
+
+Em cinco novas sessões autenticadas, o Chrome mediu da navegação até a primeira linha ou o título visível. A mediana para abrir a fila em conexão nova foi **1.695 ms** (1.683–1.704). Da fila ao primeiro detalhe, **482 ms** (482–499). Tanto voltar à fila quanto reabrir o detalhe tiveram mediana de **32 ms**. Nessa conexão, a maior espera se concentrou na entrada inicial. O responsável decidiu manter a região atual com base nessa medição técnica e reabrir a avaliação diante de queixa de lentidão no atendimento.
+
 ## Desenvolvimento e ciclo do banco
 
 Os testes locais cobrem inicialização conjunta, Ctrl+C, persistência e reexecução do seed, recuperação de falhas e reset em PostgreSQL descartável. O banco usado para desenvolvimento fica fora dos testes destrutivos.
 
-## Verificações físicas pendentes
+## Verificações físicas no Android
 
-Os testes automatizados simulam câmera, GPS e mapa. No Galaxy M32 (Android 13), a rodada final do app integrado foi feita pelo Expo Go com a API local e cobriu o botão **+**, campos pendentes, câmera negada com alternativa na galeria, filtros, Voltar, mapa claro em Viçosa com GPS negado, resumo e retorno ao marcador, movimento reduzido e abertura sem tela cinza. Continuam sem nova medição física:
+Os testes automatizados simulam câmera, GPS e mapa. No Galaxy M32 (Android 13), a rodada final do app integrado foi feita pelo Expo Go com a API local e cobriu o botão **+**, campos pendentes, câmera negada com alternativa na galeria, filtros, Voltar, mapa claro em Viçosa com GPS negado, resumo e retorno ao marcador, movimento reduzido e abertura sem tela cinza.
 
-- leitura de GPS autorizada e fluidez no APK de **release** (a rodada usou Expo Go);
-- TalkBack e fonte ampliada após os ajustes da última rodada;
-- conexão do app à API na mesma LAN depois de mudar `PORT` e reiniciar o Metro;
-- fotos com `expo-image` no APK de **release** (no Expo Go já foram conferidas, veja abaixo).
+No APK publicado da v1.0.1, com permissão precisa concedida, o mapa passou de “Buscando sua localização…” para “GPS indisponível”. Em dois arrastos, o Android registrou 85 quadros, 16 classificados como atrasados e p95 de 26 ms. Com a exploração por toque do TalkBack ativa, o foco em **Ver lista** seguido de toque duplo abriu **Denúncias nesta área**, com **Ver mapa** disponível para retornar. A configuração original de acessibilidade foi restaurada.
+
+Em 21/11/2026, o Metro foi reiniciado após a troca de `PORT` de 3000 para 3019. O Galaxy M32 acessou a API de desenvolvimento pela LAN, autenticou uma conta fictícia, carregou o catálogo e concluiu um envio com duas fotos e ponto manual. Com a escala de fonte em 1,30, foi possível concluir o formulário e ler o detalhe. A escala original foi restaurada.
+
+No APK de release compilado localmente em 21/11/2026, a primeira abertura do mapa exibiu o marcador **Sua localização**. Uma tentativa de recentralização expirou. Em nova tentativa, o provedor de localização combinado do Android entregou uma posição recente, o marcador apareceu e o aviso de indisponibilidade saiu da tela. A permissão precisa estava concedida e o app permaneceu em primeiro plano. Com o mapa carregado, em três rodadas de dois arrastos, o SurfaceFlinger mediu mediana de 22,1 ms entre apresentações de quadros, p95 de 33,2 ms e máximo de 33,5 ms. O percurso mapa → lista → mapa funcionou no mesmo APK.
+
+As duas fotos da capa de um livro foram comprimidas pelo app para JPEG de 1.200 × 1.600 px (110.076 e 118.963 bytes). No detalhe da denúncia no Chrome, o título e o subtítulo de letras menores puderam ser lidos nas duas imagens e coincidiram com o texto de referência, inclusive na primeira foto, com sombra.
+
+### Fotos no APK v1.0.1 (21/11/2026)
+
+No Galaxy M32, o APK publicado passou na conferência do SHA-256 e no teste de abertura. A lista mostrou a miniatura, o detalhe abriu a foto em tela cheia e o gesto de pinça com dois contatos ampliou a imagem. Ao sair, reapareceu o login e o cache do app informado pelo Android caiu de 27,09 para 26,28 MB. Após novo login, as fotos carregaram novamente. Para a mesma jornada de detalhe, a contagem de bytes recebidos pelo app foi 903.732 na primeira abertura, 598.086 na repetição e 819.494 após sair e entrar. O contador do Android agrega todo o tráfego do app.
 
 ### Cache do app no Galaxy M32 (20/11/2026)
 
