@@ -322,7 +322,7 @@ export function CitizenReport({ token, apiBase, onSessionExpired, onPublished, d
                         </PhotoSlot>
                     ))}
                     {photoCount < 3 && (
-                        <Pressable ref={photoButton} accessibilityRole="button" accessibilityLabel="Adicionar foto" aria-expanded={photoSourcesOpen} accessibilityState={{ disabled: busy }} disabled={busy} onPress={() => setPhotoSourcesOpen(true)} style={({ pressed }) => [styles.attachment, styles.addPhoto, pressed && styles.pressed]}>
+                        <Pressable ref={photoButton} accessibilityRole="button" accessibilityLabel="Adicionar foto" aria-expanded={photoSourcesOpen} accessibilityState={{ disabled: busy }} disabled={busy} onPress={() => setPhotoSourcesOpen(true)} style={({ pressed }) => [photoCount === 0 ? styles.emptyPhoto : styles.attachment, styles.addPhoto, pressed && styles.pressed]}>
                             <Text accessible={false} style={styles.addSymbol}>
                                 +
                             </Text>
@@ -473,7 +473,7 @@ export function CitizenReport({ token, apiBase, onSessionExpired, onPublished, d
     );
 }
 const styles = StyleSheet.create({
-    page: mobileStyles.page,
+    page: { ...mobileStyles.page, justifyContent: 'space-between' },
     title: mobileStyles.title,
     label: { ...mobileStyles.label, marginTop: 8 },
     categoryField: { backgroundColor: colors.surface, borderRadius: 8, borderWidth: 1, borderColor: colors.line, overflow: 'hidden' },
@@ -495,6 +495,7 @@ const styles = StyleSheet.create({
     removePhoto: { position: 'absolute', right: 0, top: 0, width: 48, height: 48, alignItems: 'flex-end', padding: 4 },
     removeBadge: { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: '#18332fe8', borderWidth: 1, borderColor: '#ffffffcb' },
     removeSymbol: { color: '#fff', fontSize: 20, lineHeight: 23, fontWeight: '600' },
+    emptyPhoto: { width: '100%', flexDirection: 'row', paddingVertical: 14, borderRadius: 8 },
     addPhoto: { minWidth: 48, minHeight: 48, justifyContent: 'center', alignItems: 'center', gap: 4, borderWidth: 1, borderStyle: 'dashed', borderColor: colors.teal, backgroundColor: colors.surface },
     addSymbol: { color: colors.teal, fontSize: 26, lineHeight: 28 },
     addLabel: { color: colors.teal, fontSize: 14, fontWeight: '600', textAlign: 'center' },

@@ -19,6 +19,9 @@ it('apresenta o destino imediatamente, conserva a animação durante atualizaç�
         </ScreenTransition>
     );
     const view = await render(page('lista', 0, 'Lista'));
+    await view.rerender(page('mapa', 0, 'Mapa'));
+    expect(screen.getByText('Mapa')).toBeVisible();
+    expect(timing).not.toHaveBeenCalled();
     await view.rerender(page('detalhe', 1, 'Relato'));
     expect(screen.getByText('Relato')).toBeVisible();
     expect(timing).toHaveBeenCalled();

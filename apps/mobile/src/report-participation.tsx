@@ -111,6 +111,7 @@ export function ReportActions({ detail, edit, request, update, refresh, notify }
                                                 }}
                                             />
                                         )}
+                                        {detail.isMine && !canEdit && <Text style={mobileStyles.meta}>A edição termina quando o gestor responde ou altera a situação da denúncia.</Text>}
                                         {canShare && <ActionRow label="Compartilhar link" icon="share" onPress={share} />}
                                         {canReopen && <ActionRow label={canEdit ? 'Reabrir sem editar' : 'Reabrir denúncia'} icon="reopen" disabled={busy} onPress={() => void change('reopening', detail.version)} />}
                                         {canCancel && (

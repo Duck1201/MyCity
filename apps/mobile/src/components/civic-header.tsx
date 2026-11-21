@@ -146,7 +146,7 @@ const styles = StyleSheet.create({
     actions: { flexDirection: 'row' },
     iconButton: { width: 48, minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: 12 },
     pressed: { backgroundColor: colors.pale },
-    cover: { overflow: 'hidden', backgroundColor: '#0b2339', borderRadius: 8, justifyContent: 'center' },
+    cover: { overflow: 'hidden', backgroundColor: '#0b2339', borderRadius: 8, minHeight: 144, justifyContent: 'flex-end' },
     lake: { position: 'absolute', width: '100%', height: '100%', opacity: 0.34 },
     coverContent: { paddingHorizontal: 14, paddingVertical: 10, gap: 5 },
     coverHeading: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', columnGap: 8 },

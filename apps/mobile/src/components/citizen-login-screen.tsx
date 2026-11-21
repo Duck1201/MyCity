@@ -30,7 +30,7 @@ export function CitizenAccessLayout({ children, headerAction, onLeave }: { child
                 <View style={accessStyles.headerActions}>
                     {headerAction}
                     {onLeave && (
-                        <Pressable accessibilityRole="button" onPress={onLeave} style={accessStyles.exit}>
+                        <Pressable accessibilityRole="button" onPress={onLeave} style={({ pressed }) => [mobileStyles.textButton, pressed && mobileStyles.headerButtonPressed]}>
                             <Text style={accessStyles.exitText}>Sair</Text>
                         </Pressable>
                     )}
@@ -96,7 +96,6 @@ export const accessStyles = StyleSheet.create({
     pin: { width: 18, height: 18, backgroundColor: colors.surface, borderRadius: 10, borderBottomLeftRadius: 2, transform: [{ rotate: '-45deg' }], justifyContent: 'center', alignItems: 'center' },
     pinCenter: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.rail },
     brand: { fontSize: 24, letterSpacing: -0.8, fontWeight: '700', color: colors.surface },
-    exit: { minHeight: 48, minWidth: 48, justifyContent: 'center', alignItems: 'center' },
     exitText: { fontWeight: '600', color: colors.surface, fontSize: 15 },
     form: { flexGrow: 1, width: '100%', maxWidth: 480, alignSelf: 'center', paddingHorizontal: 24, paddingVertical: 36, gap: 10, justifyContent: 'center' },
     loginPage: { flexGrow: 1, width: '100%', maxWidth: 480, alignSelf: 'center' },

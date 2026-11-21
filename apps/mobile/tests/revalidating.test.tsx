@@ -64,7 +64,7 @@ afterEach(() => {
     jest.restoreAllMocks();
 });
 
-it('avisa que a lista guardada está sendo atualizada até a rede responder', async () => {
+it('aguarda a primeira resposta antes de revelar a lista guardada', async () => {
     files.set('cache/mycity-queries/autor.json', JSON.stringify({ owner: 'autor', entries: [['/reports?scope=mine', page([report]), Date.now()]] }));
     let release!: () => void;
     jest.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
@@ -74,9 +74,26 @@ it('avisa que a lista guardada está sendo atualizada até a rede responder', as
         return ok(page([]));
     });
     await render(<App />);
-    expect(await screen.findByText('Poste da praça guardado')).toBeVisible();
-    expect(screen.getByText('Atualizando…')).toBeVisible();
+    expect(await screen.findByText('Carregando denúncias…')).toBeVisible();
+    expect(screen.queryByText('Poste da praça guardado')).toBeNull();
     await act(async () => release());
     expect(await screen.findByText('Poste da praça confirmado')).toBeVisible();
-    expect(screen.queryByText('Atualizando…')).toBeNull();
+    expect(screen.queryByText('Carregando denúncias…')).toBeNull();
+});
+
+it('libera a lista guardada e informa a falha se a rede não responder', async () => {
+    files.set('cache/mycity-queries/autor.json', JSON.stringify({ owner: 'autor', entries: [['/reports?scope=mine', page([report]), Date.now()]] }));
+    let offline!: () => void;
+    jest.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+        const path = String(input).replace(base, '');
+        if (path === '/me') return ok({ data: { id: 'autor', role: 'CITIZEN' } });
+        if (path === '/reports?scope=mine') return new Promise<Response>((_, reject) => (offline = () => reject(new TypeError('Offline'))));
+        return ok(page([]));
+    });
+    await render(<App />);
+    expect(await screen.findByText('Carregando denúncias…')).toBeVisible();
+    await act(() => offline());
+    expect(await screen.findByText('Poste da praça guardado')).toBeVisible();
+    expect(screen.getByText('Não foi possível atualizar. Exibindo os resultados anteriores.')).toBeVisible();
+    expect(screen.queryByText('Carregando denúncias…')).toBeNull();
 });

@@ -2,10 +2,14 @@ import { serverTimeReader, subscribeServerTime } from '@mycity/contracts';
 import { useEffect, useReducer, useSyncExternalStore } from 'react';
 import { AppState } from 'react-native';
 
+const noClock = () => null;
+const noSubscription = () => () => {};
+
 // One timer wakes the view at the nearest deadline, including while reads are offline.
 export function usePhotoExpiry(records?: readonly { photosExpireAt?: string | undefined }[]) {
     const [, refresh] = useReducer((revision: number) => revision + 1, 0);
-    const readTime = useSyncExternalStore(subscribeServerTime, serverTimeReader);
+    const hasDeadline = records?.some((record) => !!record.photosExpireAt);
+    const readTime = useSyncExternalStore(hasDeadline ? subscribeServerTime : noSubscription, hasDeadline ? serverTimeReader : noClock);
     const now = readTime?.() ?? Infinity;
     let next = Infinity;
     for (const record of records ?? []) {

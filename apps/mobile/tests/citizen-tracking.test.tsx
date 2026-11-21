@@ -43,6 +43,7 @@ it('preserva o rascunho ao acompanhar o histórico da própria denúncia e as re
     });
     await render(<App />);
     expect(await screen.findByRole('header', { name: 'Meus registros' })).toBeVisible();
+    expect(screen.getByTestId('report-list')).toHaveProp('contentContainerStyle', expect.objectContaining({ flexGrow: 1, justifyContent: 'flex-start', gap: 8, paddingBottom: 80 }));
     await fireEvent.press(screen.getByRole('button', { name: 'Nova denúncia' }));
     await fireEvent.changeText(await screen.findByLabelText('Descrição'), 'Rascunho preservado');
     await fireEvent.press(screen.getByRole('button', { name: 'Voltar' }));
@@ -238,7 +239,9 @@ it('apresenta uma ocorrência pública no Início mesmo sem registros pessoais e
     expect(await screen.findByText(publicReport.description)).toBeVisible();
     expect(screen.queryByText(new RegExp(report.id))).toBeNull();
     await fireEvent.press(screen.getByRole('button', { name: 'Voltar aos meus registros' }));
-    await fireEvent.press(await screen.findByRole('button', { name: 'Ver feed' }));
+    const feed = await screen.findByRole('button', { name: 'Ver feed' });
+    expect(feed).toHaveStyle({ paddingHorizontal: 12, borderRadius: 8, minHeight: 48 });
+    await fireEvent.press(feed);
     expect(await screen.findByRole('header', { name: 'Denúncias da comunidade' })).toBeVisible();
 });
 
@@ -291,7 +294,7 @@ it('recolhe a capa indisponível no feed e permite carregar a foto novamente no 
     });
     await render(<App />);
     await fireEvent.press(await screen.findByRole('tab', { name: 'Feed' }));
-    const thumb = await screen.findByLabelText('Foto da ocorrência: ' + report.description);
+    const thumb = await screen.findByLabelText('Foto da ocorrência: ' + report.description, { includeHiddenElements: true });
     await fireEvent(thumb, 'error', { nativeEvent: { error: 'Image unavailable' } });
     expect(screen.queryByLabelText('Foto da ocorrência: ' + report.description)).toBeNull();
     await fireEvent.press(screen.getByText(report.description));
@@ -330,7 +333,9 @@ it('recupera a miniatura e a foto ampliada quando o carregador nativo rejeita a 
     await render(<App />);
     await fireEvent.press(await screen.findByRole('tab', { name: 'Feed' }));
     const label = 'Foto da ocorrência: ' + report.description;
-    await fireEvent(await screen.findByLabelText(label), 'error', { nativeEvent: { error: '401' } });
+    const loading = await screen.findByLabelText(label, { includeHiddenElements: true });
+    await fireEvent(loading, 'error', { nativeEvent: { error: '401' } });
+    await fireEvent(loading, 'load', { nativeEvent: {} });
     expect(screen.getByLabelText(label)).toHaveProp('source', [{ uri: 'data:image/jpeg;base64,/9j/2Q==' }]);
     await fireEvent.press(screen.getByText(report.description));
     await fireEvent(await screen.findByLabelText('Foto 1 da denúncia'), 'error', { nativeEvent: { error: '401' } });

@@ -28,6 +28,31 @@ afterEach(() => {
     jest.restoreAllMocks();
 });
 
+it('mostra o carregamento até os dados e a foto visível ficarem prontos, sem esperar a foto abaixo da dobra', async () => {
+    let release!: (response: Response) => void;
+    const later = { ...report, id: 'segunda', description: 'Relato abaixo da dobra', coverPhoto: { ...photo, thumbnailPath: photo.thumbnailPath + '2' } };
+    jest.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+        const path = String(input).replace(base, '');
+        if (path === '/me') return ok({ data: { id: 'autor', role: 'CITIZEN' } });
+        if (path === '/reports?scope=feed') return new Promise<Response>((resolve) => (release = resolve));
+        return ok(page([]));
+    });
+    await render(<App />);
+    await fireEvent.press(await screen.findByRole('tab', { name: 'Feed' }));
+    expect(screen.getByText('Carregando denúncias…')).toBeVisible();
+    await act(() => release(ok(page([report, later]))));
+    expect(screen.queryByText(report.description)).toBeNull();
+    const thumb = screen.getByLabelText('Foto da ocorrência: ' + report.description, { includeHiddenElements: true });
+    const cards = screen.getAllByRole('button', { name: /^Abrir /, includeHiddenElements: true });
+    await fireEvent(screen.getByTestId('report-list', { includeHiddenElements: true }), 'layout', { nativeEvent: { layout: { height: 480 } } });
+    await fireEvent(cards[0]!.parent!, 'layout', { nativeEvent: { layout: { y: 80, height: 130 } } });
+    await fireEvent(cards[1]!.parent!, 'layout', { nativeEvent: { layout: { y: 510, height: 130 } } });
+    expect(screen.getByText('Carregando denúncias…')).toBeVisible();
+    await fireEvent(thumb, 'load', { nativeEvent: {} });
+    expect(screen.getByText(report.description)).toBeVisible();
+    expect(screen.queryByText('Carregando denúncias…')).toBeNull();
+});
+
 it('mostra a miniatura nas listas e a original no detalhe, ambas com cache em disco', async () => {
     jest.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
         const path = String(input).replace(base, '');
@@ -38,7 +63,8 @@ it('mostra a miniatura nas listas e a original no detalhe, ambas com cache em di
     });
     await render(<App />);
     await fireEvent.press(await screen.findByRole('tab', { name: 'Feed' }));
-    const thumb = await screen.findByLabelText('Foto da ocorrência: ' + report.description);
+    const thumb = await screen.findByLabelText('Foto da ocorrência: ' + report.description, { includeHiddenElements: true });
+    await fireEvent(thumb, 'load', { nativeEvent: {} });
     expect(thumb).toHaveProp('source', [{ uri: 'http://192.168.2.19:3000' + photo.thumbnailPath, headers: { Authorization: 'Bearer token-teste' } }]);
     expect(thumb).toHaveProp('cachePolicy', 'disk');
     await fireEvent.press(screen.getByText(report.description));
@@ -62,7 +88,8 @@ it('retira a miniatura já exibida no feed assim que vence o prazo recebido', as
         await render(<App />);
         await fireEvent.press(await screen.findByRole('tab', { name: 'Feed' }));
         const label = 'Foto da ocorrência: ' + report.description;
-        expect(await screen.findByLabelText(label)).toBeVisible();
+        await fireEvent(await screen.findByLabelText(label, { includeHiddenElements: true }), 'load', { nativeEvent: {} });
+        expect(screen.getByLabelText(label)).toBeVisible();
         await act(async () => {
             jest.advanceTimersByTime(3000);
         });
@@ -88,7 +115,8 @@ it('recalcula a validade da miniatura com o horário novo de uma resposta 304', 
         await render(<App />);
         await fireEvent.press(await screen.findByRole('tab', { name: 'Feed' }));
         const label = 'Foto da ocorrência: ' + report.description;
-        expect(await screen.findByLabelText(label)).toBeVisible();
+        await fireEvent(await screen.findByLabelText(label, { includeHiddenElements: true }), 'load', { nativeEvent: {} });
+        expect(screen.getByLabelText(label)).toBeVisible();
         await act(async () => {
             jest.advanceTimersByTime(5000);
         });

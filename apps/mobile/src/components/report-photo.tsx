@@ -54,11 +54,25 @@ function ReportImage({ source, onUnavailable, ...props }: Omit<ImageProps, 'sour
     return <PrivateImage {...props} cachePolicy="disk" source={memoryUri ? { uri: memoryUri } : source} onError={() => void recover()} />;
 }
 
-export function ReportThumbnail({ source, label, fillFrame = false }: { source: PhotoSource; label?: string; fillFrame?: boolean }) {
+export function ReportThumbnail({ source, label, fillFrame = false, onSettled }: { source: PhotoSource; label?: string; fillFrame?: boolean; onSettled?: (() => void) | undefined }) {
     const resource = source.uri;
     const [failedResource, setFailedResource] = useState<typeof resource | null>(null);
     if (resource === failedResource) return null;
-    return <ReportImage key={resource} source={source} accessible={!!label} {...(label && { accessibilityLabel: label })} contentFit="cover" onUnavailable={() => setFailedResource(resource)} style={fillFrame ? StyleSheet.absoluteFill : styles.thumb} />;
+    return (
+        <ReportImage
+            key={resource}
+            source={source}
+            accessible={!!label}
+            {...(label && { accessibilityLabel: label })}
+            contentFit="cover"
+            {...(onSettled && { onLoad: onSettled })}
+            onUnavailable={() => {
+                setFailedResource(resource);
+                onSettled?.();
+            }}
+            style={fillFrame ? StyleSheet.absoluteFill : styles.thumb}
+        />
+    );
 }
 
 export function ReportPhoto({ path, index, apiBase, token, width, height, onExpand }: { path: string; index: number; apiBase: string; token: string; width: number; height: number; onExpand?: () => void }) {

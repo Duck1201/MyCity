@@ -24,7 +24,9 @@ it('restaura token protegido, consulta identidade e revoga ao sair', async () =>
     );
     expect(await screen.findByText('Denúncia privada')).toBeVisible();
     expect(request).toHaveBeenCalledWith('https://demo.example/api/v1/me', expect.objectContaining({ headers: { Authorization: 'Bearer teste' } }));
-    await user.press(screen.getByRole('button', { name: 'Sair' }));
+    const exit = screen.getByRole('button', { name: 'Sair' });
+    expect(exit).toHaveStyle({ paddingHorizontal: 12, borderRadius: 8, minHeight: 48 });
+    await user.press(exit);
     expect(await screen.findByLabelText('CPF')).toBeVisible();
     expect(screen.queryByText('Denúncia privada')).toBeNull();
     expect(SecureStore.deleteItemAsync).toHaveBeenCalled();

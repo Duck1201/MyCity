@@ -64,7 +64,8 @@ it('mostra carregamento, mensagem de erro e lista vazia após repetir uma consul
         return page([]);
     });
     await enter();
-    expect(screen.getByText('Carregando cenários…')).toBeVisible();
+    expect(screen.getByRole('progressbar', { name: 'Carregando cenários…' })).toBeVisible();
+    expect(screen.queryByText('Cenários fictícios de 25 de novembro de 2026.')).toBeNull();
     await act(async () => {
         fail(new Error('offline'));
     });

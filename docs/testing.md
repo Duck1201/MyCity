@@ -152,6 +152,8 @@ No APK de release compilado localmente em 21/11/2026, a primeira abertura do map
 
 No Galaxy M32 com GPS ativo e permissão precisa, **Minha localização** falhou em três de quatro tentativas no APK publicado da v1.0.3. No Expo Go com a correção e a API local, quatro arrastos tiraram o marcador do centro e quatro toques no botão voltaram a centralizá-lo sem aviso de erro. Em outra abertura, a última posição do provedor combinado tinha 37 segundos. Após a centralização, o Android registrava uma leitura de 2,6 segundos com precisão de 30 metros.
 
+No mesmo Galaxy M32 e Expo Go, três ciclos de **Mapa → Início → Mapa** registraram 59 de 106 quadros atrasados e p95 de 85 ms no `dumpsys gfxinfo` antes das mudanças de navegação. Em três rodadas do mesmo percurso após as mudanças, o Android registrou 36 de 233, 36 de 207 e 37 de 223 quadros atrasados. Os p95 foram 42, 40 e 40 ms, respectivamente. A região e o marcador se mantiveram ao retornar.
+
 As duas fotos da capa de um livro foram comprimidas pelo app para JPEG de 1.200 × 1.600 px (110.076 e 118.963 bytes). No detalhe da denúncia no Chrome, o título e o subtítulo de letras menores puderam ser lidos nas duas imagens e coincidiram com o texto de referência, inclusive na primeira foto, com sombra.
 
 ### Fotos no APK v1.0.1 (21/11/2026)
