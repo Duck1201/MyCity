@@ -1,3 +1,4 @@
+import { reportEndpoint, reportHistoryEndpoint } from './queue-endpoint';
 import { usePanelLoading } from './panel-loading';
 import { isReopening } from './manager-transitions';
 import { ManagerStatusActions } from './components/manager-status-actions';
@@ -41,11 +42,11 @@ function CaseText({ text, description = false, label }: { text: string; descript
 
 type Props = { id: string; onSessionExpired: () => void; onChange?: (report: ReportDetail) => void };
 export function ReportService({ id, onSessionExpired, onChange }: Props) {
-    const base = '/api/v1/reports/' + encodeURIComponent(id);
+    const base = reportEndpoint(id);
     const detail = useLiveQuery<{ data: ReportDetail }>(base, onSessionExpired);
     usePanelLoading(!detail.data && !detail.failed);
     type EventPage = { data: ReportEvent[]; page: { nextCursor: string | null } };
-    const historyUrl = base + '/history?order=newest&limit=4';
+    const historyUrl = reportHistoryEndpoint(id);
     const history = useLiveQuery<EventPage>(historyUrl, onSessionExpired);
     const anchor = history.data?.page.nextCursor;
     const [archive, setArchive] = useState<{ anchor: string; cursor: string; loaded: ReportEvent[] } | null>(null);

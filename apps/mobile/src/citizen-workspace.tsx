@@ -4,7 +4,7 @@ import { mobileStyles, colors } from './theme';
 import { CitizenCover, Icon, type IconName } from './components/civic-header';
 import { ReportCard } from './components/report-card';
 import { listPhotoPath, reportPhotoSource } from './components/report-photo';
-import { useCallback, useEffect, useRef, useMemo, useState } from 'react';
+import { useCallback, useContext, useEffect, useRef, useMemo, useState } from 'react';
 import { BackHandler, Share, ScrollView, StyleSheet, View } from 'react-native';
 import { MotionPressable as Pressable } from './components/motion-pressable';
 import { ScreenTransition, TabIndicator } from './components/navigation-motion';
@@ -15,6 +15,7 @@ import { CitizenReport, type CitizenDraft } from './citizen-report';
 import { ReportOverview, statusLabels } from './report-overview';
 import { ActionButton } from './components/action-button';
 import { useActiveQuery } from './use-active-query';
+import { QueryCache } from './query-cache';
 
 import { FilterVisibilityContext, Filters, filteredPath, activeStatuses, type ReportFilters } from './report-filters';
 import { ApiConfirmation, confirmationLabel } from './report-confirmation';
@@ -176,6 +177,13 @@ function ReportTracking({ request, selection, apiBase, token, back, backLabel }:
     const path = '/reports/' + encodeURIComponent(selection.id);
     const load = useCallback((signal: AbortSignal) => request<{ data: ReportDetail }>(path, signal), [path, request]);
     const query = useActiveQuery(load, true, path);
+    // Each round trip to the server costs about 150 ms, so the first history page is
+    // requested together with the detail; History reads it from the session cache.
+    const historyPath = path + '/history';
+    const loadHistory = useCallback((signal: AbortSignal) => request<Page<ReportEvent>>(historyPath, signal), [historyPath, request]);
+    // Stops once the page is in the cache, so History is the only one polling it.
+    const historyCached = useContext(QueryCache)?.entries.has(historyPath) ?? false;
+    useActiveQuery(loadHistory, !historyCached, historyPath);
     const detail = query.unavailable ? undefined : (query.data?.data ?? selection.published);
     const [pages, setPages] = useState<(string | null)[]>([null]);
     const [shareError, setShareError] = useState(false);
