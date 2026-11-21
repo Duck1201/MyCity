@@ -1,6 +1,7 @@
 import { fromByteArray } from 'base64-js';
 import { useEffect, useRef, useState } from 'react';
 import { Image, type ImageProps } from 'expo-image';
+import { PrivateImage } from './private-image';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { colors, mobileStyles } from '../theme';
 import { MotionPressable } from './motion-pressable';
@@ -50,7 +51,7 @@ function ReportImage({ source, onUnavailable, ...props }: Omit<ImageProps, 'sour
         }
     }
 
-    return <Image {...props} cachePolicy="disk" source={memoryUri ? { uri: memoryUri } : source} onError={() => void recover()} />;
+    return <PrivateImage {...props} cachePolicy="disk" source={memoryUri ? { uri: memoryUri } : source} onError={() => void recover()} />;
 }
 
 export function ReportThumbnail({ source, label, fillFrame = false }: { source: PhotoSource; label?: string; fillFrame?: boolean }) {

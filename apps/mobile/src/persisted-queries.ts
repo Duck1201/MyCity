@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import { Directory, File, Paths } from 'expo-file-system';
 
 // The citizen's own reads survive an app restart so screens open with content
@@ -59,6 +60,7 @@ export function writePersistedQueries(owner: string, entries: Map<string, { valu
 }
 
 export function clearPersistedQueries() {
+    if (Platform.OS === 'web') return;
     generation++;
     try {
         const directory = folder();

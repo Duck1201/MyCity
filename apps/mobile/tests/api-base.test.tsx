@@ -23,3 +23,7 @@ it('preserva a API HTTPS da distribuição fora do desenvolvimento', () => {
 it('usa a porta da API escolhida ao iniciar os serviços de desenvolvimento', () => {
     expect(resolveApiBase({ development: true, metroHostUri: '192.168.2.19:8081', developmentPort: '3100' })).toBe('http://192.168.2.19:3100/api/v1');
 });
+
+it('mantém as consultas do navegador na mesma origem da prévia que serve a API', () => {
+    expect(resolveApiBase({ development: true, configuredUrl: 'https://example.test/api/v1', webOrigin: 'http://localhost:8093' })).toBe('http://localhost:8093/api/v1');
+});

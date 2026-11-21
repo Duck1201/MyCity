@@ -47,6 +47,8 @@ Abra **<http://localhost:8090>** e entre como gestor com o CPF **`00000000003`**
 
 Abra **Atendimento** para explorar os exemplos. A API atende em **<http://localhost:3000/api/v1/health/ready>** para a verificação de saúde. Ctrl+C encerra o painel e a API.
 
+Para testar como cidadão no navegador, mantenha `npm run dev` rodando e execute `npm run dev:mobile:web` em outro terminal. Abra **<http://localhost:8093>** e entre com uma das contas de cidadão do seed. A prévia usa a mesma API e o mesmo banco de desenvolvimento do painel: uma denúncia enviada ou reaberta no mobile web aparece em **Atendimento**.
+
 Para mudar portas, configurar a API do celular ou executar a versão compilada em containers, consulte o [guia de ambiente local](docs/runbook.md#ambiente-local).
 
 ## Usar o app Android

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Modal, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { GestureDetector, GestureHandlerRootView, useCompetingGestures, usePanGesture, usePinchGesture, useSimultaneousGestures, useTapGesture } from 'react-native-gesture-handler';
-import { Image } from 'expo-image';
+import { PrivateImage } from './private-image';
 import { MotionPressable } from './motion-pressable';
 import { Text } from './typography';
 import type { PhotoSource } from './report-photo';
@@ -174,7 +174,7 @@ export function PhotoViewer({ photos, start, onClose }: { photos: ViewerPhoto[];
                             {photos.map((photo, i) => (
                                 <View key={photo.id} style={[styles.page, { width, height }]}>
                                     <Animated.View testID={'photo-viewer-zoom-' + i} style={[StyleSheet.absoluteFill, { transform: [{ translateX: zooms[i]!.x }, { translateY: zooms[i]!.y }, { scale: zooms[i]!.scale }] }]}>
-                                        <Image
+                                        <PrivateImage
                                             source={photo.source}
                                             cachePolicy="disk"
                                             contentFit="contain"

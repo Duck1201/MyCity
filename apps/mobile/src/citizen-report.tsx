@@ -11,7 +11,7 @@ import { Icon } from './components/civic-header';
 import { ReportLocationPicker } from './report-location-picker';
 import * as GPS from 'expo-location';
 import { readDevicePosition } from './device-position';
-import { File } from 'expo-file-system';
+import { appendReportPhotos } from './report-photo-file';
 import { randomUUID } from 'expo-crypto';
 import { locationSchema, type Location, type ReportDetail, type ReportCategory } from '@mycity/contracts';
 import { ActionButton } from './components/action-button';
@@ -217,7 +217,7 @@ export function CitizenReport({ token, apiBase, onSessionExpired, onPublished, d
             const form = new FormData();
             const identity = editing ? { expectedVersion: editing.version, retainedPhotoIds: retained.map((photo) => photo.id) } : { clientRequestId: draft.requestId };
             form.append('metadata', JSON.stringify({ ...identity, description: draft.description.trim(), category: draft.category, showIdentity: draft.showIdentity, location: draft.location }));
-            draft.photos.forEach((uri) => form.append('photos', new File(uri)));
+            await appendReportPhotos(form, draft.photos);
             const response = await fetch(apiBase + '/reports' + (editing ? '/' + encodeURIComponent(editing.id) : ''), { method: editing ? 'PATCH' : 'POST', headers: { Authorization: 'Bearer ' + token }, body: form, signal: controller.signal });
             if (!mounted.current) return;
             if (response.status === 401) {
