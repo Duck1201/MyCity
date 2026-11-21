@@ -78,3 +78,31 @@ it('oferece o zoom ao TalkBack como ação de acessibilidade da foto ampliada', 
     await act(async () => fireEvent(photo, 'accessibilityAction', { nativeEvent: { actionName: 'activate' } }));
     expect(screen.getByLabelText('Foto 1 de 2 da denúncia, ampliada').props.accessibilityActions).toEqual(expect.arrayContaining([expect.objectContaining({ label: 'Restaurar zoom' })]));
 });
+
+it('começa a pinça de onde a foto está, mesmo no meio da volta aos limites', async () => {
+    jest.useFakeTimers();
+    try {
+        await render(<ReportOverview detail={detail} apiBase={apiBase} token="sessao" />);
+        await fireEvent.press(screen.getByRole('button', { name: 'Ampliar foto 1 da denúncia' }));
+        const { width, height } = stageSize();
+        await act(async () => pinch(2, width / 2, height / 2));
+        // Drag the zoomed photo far past its edge; on release it springs back inside.
+        await act(async () => drag(width * 2));
+        await act(async () => {
+            jest.advanceTimersByTime(60);
+        });
+        const midway = transformOf(0).translateX;
+        expect(midway).toBeGreaterThan(width / 2);
+        // A new pinch that does not change scale or focal must leave the photo where it is.
+        await act(async () =>
+            fireGestureHandler(getByGestureTestId('photo-viewer-pinch'), [
+                { state: State.BEGAN, scale: 1, focalX: width / 2, focalY: height / 2 },
+                { state: State.ACTIVE, scale: 1, focalX: width / 2, focalY: height / 2 },
+                { state: State.ACTIVE, scale: 1, focalX: width / 2, focalY: height / 2 },
+            ]),
+        );
+        expect(transformOf(0).translateX).toBeCloseTo(midway, 0);
+    } finally {
+        jest.useRealTimers();
+    }
+});

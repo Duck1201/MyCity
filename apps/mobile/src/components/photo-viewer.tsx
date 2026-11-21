@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Animated, Modal, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { GestureDetector, GestureHandlerRootView, useCompetingGestures, usePanGesture, usePinchGesture, useSimultaneousGestures, useTapGesture } from 'react-native-gesture-handler';
 import { Image } from 'expo-image';
@@ -9,8 +9,9 @@ import type { PhotoSource } from './report-photo';
 const maxScale = 6;
 const tapScale = 2.5;
 const zoomedAt = 1.01;
-// Springs settle the photo after a gesture; while fingers are down it follows them 1:1.
-const spring = { useNativeDriver: true, damping: 22, stiffness: 220, mass: 0.9 } as const;
+// Springs settle the photo after a gesture; while fingers are down it follows them 1:1. They run on
+// the JS side so every frame updates the position the next gesture starts from.
+const spring = { useNativeDriver: false, damping: 22, stiffness: 220, mass: 0.9 } as const;
 
 export type ViewerPhoto = { id: string; source: PhotoSource };
 type Zoom = { scale: Animated.Value; x: Animated.Value; y: Animated.Value };
@@ -27,14 +28,37 @@ export function PhotoViewer({ photos, start, onClose }: { photos: ViewerPhoto[];
     const strip = useRef(new Animated.Value(-start * width)).current;
     const zooms = useRef<Zoom[]>(photos.map(() => ({ scale: new Animated.Value(1), x: new Animated.Value(0), y: new Animated.Value(0) }))).current;
     // Plain numbers mirror the animated values, because the gesture maths runs on the JS thread.
-    const state = useRef({ index: start, scale: 1, x: 0, y: 0, pinchStart: 1, anchor: { x: 0, y: 0 }, panStart: { x: 0, y: 0 }, pinching: false }).current;
+    const state = useRef({ index: start, scale: 1, target: 1, x: 0, y: 0, stripX: -start * width, pinchStart: 1, anchor: { x: 0, y: 0 }, panStart: { x: 0, y: 0, strip: 0 }, pinching: false }).current;
+    // Mirror what is on screen, including the frames of a spring, into the numbers the gestures read.
+    useEffect(() => {
+        const ids = zooms.flatMap(
+            (zoom, i) =>
+                [
+                    [zoom.scale, zoom.scale.addListener(({ value }) => i === state.index && (state.scale = value))],
+                    [zoom.x, zoom.x.addListener(({ value }) => i === state.index && (state.x = value))],
+                    [zoom.y, zoom.y.addListener(({ value }) => i === state.index && (state.y = value))],
+                ] as const,
+        );
+        const stripId = strip.addListener(({ value }) => (state.stripX = value));
+        return () => {
+            ids.forEach(([value, id]) => value.removeListener(id));
+            strip.removeListener(stripId);
+        };
+    }, [zooms, strip, state]);
+    // A new gesture takes over from wherever a spring has got to.
+    function halt() {
+        const zoom = zooms[state.index]!;
+        [zoom.scale, zoom.x, zoom.y, strip].forEach((value) => value.stopAnimation());
+    }
 
     const bounds = (scale: number) => ({ x: ((scale - 1) * width) / 2, y: ((scale - 1) * height) / 2 });
     const clamp = (value: number, limit: number) => Math.min(limit, Math.max(-limit, value));
+    // target is where the photo is heading: it decides between zoomed and not zoomed; scale, x and y are what is on screen.
     function show(scale: number, x: number, y: number, settle: boolean) {
         const zoom = zooms[state.index]!;
-        Object.assign(state, { scale, x, y });
+        state.target = scale;
         if (!settle) {
+            Object.assign(state, { scale, x, y });
             zoom.scale.setValue(scale);
             zoom.x.setValue(x);
             zoom.y.setValue(y);
@@ -50,7 +74,7 @@ export function PhotoViewer({ photos, start, onClose }: { photos: ViewerPhoto[];
         setZoomed(scale > zoomedAt);
     }
     function toggleZoom(focusX = width / 2, focusY = height / 2) {
-        if (state.scale > zoomedAt) {
+        if (state.target > zoomedAt) {
             show(1, 0, 0, true);
             setZoomed(false);
             return;
@@ -67,7 +91,7 @@ export function PhotoViewer({ photos, start, onClose }: { photos: ViewerPhoto[];
         if (target !== state.index) {
             show(1, 0, 0, false);
             state.index = target;
-            Object.assign(state, { scale: 1, x: 0, y: 0 });
+            Object.assign(state, { scale: 1, target: 1, x: 0, y: 0 });
             setIndex(target);
             setZoomed(false);
         }
@@ -78,6 +102,7 @@ export function PhotoViewer({ photos, start, onClose }: { photos: ViewerPhoto[];
         testID: 'photo-viewer-pinch',
         runOnJS: true,
         onActivate: (event) => {
+            halt();
             state.pinching = true;
             state.pinchStart = state.scale;
             const fx = event.focalX - width / 2;
@@ -100,21 +125,22 @@ export function PhotoViewer({ photos, start, onClose }: { photos: ViewerPhoto[];
         runOnJS: true,
         maxPointers: 1,
         onActivate: () => {
-            state.panStart = { x: state.x, y: state.y };
+            halt();
+            state.panStart = { x: state.x, y: state.y, strip: state.stripX };
         },
         onUpdate: (event) => {
             if (state.pinching) return;
-            if (state.scale > zoomedAt) {
+            if (state.target > zoomedAt) {
                 show(state.scale, state.panStart.x + event.translationX, state.panStart.y + event.translationY, false);
                 return;
             }
             // Not zoomed: the strip follows the finger, with resistance past the first and last photo.
             const edge = (state.index === 0 && event.translationX > 0) || (state.index === photos.length - 1 && event.translationX < 0);
-            strip.setValue(-state.index * width + event.translationX * (edge ? 0.3 : 1));
+            strip.setValue(state.panStart.strip + event.translationX * (edge ? 0.3 : 1));
         },
         onDeactivate: (event) => {
             if (state.pinching) return;
-            if (state.scale > zoomedAt) return settle();
+            if (state.target > zoomedAt) return settle();
             const swipe = Math.abs(event.translationX) > width * 0.2 || Math.abs(event.velocityX) > 600;
             goTo(swipe ? state.index + (event.translationX < 0 ? 1 : -1) : state.index);
         },
@@ -123,7 +149,10 @@ export function PhotoViewer({ photos, start, onClose }: { photos: ViewerPhoto[];
         testID: 'photo-viewer-double-tap',
         runOnJS: true,
         numberOfTaps: 2,
-        onActivate: (event) => toggleZoom(event.x, event.y),
+        onActivate: (event) => {
+            halt();
+            toggleZoom(event.x, event.y);
+        },
     });
     // The double tap competes with the drag gestures instead of making the pinch wait for it.
     const gestures = useCompetingGestures(doubleTap, useSimultaneousGestures(pinch, pan));
