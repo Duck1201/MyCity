@@ -25,6 +25,7 @@ Os diagnósticos do Caddy preservam o método e o caminho da requisição. O log
 - Gerar nomes e caminhos no servidor; não usar caminhos fornecidos pelo cliente nem executar arquivos recebidos.
 - Armazenar fotos fora do diretório estático da web. Nginx não deve publicar livremente o volume de uploads.
 - Servir fotos por uma rota que valide sessão, permissão e vínculo entre foto e denúncia. Conhecer ou adivinhar uma URL não concede acesso.
+- Foto e miniatura saem com `Cache-Control: private, max-age=31536000, immutable`: o navegador e o app guardam a imagem depois que a autorização foi conferida, e nenhum cache compartilhado pode armazená-la. O ID de uma foto nunca muda de conteúdo. A limpeza desse cache no logout chega com a revalidação por ETag (C39).
 - A API limita cada cidadão a 30 tentativas de upload por janela de 15 minutos. Compartilha quatro vagas simultâneas por processo e exige 320 MiB disponíveis antes de gravar um novo conjunto de fotos. O valor inclui 256 MiB de reserva e até 16 MiB para cada vaga.
 
 ## Verificação obrigatória antes de publicar essas funcionalidades

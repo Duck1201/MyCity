@@ -87,6 +87,7 @@ else
     "${compose[@]}" --profile tools run --rm seed
     touch "$deploy_root/.seeded"
 fi
+"${compose[@]}" --profile tools run --rm -T thumbnails npm run photos:backfill-thumbnails -w @mycity/api
 "${compose[@]}" up -d --wait api web edge
 activate "$release_name" "$current"
 echo "Release $release_name aplicada; banco e volumes preservados."

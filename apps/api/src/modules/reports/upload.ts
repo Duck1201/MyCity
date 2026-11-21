@@ -3,6 +3,7 @@ import type { IncomingHttpHeaders } from 'node:http';
 import sharp from 'sharp';
 import { reportMetadataSchema } from '@mycity/contracts';
 import { createHash } from 'node:crypto';
+import { thumbnailOf } from './thumbnail.js';
 
 export class ReportError extends Error {
     constructor(
@@ -89,7 +90,7 @@ export async function prepareReportInput(input: unknown, originals: Buffer[]) {
             if (metadata.format !== 'jpeg' || metadata.width > 1600 || metadata.height > 1600) throw badInput('A foto deve ser JPEG com maior lado de até 1.600 pixels.');
             const { data, info } = await image.autoOrient().jpeg({ quality: 85 }).toBuffer({ resolveWithObject: true });
             if (data.length > maxPhoto) throw badInput('Foto maior que o limite de 5 MiB.');
-            photos.push({ data, width: info.width, height: info.height });
+            photos.push({ data, thumbnail: await thumbnailOf(data), width: info.width, height: info.height });
         } catch (error) {
             if (error instanceof ReportError) throw error;
             throw badInput('Não foi possível ler a foto JPEG.');

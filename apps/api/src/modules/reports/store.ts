@@ -7,6 +7,7 @@ import type { Prisma } from '../../generated/prisma/client.js';
 import { readPublicProfiles } from '../identity/index.js';
 import { reportIds, type ReportQuery } from './query.js';
 import { canTransition, isOpenForConfirmation, managerActions } from './rules.js';
+import { thumbnailFile } from './thumbnail.js';
 import { ReportError, type parseUpload } from './upload.js';
 
 const relations = (viewerId: string) =>
@@ -32,7 +33,8 @@ type Stored = Prisma.ReportGetPayload<{ include: ReturnType<typeof relations> }>
 export const reportNotFound = () => new ReportError(404, 'NOT_FOUND', 'Denúncia ou foto não encontrada.');
 
 function photoDto(reportId: string, { id, position, width, height, byteSize }: Stored['photos'][number]) {
-    return { id, position, width, height, byteSize, contentPath: `/api/v1/reports/${reportId}/photos/${id}` };
+    const contentPath = `/api/v1/reports/${reportId}/photos/${id}`;
+    return { id, position, width, height, byteSize, contentPath, thumbnailPath: contentPath + '/thumb' };
 }
 
 type Profiles = Awaited<ReturnType<typeof readPublicProfiles>>;
@@ -107,6 +109,7 @@ export function createReportStore(db: Database, root: string) {
                 for (const [position, photo] of input.photos.entries()) {
                     const photoId = randomUUID();
                     await writeFile(join(folder, photoId + '.jpg'), photo.data, { flag: 'wx', mode: 0o600 });
+                    await writeFile(join(folder, thumbnailFile(photoId)), photo.thumbnail, { flag: 'wx', mode: 0o600 });
                     photos.push({ id: photoId, position, width: photo.width, height: photo.height, byteSize: photo.data.length });
                 }
                 const { location, ...fields } = metadata;

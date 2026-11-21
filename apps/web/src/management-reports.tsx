@@ -37,7 +37,7 @@ export function ManagementReports({ onSessionExpired }: { onSessionExpired: () =
     const rows = data?.data.map((row) => ({
         ...row,
         count: row.confirmationCount,
-        photo: row.coverPhotoId ? { image: '/api/v1/reports/' + encodeURIComponent(row.id) + '/photos/' + encodeURIComponent(row.coverPhotoId) } : undefined,
+        photo: row.coverPhotoId ? { image: '/api/v1/reports/' + encodeURIComponent(row.id) + '/photos/' + encodeURIComponent(row.coverPhotoId) + '/thumb' } : undefined,
         address: row.latitude + ', ' + row.longitude,
         date: dateFormat.format(new Date(row.createdAt)),
         categoryIcon: categoryIconFor(row.category, catalog.find((item) => item.id === row.category)?.icon),

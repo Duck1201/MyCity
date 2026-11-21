@@ -5,7 +5,7 @@ import { OverviewPanel, RecentReports } from './components/overview-panel';
 
 function RecentQueue({ categories, onSessionExpired }: { categories: ManagementOverview['categories']; onSessionExpired: () => void }) {
     const query = useLiveQuery<ManagementQueuePage>('/api/v1/reports/queue?ordem=recentes&limit=3', onSessionExpired);
-    const rows = (query.data?.data ?? []).map((row) => ({ ...row, categoryIcon: categoryIconFor(row.category, categories.find((c) => c.id === row.category)?.icon), photo: row.coverPhotoId ? '/api/v1/reports/' + encodeURIComponent(row.id) + '/photos/' + encodeURIComponent(row.coverPhotoId) : undefined }));
+    const rows = (query.data?.data ?? []).map((row) => ({ ...row, categoryIcon: categoryIconFor(row.category, categories.find((c) => c.id === row.category)?.icon), photo: row.coverPhotoId ? '/api/v1/reports/' + encodeURIComponent(row.id) + '/photos/' + encodeURIComponent(row.coverPhotoId) + '/thumb' : undefined }));
     return (
         <RecentReports
             rows={rows}

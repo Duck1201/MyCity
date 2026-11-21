@@ -79,7 +79,7 @@ export function addBusinessPaths(doc) {
         showIdentity: boolean,
     };
     Object.assign(doc.components.schemas, {
-        ReportPhoto: object({ id: string, position: count, width: positiveInteger, height: positiveInteger, byteSize: positiveInteger, contentPath: string }),
+        ReportPhoto: object({ id: string, position: count, width: positiveInteger, height: positiveInteger, byteSize: positiveInteger, contentPath: string, thumbnailPath: string }),
         ReportSummary: object({ ...summaryFields, coverPhoto: ref('ReportPhoto'), author: object({ name: string, photoUrl: string }) }, Object.keys(summaryFields)),
         ReportDetail: { allOf: [ref('ReportSummary'), object({ version: positiveInteger, photos: { ...array(ref('ReportPhoto')), minItems: 1, maxItems: 3 }, allowedActions: array(string) })] },
         ReportMarker: object({ ...reportFields, latitude, longitude }),
@@ -114,6 +114,7 @@ export function addBusinessPaths(doc) {
         },
         [reports + '/{id}']: { get: lookup('Consultar detalhes da denúncia', [id('id')], { content: reportDetailContent }) },
         [reports + '/{id}/photos/{photoId}']: { get: lookup('Ler foto vinculada à denúncia', [id('id'), id('photoId')], { content: { 'image/jpeg': { schema: { type: 'string', format: 'binary' } } } }) },
+        [reports + '/{id}/photos/{photoId}/thumb']: { get: lookup('Ler miniatura (maior lado até 320 px) da foto vinculada à denúncia', [id('id'), id('photoId')], { content: { 'image/jpeg': { schema: { type: 'string', format: 'binary' } } } }) },
         [reports + '/{id}/history']: { get: { ...lookup('Consultar histórico da denúncia', [id('id'), ...pagination, { name: 'order', in: 'query', schema: { type: 'string', enum: ['oldest', 'newest'], default: 'oldest' } }], {}), responses: { 200: { description: 'Eventos paginados com page.nextCursor.', content: cursorContent(ref('ReportEvent')) }, 400: invalidPage, 401: unauthorized, 404: { description: 'Denúncia não encontrada.' } } } },
         [reports + '/{id}/transitions']: {
             post: reportWrite(

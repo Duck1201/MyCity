@@ -48,3 +48,23 @@ it('preserva arquivos se o upload configurado atravessar um ancestral simbólico
         await rm(base, { recursive: true, force: true });
     }
 });
+
+it('remove a miniatura junto da foto conhecida', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'mycity-reset-thumbs-'));
+    try {
+        const reportId = randomUUID(),
+            photoId = randomUUID(),
+            onlyThumb = randomUUID();
+        await mkdir(join(root, reportId));
+        await writeFile(join(root, reportId, photoId + '.jpg'), 'antigo');
+        await writeFile(join(root, reportId, photoId + '.thumb.jpg'), 'antigo');
+        await writeFile(join(root, reportId, onlyThumb + '.thumb.jpg'), 'antigo');
+        await removeResetPhotos(root, [
+            { id: photoId, reportId },
+            { id: onlyThumb, reportId },
+        ]);
+        expect(await readdir(root)).not.toContain(reportId);
+    } finally {
+        await rm(root, { recursive: true, force: true });
+    }
+});

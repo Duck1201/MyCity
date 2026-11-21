@@ -181,3 +181,21 @@ it('revalida o nome da release no próprio job de deploy antes do primeiro coman
     for (const valid of ['v1.0.0-1', 'v12.3.45-10']) expect(name.test(valid)).toBe(true);
     for (const hostile of ["v1.0.0-1'; rm -rf / #", 'v1.0.0', 'v1.0.0-1/../x', 'latest-1']) expect(name.test(hostile)).toBe(false);
 });
+
+it('gera as miniaturas que faltam depois das migrações e antes de subir a API, a cada implantação', () => {
+    release('v1.0.0-1');
+    expect(deploy('v1.0.0-1')).toBe(0);
+    expect(deploy('v1.0.0-1')).toBe(0);
+    const lines = trace().split('\n');
+    const backfills = lines.filter((line) => line.includes('photos:backfill-thumbnails'));
+    expect(backfills).toHaveLength(2);
+    expect(backfills[0]).toMatch(/--profile tools run --rm -T thumbnails npm run photos:backfill-thumbnails -w @mycity\/api$/);
+    const first = lines.indexOf(backfills[0]!);
+    expect(lines.findIndex((line) => line.endsWith('run --rm migrate'))).toBeLessThan(first);
+    expect(lines.findIndex((line) => line.includes('up -d --wait api web edge'))).toBeGreaterThan(first);
+});
+
+it('dá ao serviço de miniaturas o volume de fotos e o diretório de upload', () => {
+    const services = parse(readFileSync('deploy/compose.yaml', 'utf8')).services;
+    expect(services.thumbnails).toMatchObject({ extends: 'migrate', volumes: ['photos:/app/uploads'], environment: { UPLOAD_DIR: '/app/uploads' } });
+});
