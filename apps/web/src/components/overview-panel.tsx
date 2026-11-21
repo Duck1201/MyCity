@@ -9,7 +9,7 @@ import { CategorySymbol } from './category-symbol';
 import { CategoryRanking, type RankedCategory } from './category-ranking';
 import './dashboard.css';
 
-export type PriorityItem = { id: string; photo?: string | undefined; categoryName: string; categoryIcon: CategoryIcon; address?: string; status: ReportStatus; description: string; count: number };
+export type PriorityItem = { id: string; photo?: string | undefined; categoryName: string; categoryIcon: CategoryIcon; age: string; status: ReportStatus; description: string; count: number };
 export function OverviewPanel({ counts, oldest, ranked, priorities, recent }: { counts: ReportStatusCounts; oldest?: { id: string; days: number } | undefined; ranked: RankedCategory[]; priorities: PriorityItem[]; recent: ReactNode }) {
     const pendingCount = counts.SENT + counts.UNDER_REVIEW + counts.IN_PROGRESS;
     const closedCount = counts.RESOLVED + counts.REJECTED + counts.CANCELED;
@@ -86,7 +86,7 @@ export function OverviewPanel({ counts, oldest, ranked, priorities, recent }: { 
                     <ol>
                         {priorities.map((row) => (
                             <li key={row.id}>
-                                <Link href={'/atendimento/' + row.id} id={'open-' + row.id} aria-label={'Abrir denúncia ' + row.id} aria-describedby={['case', 'status', 'votes'].map((prefix) => prefix + '-' + row.id).join(' ')}>
+                                <Link href={'/atendimento/' + row.id} id={'open-' + row.id} aria-label={'Abrir denúncia: ' + row.description} aria-describedby={['case', 'status', 'votes'].map((prefix) => prefix + '-' + row.id).join(' ')}>
                                     {row.photo ? (
                                         <img src={row.photo} alt="" width={58} height={48} />
                                     ) : (
@@ -96,9 +96,8 @@ export function OverviewPanel({ counts, oldest, ranked, priorities, recent }: { 
                                     )}
                                     <div className="civic-case" id={'case-' + row.id}>
                                         <strong>{row.description}</strong>
-                                        <span>
-                                            <CategorySymbol icon={row.categoryIcon} size={14} /> {row.categoryName}
-                                            {row.address && ' · ' + row.address}
+                                        <span className="civic-case-meta">
+                                            <CategorySymbol icon={row.categoryIcon} size={14} /> {row.categoryName} · {row.age}
                                         </span>
                                     </div>
                                     <span id={'status-' + row.id} className={'status ' + row.status}>
