@@ -79,8 +79,8 @@ it('mantém a foto ampliada centrada no eixo em que ela ainda é menor que a tel
     const image = viewer.getByRole('img', { name: 'Foto da ocorrência de Buraco na via' }) as HTMLImageElement;
     // A tall photo (1:3) drawn with object-fit: contain in an 800x600 box is 200x600 on screen.
     for (const [key, value] of Object.entries({ naturalWidth: 100, naturalHeight: 300, clientWidth: 800, clientHeight: 600 })) Object.defineProperty(image, key, { value, configurable: true });
-    // Zooming near the left edge: at 2.5x the photo is 500 px wide, still narrower than the 800 px stage, so it stays centred.
-    fireEvent.click(stage, { clientX: 100, clientY: 150 });
+    // Zooming near the photo's left edge (it covers x 300..500): at 2.5x it is 500 px wide, still narrower than the 800 px stage, so it stays centred.
+    fireEvent.click(stage, { clientX: 310, clientY: 150 });
     const zoomed = transformOf(image);
     expect(zoomed.scale).toBe(2.5);
     expect(zoomed.x).toBe(0);
@@ -89,4 +89,29 @@ it('mantém a foto ampliada centrada no eixo em que ela ainda é menor que a tel
     fireEvent.pointerDown(stage, { clientX: 400, clientY: 300, button: 0, pointerId: 1 });
     fireEvent.pointerMove(stage, { clientX: 900, clientY: 2000, pointerId: 1 });
     expect(transformOf(image)).toEqual({ x: 0, y: 450, scale: 2.5 });
+});
+
+it('fecha o visualizador ao clicar fora da foto e só amplia com clique sobre ela', async () => {
+    const user = userEvent.setup();
+    render(<PhotoGallery category="Buraco na via" photos={[photos[0]!]} />);
+    const open = async () => {
+        await user.click(screen.getByRole('img', { name: 'Foto da ocorrência de Buraco na via' }));
+        const viewer = within(screen.getByRole('dialog', { name: 'Foto da ocorrência de Buraco na via' }));
+        const stage = document.querySelector('.photo-viewer-stage') as HTMLElement;
+        stage.getBoundingClientRect = () => ({ left: 0, top: 0, width: 800, height: 600, right: 800, bottom: 600, x: 0, y: 0, toJSON: () => ({}) });
+        const image = viewer.getByRole('img', { name: 'Foto da ocorrência de Buraco na via' }) as HTMLImageElement;
+        // A tall photo (1:3) drawn with object-fit: contain in an 800x600 box covers only x 300..500.
+        for (const [key, value] of Object.entries({ naturalWidth: 100, naturalHeight: 300, clientWidth: 800, clientHeight: 600 })) Object.defineProperty(image, key, { value, configurable: true });
+        return { stage, image };
+    };
+    let { stage, image } = await open();
+    // The dark band beside the photo closes the viewer instead of zooming.
+    fireEvent.click(stage, { clientX: 100, clientY: 300 });
+    expect(screen.queryByRole('dialog')).toBeNull();
+    ({ stage, image } = await open());
+    fireEvent.click(stage, { clientX: 400, clientY: 300 });
+    expect(transformOf(image).scale).toBe(2.5);
+    // Zoomed, the photo is 500 px wide (x 150..650): the background still showing at x 100 closes it too.
+    fireEvent.click(stage, { clientX: 100, clientY: 300 });
+    expect(screen.queryByRole('dialog')).toBeNull();
 });

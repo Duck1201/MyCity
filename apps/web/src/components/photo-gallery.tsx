@@ -40,6 +40,19 @@ export function PhotoGallery({ photos, category }: { photos: readonly GalleryPho
         setIndex((value) => Math.min(photos.length - 1, Math.max(0, Math.min(value, photos.length - 1) + amount)));
         setZoom(unzoomed);
     }
+    // Whether a click landed on the picture as drawn (contained in the stage, then zoomed), not on the dark band around it.
+    function onPicture(clientX: number, clientY: number) {
+        const element = stage.current;
+        if (!element) return false;
+        const box = element.getBoundingClientRect();
+        const style = getComputedStyle(element);
+        const [left, right, top, bottom] = [style.paddingLeft, style.paddingRight, style.paddingTop, style.paddingBottom].map((value) => parseFloat(value) || 0) as [number, number, number, number];
+        const content = { width: box.width - left - right, height: box.height - top - bottom };
+        const picture = pictureOf(image.current, content);
+        const centreX = box.left + left + content.width / 2 + zoom.x;
+        const centreY = box.top + top + content.height / 2 + zoom.y;
+        return Math.abs(clientX - centreX) <= (picture.width * zoom.scale) / 2 && Math.abs(clientY - centreY) <= (picture.height * zoom.scale) / 2;
+    }
     // Scale around a point of the stage (in client coordinates) so that point stays under the cursor.
     function zoomAt(scale: number, clientX?: number, clientY?: number) {
         setZoom((current) => {
@@ -157,6 +170,12 @@ export function PhotoGallery({ photos, category }: { photos: readonly GalleryPho
                                 // The click is read on the stage: after a drag the pointer is captured there, not on the photo.
                                 onClick={(event) => {
                                     if (drag.current?.moved) return;
+                                    // Outside the photo a click closes the viewer; on it, it zooms in or out.
+                                    if (!onPicture(event.clientX, event.clientY)) {
+                                        setViewing(false);
+                                        setZoom(unzoomed);
+                                        return;
+                                    }
                                     if (zoom.scale > 1) setZoom(unzoomed);
                                     else zoomAt(tapScale, event.clientX, event.clientY);
                                 }}
