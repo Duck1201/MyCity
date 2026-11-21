@@ -1,3 +1,4 @@
+import { managerVisibleReports } from './management-visibility.js';
 import { once } from 'node:events';
 import { managementQueueSchema, queueExportSchema } from '@mycity/contracts';
 import { managementCsv, managementQueue } from './management-queue.js';
@@ -63,7 +64,7 @@ export function createReportQueryRouter(database: Database, store: ReturnType<ty
         if (res.locals.user.role !== 'MANAGER') throw new ReportError(403, 'FORBIDDEN', 'A gestão exige uma conta de gestor.');
         const parsed = reportSummaryQuerySchema.safeParse(req.query);
         if (!parsed.success) throw invalidQuery();
-        const rows = await database.report.groupBy({ by: ['status'], where: parsed.data.category ? { category: parsed.data.category } : {}, _count: { _all: true } });
+        const rows = await database.report.groupBy({ by: ['status'], where: { ...managerVisibleReports, ...(parsed.data.category && { category: parsed.data.category }) }, _count: { _all: true } });
         const data: ReportStatusCounts = { SENT: 0, UNDER_REVIEW: 0, IN_PROGRESS: 0, RESOLVED: 0, REJECTED: 0, CANCELED: 0 };
         for (const row of rows) data[row.status] = row._count._all;
         res.json({ data });

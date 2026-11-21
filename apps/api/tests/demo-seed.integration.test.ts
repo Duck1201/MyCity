@@ -71,16 +71,20 @@ it('prepara os seis exemplos completos uma vez e preserva atendimento e retirada
     expect((await readdir(directory)).sort()).toEqual(reports.map((r) => r.id).sort());
     for (const r of reports) {
         expect(r.photos).toHaveLength(1);
-        const detail = await client(actors.manager, 'MANAGER')
+        const reportReader = () => (r.status === 'CANCELED' ? client(r.authorId, 'CITIZEN') : client(actors.manager, 'MANAGER'));
+        if (r.status === 'CANCELED')
+            await client(actors.manager, 'MANAGER')
+                .get('/reports/' + r.id)
+                .expect(404);
+        const detail = await reportReader()
             .get('/reports/' + r.id)
             .expect(200);
         expect(detail.body.data).toMatchObject({ category: r.category, status: r.status, showIdentity: r.showIdentity });
-        const picture = await client(actors.manager, 'MANAGER')
+        const picture = await reportReader()
             .get('/reports/' + r.id + '/photos/' + r.photos[0]!.id)
             .expect(200);
         const metadata = await sharp(picture.body).metadata();
         expect(metadata.format).toBe('jpeg');
-        // The detail view displays photos at up to 265 CSS pixels high.
         expect(metadata.height).toBeGreaterThanOrEqual(530);
         expect(r.events.filter((e) => e.type === 'CREATED')).toHaveLength(1);
         const changes = r.events.filter((e) => e.type === 'STATUS_CHANGED');
@@ -163,7 +167,7 @@ it('consolida todas as situações, categorias e as três prioridades para o ges
     await seed();
     const archived = await db.reportCategoryDefinition.create({ data: { name: 'Ciclovia de teste', nameKey: 'ciclovia de teste', archived: true } });
     const overview = (await client(actors.manager, 'MANAGER').get(path).expect(200)).body.data;
-    expect(overview.counts).toEqual({ SENT: 1, UNDER_REVIEW: 1, IN_PROGRESS: 1, RESOLVED: 1, REJECTED: 1, CANCELED: 1 });
+    expect(overview.counts).toEqual({ SENT: 1, UNDER_REVIEW: 1, IN_PROGRESS: 1, RESOLVED: 1, REJECTED: 1, CANCELED: 0 });
     expect(overview.categories).toContainEqual(expect.objectContaining({ id: archived.id, archived: true, count: 0 }));
     expect(overview.categories).toContainEqual(expect.objectContaining({ id: 'POTHOLE', count: 1 }));
     const queue = (await client(actors.manager, 'MANAGER').get('/reports?scope=management&limit=3').expect(200)).body.data as { id: string; createdAt: string; coverPhoto: { contentPath: string; thumbnailPath: string } }[];
@@ -173,5 +177,12 @@ it('consolida todas as situações, categorias e as três prioridades para o ges
     expect(overview.priorities.map((r: { createdAt: string }) => r.createdAt)).toEqual(queue.map((r) => r.createdAt));
     const oldest = queue.slice().sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id))[0]!;
     expect(overview.oldest).toEqual({ id: oldest.id, createdAt: oldest.createdAt });
+    const attended = await db.report.findFirstOrThrow({ where: { ...where, status: 'UNDER_REVIEW' } });
+    await client(attended.authorId, 'CITIZEN')
+        .post('/reports/' + attended.id + '/cancellation')
+        .send({ expectedVersion: attended.version })
+        .expect(200);
+    const afterCancellation = await client(actors.manager, 'MANAGER').get(path).expect(200);
+    expect(afterCancellation.body.data.counts).toEqual({ ...overview.counts, UNDER_REVIEW: 0, CANCELED: 1 });
     await db.reportCategoryDefinition.delete({ where: { id: archived.id } });
 });

@@ -22,8 +22,8 @@ Os diagnósticos do Caddy preservam o método e o caminho da requisição. O log
 
 ## Recebimento e leitura de fotos
 
-- Autenticar e autorizar o cidadão antes de processar multipart, decodificar imagens ou escrever arquivos de upload/staging. Uma tentativa sem permissão não pode deixar arquivos no servidor.
-- Validar quantidade, tamanho, conteúdo real e dimensões no servidor, independentemente da compressão e das validações do app. A API exige de um a três JPEGs, até 5 MiB por foto, 1.600 px no maior lado e 16 MiB para o multipart completo.
+- Autenticar e autorizar o cidadão antes de processar multipart, decodificar imagens ou escrever arquivos de upload/staging. Na edição, validar autoria e ausência de atendimento antes do upload e novamente sob bloqueio da denúncia antes de gravar. Uma tentativa sem permissão não pode deixar arquivos no servidor.
+- Validar quantidade, tamanho, conteúdo real e dimensões no servidor, independentemente da compressão e das validações do app. O resultado da publicação ou edição exige de um a três JPEGs, até 5 MiB por foto, 1.600 px no maior lado e 16 MiB para o multipart completo.
 - Gerar nomes e caminhos no servidor; não usar caminhos fornecidos pelo cliente nem executar arquivos recebidos.
 - Armazenar fotos fora do diretório estático da web. Nginx não deve publicar livremente o volume de uploads.
 - Servir fotos por uma rota que valide sessão, permissão e vínculo entre foto e denúncia. Conhecer ou adivinhar uma URL não concede acesso.

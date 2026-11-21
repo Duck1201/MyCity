@@ -121,6 +121,14 @@ export type { ReportNotification } from './notifications.js';
 
 const serviceText = z.string().trim().min(1).max(2000);
 export const cancellationSchema = z.strictObject({ expectedVersion: z.number().int().positive().max(2147483647) });
+export const reportEditSchema = reportMetadataSchema.omit({ clientRequestId: true }).extend({
+    expectedVersion: cancellationSchema.shape.expectedVersion,
+    retainedPhotoIds: z
+        .array(z.uuidv4())
+        .max(3)
+        .refine((ids) => new Set(ids).size === ids.length),
+});
+export type ReportEdit = z.infer<typeof reportEditSchema>;
 export const transitionSchema = z
     .strictObject({
         targetStatus: reportStatusSchema,

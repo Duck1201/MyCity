@@ -26,10 +26,11 @@ stateDiagram-v2
     EmAndamento --> EmAnalise: gestor corrige atendimento
     Resolvido --> EmAnalise: gestor reabre
     Rejeitado --> EmAnalise: gestor reabre
-    Cancelado --> EmAnalise: gestor reabre
+    Cancelado --> EmAnalise: gestor reabre após atendimento
+    Cancelado --> Enviado: autor reabre
 ```
 
-Resolvido, Rejeitado e Cancelado são estados encerrados. Só o gestor pode reabri-los em Em análise, inclusive após cancelamento pelo autor. Só é possível desfazer o último avanço de situação: uma resposta não consome essa possibilidade, mas uma correção ou reabertura impede outro recuo até um novo avanço. Corrigir ou reabrir acrescenta um evento com origem e destino e preserva o evento anterior, a justificativa e as respostas. A criação registra o evento inicial; notificações são geradas nas mudanças posteriores, inclusive cancelamento, conforme o requisito de cada mudança de status.
+Resolvido, Rejeitado e Cancelado são estados encerrados. O gestor pode reabrir os casos que permanecem visíveis em Em análise. O autor pode reabrir sua denúncia cancelada em Enviado. Só é possível desfazer o último avanço de situação: uma resposta não consome essa possibilidade, mas uma correção ou reabertura impede outro recuo até um novo avanço. Corrigir ou reabrir acrescenta um evento com origem e destino e preserva o evento anterior, a justificativa e as respostas. A criação registra o evento inicial; notificações são geradas nas mudanças posteriores, inclusive cancelamento, conforme o requisito de cada mudança de status.
 
 ## Jornadas
 
@@ -58,9 +59,11 @@ O gestor entra na Visão geral, abre a fila por indicador ou categoria e selecio
 
 Se outro comando alterar a denúncia antes da gravação, mostrar conflito e atualizar os detalhes. Não reaplicar automaticamente uma intenção sobre o estado novo.
 
-### Cancelar
+### Editar, cancelar e reabrir
 
-Autor abre sua denúncia ainda Enviado/Em análise e confirma o cancelamento. Ela deixa feed/mapa e passa a constar como Cancelado no acompanhamento pessoal. Se o gestor já a moveu para Em andamento, a API rejeita; atualizar a tela e informar a razão.
+Em Enviado, o autor pode corrigir categoria, relato, identificação, localização e fotos até a primeira resposta ou mudança de situação pelo gestor. A simples leitura do detalhe pelo gestor permite que o autor continue editando.
+
+Autor abre sua denúncia ainda Enviado/Em análise e confirma o cancelamento. Ela deixa feed/mapa e passa a constar como Cancelado no acompanhamento pessoal. Sem atendimento prévio do gestor, ela também sai de toda a gestão. O autor pode reabrir sem alterações ou, se ainda não houve atendimento, corrigir o formulário e escolher **Salvar e reabrir**. O registro volta à fila em Enviado com o mesmo protocolo. Abrir e abandonar a edição preserva o cancelamento. Se o gestor já a moveu para Em andamento, a API rejeita; atualizar a tela e informar a razão.
 
 ### Acompanhar e ler avisos
 
@@ -74,14 +77,14 @@ Na navegação principal do app, abrir **Alertas** apresenta os três cenários 
 
 Decisão aprovada: denúncias, fotos, mapa e histórico exigem login. “Público” significa compartilhado entre usuários autenticados; não haverá consulta anônima desses conteúdos. A identificação do autor é opcional conforme o checkbox aprovado. A matriz abaixo se aplica também ao acesso por link, fotos e histórico de cada denúncia. O app abre detalhes pelo link autenticado `mycity://reports/<id>`.
 
-| Estado       | Feed/mapa geral                             | Minhas denúncias do autor | Lista do gestor | Histórico de resolvidas |
-| ------------ | ------------------------------------------- | ------------------------- | --------------- | ----------------------- |
-| Enviado      | Sim                                         | Sim                       | Sim             | Não                     |
-| Em análise   | Sim                                         | Sim                       | Sim             | Não                     |
-| Em andamento | Sim                                         | Sim                       | Sim             | Não                     |
-| Resolvido    | Somente filtro de resolvidas                | Sim                       | Sim             | Sim                     |
-| Rejeitado    | Não; detalhes públicos por link autenticado | Sim                       | Sim             | Não                     |
-| Cancelado    | Não; detalhes apenas autor/gestor           | Sim                       | Sim             | Não                     |
+| Estado       | Feed/mapa geral                             | Minhas denúncias do autor | Lista do gestor                            | Histórico de resolvidas |
+| ------------ | ------------------------------------------- | ------------------------- | ------------------------------------------ | ----------------------- |
+| Enviado      | Sim                                         | Sim                       | Sim                                        | Não                     |
+| Em análise   | Sim                                         | Sim                       | Sim                                        | Não                     |
+| Em andamento | Sim                                         | Sim                       | Sim                                        | Não                     |
+| Resolvido    | Somente filtro de resolvidas                | Sim                       | Sim                                        | Sim                     |
+| Rejeitado    | Não; detalhes públicos por link autenticado | Sim                       | Sim                                        | Não                     |
+| Cancelado    | Não                                         | Sim                       | Somente com atendimento anterior do gestor | Não                     |
 
 Decisão aprovada: exibir nome e foto de perfil somente quando “Quero mostrar minha cara” estiver marcado. Se desmarcado, ocultar a identidade inclusive para o gestor. CPF não é público e e-mail não faz parte do modelo. O backend mantém o vínculo da conta; a publicação não é anônima perante a persistência interna. Fotos da ocorrência, descrição e localização continuam visíveis conforme as permissões e podem conter identificação inserida pelo próprio autor; orientar sua revisão antes de enviar.
 

@@ -169,14 +169,14 @@ it('recusa envio antes da escrita quando a reserva do volume está comprometida'
     expect(await readdir(dir)).toEqual(before);
 });
 
-it('protege detalhe e foto cancelados contra acesso de outro cidadão', async () => {
+it('protege detalhe, original e miniatura cancelados sem atendimento contra acesso de terceiros', async () => {
     const report = (await upload({ ...meta, clientRequestId: randomUUID() }).expect(201)).body.data;
     await db.report.update({ where: { id: report.id }, data: { status: 'CANCELED' } });
     const other = appFor({ id: randomUUID(), role: 'CITIZEN' });
-    for (const path of ['/api/v1/reports/' + report.id, report.photos[0].contentPath]) {
+    for (const path of ['/api/v1/reports/' + report.id, report.photos[0].contentPath, report.photos[0].thumbnailPath]) {
         await request(other).get(path).expect(404);
         await request(appFor(citizen)).get(path).expect(200);
-        await request(appFor(manager)).get(path).expect(200);
+        await request(appFor(manager)).get(path).expect(404);
     }
 });
 
@@ -266,5 +266,115 @@ it('vence o acesso às fotos e capas no instante do prazo, antes da limpeza', as
         expect(queue.body.data).toMatchObject([{ id: report.id, coverPhotoId: null, photosExpireAt: deadline.toISOString() }]);
     } finally {
         vi.useRealTimers();
+    }
+});
+
+it('permite editar o formulário inteiro antes do atendimento, mantendo o replay da criação', async () => {
+    const key = { ...meta, clientRequestId: randomUUID() };
+    const original = (await upload(key, [jpeg, jpeg, jpeg]).expect(201)).body.data;
+    const path = '/api/v1/reports/' + original.id;
+    await request(appFor(manager)).get(path).expect(200);
+    const [first, removed, last] = original.photos;
+    await db.profile.upsert({ where: { userId: citizen.id }, update: {}, create: { userId: citizen.id, name: 'Perfil fictício', photoUrl: 'data:image/jpeg;base64,' + jpeg.toString('base64') } });
+    const fields = { expectedVersion: 1, category: 'TREE', location: { latitude: -10, longitude: -30, source: 'MANUAL' }, description: ' Relato corrigido ', showIdentity: true, retainedPhotoIds: [last.id, first.id] };
+    const edit = (metadata = fields) => request(appFor(citizen)).patch(path).field('metadata', JSON.stringify(metadata)).attach('photos', jpeg, 'nova.jpg');
+    const result = (await edit().expect(200)).body.data;
+    expect(result).toMatchObject({ description: 'Relato corrigido', category: 'TREE', location: fields.location, version: 2, photos: [{ id: last.id, position: 0 }, { id: first.id, position: 1 }, { position: 2 }] });
+    expect(result.allowedActions).toContain('EDIT');
+    expect((await upload(key, [jpeg, jpeg, jpeg]).expect(200)).body.data).toEqual(result);
+    await request(appFor(citizen)).get(removed.contentPath).expect(404);
+    expect(await readdir(join(dir, original.id))).not.toContain(removed.id + '.thumb.jpg');
+    await edit().expect(409);
+    for (const ids of [[first.id, first.id], [randomUUID()], [first.id, last.id, result.photos[2].id]]) {
+        await edit({ ...fields, expectedVersion: 2, retainedPhotoIds: ids }).expect(422);
+    }
+    expect(await readdir(join(dir, original.id))).toHaveLength(6);
+    await request(appFor(manager)).patch(path).send('inválido').expect(403);
+    await request(appFor({ id: randomUUID(), role: 'CITIZEN' }))
+        .patch(path)
+        .send('inválido')
+        .expect(403);
+});
+
+it('edita e reabre a cancelada sem atendimento uma única vez, preservando privacidade até o salvamento', async () => {
+    const report = (await upload({ ...meta, clientRequestId: randomUUID() }).expect(201)).body.data;
+    const foreign = (await upload({ ...meta, clientRequestId: randomUUID() }).expect(201)).body.data;
+    const path = '/api/v1/reports/' + report.id;
+    const inactive = await request(appFor(citizen))
+        .post(path + '/cancellation')
+        .send({ expectedVersion: 1 })
+        .expect(200);
+    expect(inactive.body.data.allowedActions).toEqual(['EDIT', 'REOPEN']);
+    const queue = () => request(appFor(manager)).get('/api/v1/reports/queue').query({ q: report.id }).expect(200);
+    const fields = { expectedVersion: 2, category: 'TREE', description: 'Ponto corrigido', showIdentity: false, location: meta.location, retainedPhotoIds: [report.photos[0].id] };
+    const edit = (ids: string[]) =>
+        request(appFor(citizen))
+            .patch(path)
+            .field('metadata', JSON.stringify({ ...fields, retainedPhotoIds: ids }));
+    await request(appFor(citizen)).patch(path).field('metadata', '{').expect(422);
+    await edit([foreign.photos[0].id]).expect(422);
+    expect((await queue()).body.total).toBe(0);
+    const canceled = (await request(appFor(citizen)).get(path).expect(200)).body.data;
+    expect(canceled).toEqual(inactive.body.data);
+    const results = await Promise.all([edit(fields.retainedPhotoIds), edit(fields.retainedPhotoIds)]);
+    expect(results.map((r) => r.status).sort()).toEqual([200, 409]);
+    const changed = results.find((r) => r.status === 200)!.body.data;
+    expect(changed).toMatchObject({ status: 'SENT', version: 3, description: fields.description, photos: [{ id: fields.retainedPhotoIds[0] }] });
+    expect(changed).not.toHaveProperty('photosExpireAt');
+    expect((await queue()).body.total).toBe(1);
+    const history = (
+        await request(appFor(citizen))
+            .get(path + '/history')
+            .expect(200)
+    ).body.data;
+    expect(history).toHaveLength(3);
+    expect(history[2]).toMatchObject({ type: 'STATUS_CHANGED', actorRole: 'CITIZEN', fromStatus: 'CANCELED', toStatus: 'SENT' });
+    expect(await db.notification.count({ where: { reportId: report.id, status: 'SENT', recipientId: citizen.id } })).toBe(1);
+});
+
+it('reabre com novas fotos depois do vencimento sem restaurar os anexos antigos', async () => {
+    const report = (await upload({ ...meta, clientRequestId: randomUUID() }).expect(201)).body.data;
+    const path = '/api/v1/reports/' + report.id;
+    await request(appFor(citizen))
+        .post(path + '/cancellation')
+        .send({ expectedVersion: 1 })
+        .expect(200);
+    await db.report.update({ where: { id: report.id }, data: { photosExpireAt: new Date(0) } });
+    const fields = { expectedVersion: 2, category: 'TREE', description: 'Nova amostra', showIdentity: false, location: meta.location };
+    const edit = (retainedPhotoIds: string[]) =>
+        request(appFor(citizen))
+            .patch(path)
+            .field('metadata', JSON.stringify({ ...fields, retainedPhotoIds }))
+            .attach('photos', jpeg, 'nova.jpg');
+    await edit([report.photos[0].id]).expect(422);
+    const changed = (await edit([]).expect(200)).body.data;
+    expect(changed).toMatchObject({ status: 'SENT', version: 3 });
+    expect(changed.photos).toHaveLength(1);
+    expect(changed.photos[0].id).not.toBe(report.photos[0].id);
+    await request(appFor(citizen)).get(report.photos[0].contentPath).expect(404);
+    await request(appFor(citizen)).get(changed.photos[0].contentPath).expect(200);
+});
+
+it('preserva os JPEG até a reconciliação se o banco falha ao concluir o commit da edição', async () => {
+    const report = (await upload({ ...meta, clientRequestId: randomUUID() }).expect(201)).body.data;
+    const path = '/api/v1/reports/' + report.id;
+    await request(appFor(citizen))
+        .post(path + '/cancellation')
+        .send({ expectedVersion: 1 })
+        .expect(200);
+    // A deferred error is raised after the transaction callback has finished.
+    await db.$executeRawUnsafe("CREATE FUNCTION test_edit_commit_error() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'synthetic commit failure'; END $$");
+    try {
+        await db.$executeRawUnsafe("CREATE CONSTRAINT TRIGGER test_edit_commit_error AFTER UPDATE ON reports DEFERRABLE INITIALLY DEFERRED FOR EACH ROW WHEN (NEW.description = 'Ensaio de commit diferido') EXECUTE FUNCTION test_edit_commit_error()");
+        const edit = { expectedVersion: 2, category: 'TREE', description: 'Ensaio de commit diferido', showIdentity: false, location: meta.location, retainedPhotoIds: [] };
+        await request(appFor(citizen)).patch(path).field('metadata', JSON.stringify(edit)).attach('photos', jpeg, 'nova.jpg').expect(500);
+        const unchanged = (await request(appFor(citizen)).get(path).expect(200)).body.data;
+        expect(unchanged).toMatchObject({ status: 'CANCELED', version: 2, photos: [{ id: report.photos[0].id }] });
+        expect((await readdir(join(dir, report.id))).length).toBe(4);
+        await request(appFor(manager)).get(path).expect(404);
+        expect(await db.reportEvent.count({ where: { reportId: report.id } })).toBe(2);
+    } finally {
+        await db.$executeRawUnsafe('DROP TRIGGER IF EXISTS test_edit_commit_error ON reports');
+        await db.$executeRawUnsafe('DROP FUNCTION test_edit_commit_error()');
     }
 });

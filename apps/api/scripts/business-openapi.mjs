@@ -113,7 +113,16 @@ export function addBusinessPaths(doc) {
             },
             post: { summary: 'Publicar denúncia como cidadão', security: secured, requestBody: { required: true, content: { 'multipart/form-data': { schema: { type: 'object', required: ['metadata', 'photos'], properties: { metadata: { type: 'string', description: 'JSON com category, description, location, clientRequestId e showIdentity.' }, photos: { type: 'array', minItems: 1, maxItems: 3, items: { type: 'string', format: 'binary' } } } } } } }, responses: { 201: { description: 'Denúncia criada.', content: reportDetailContent }, 200: { description: 'Reenvio da mesma denúncia.', content: reportDetailContent }, 401: unauthorized, 403: forbidden, 409: { description: 'Chave reutilizada com outro conteúdo, perfil indisponível ou categoria arquivada (CATEGORY_ARCHIVED).' }, 413: { description: 'Limite de tamanho excedido.' }, 415: { description: 'Tipo de mídia inválido.' }, 422: { description: 'Dados inválidos.' }, 429: { description: 'Limite de envio atingido.' }, 507: { description: 'Espaço insuficiente para armazenar as fotos.' } } },
         },
-        [reports + '/{id}']: { get: lookup('Consultar detalhes da denúncia', [id('id')], { content: reportDetailContent }) },
+        [reports + '/{id}']: {
+            get: lookup('Consultar detalhes da denúncia', [id('id')], { content: reportDetailContent }),
+            patch: {
+                summary: 'Editar denúncia própria antes do primeiro atendimento; se cancelada, salvar e reabrir em Enviado',
+                security: secured,
+                parameters: [id('id')],
+                requestBody: { required: true, content: { 'multipart/form-data': { schema: { type: 'object', required: ['metadata'], properties: { metadata: { type: 'string', description: 'JSON com expectedVersion, category, description, location, showIdentity e retainedPhotoIds em ordem. O conjunto final exige uma a três fotos.' }, photos: { type: 'array', maxItems: 3, items: { type: 'string', format: 'binary' }, description: 'Novas fotos JPEG após as mantidas.' } } } } } },
+                responses: { 200: { description: 'Detalhe com a edição aplicada.', content: reportDetailContent }, 401: unauthorized, 403: forbidden, 404: { description: 'Denúncia não encontrada.' }, 409: { description: 'Conflito de versão, atendimento iniciado ou edição indisponível.' }, 413: { description: 'Limite de tamanho excedido.' }, 415: { description: 'Tipo de mídia inválido.' }, 422: { description: 'Campos ou fotos inválidos.' }, 429: limited, 507: { description: 'Espaço insuficiente.' } },
+            },
+        },
         [reports + '/{id}/photos/{photoId}']: { get: lookup('Ler foto vinculada à denúncia', [id('id'), id('photoId')], { content: { 'image/jpeg': { schema: { type: 'string', format: 'binary' } } } }) },
         [reports + '/{id}/photos/{photoId}/thumb']: { get: lookup('Ler miniatura (maior lado até 320 px) da foto vinculada à denúncia', [id('id'), id('photoId')], { content: { 'image/jpeg': { schema: { type: 'string', format: 'binary' } } } }) },
         [reports + '/{id}/history']: { get: { ...lookup('Consultar histórico da denúncia', [id('id'), ...pagination, { name: 'order', in: 'query', schema: { type: 'string', enum: ['oldest', 'newest'], default: 'oldest' } }], {}), responses: { 200: { description: 'Eventos paginados com page.nextCursor.', content: cursorContent(ref('ReportEvent')) }, 400: invalidPage, 401: unauthorized, 404: { description: 'Denúncia não encontrada.' } } } },
@@ -139,6 +148,7 @@ export function addBusinessPaths(doc) {
         [reports + '/summary']: { get: { ...lookup('Contar denúncias por estado em todas as páginas', [categoryFilter], {}), responses: { 200: { description: 'Objeto com contagem para cada um dos seis estados.', content: dataContent(ref('ReportStatusCounts')) }, 400: invalidQuery, 401: unauthorized, 403: forbidden } } },
         [reports + '/{id}/confirmation']: { put: participation('Confirmar uma ocorrência', true), delete: participation('Retirar a própria confirmação', false) },
         [reports + '/{id}/cancellation']: { post: reportWrite('Cancelar denúncia própria', ['expectedVersion'], { expectedVersion: { type: 'integer', minimum: 1 } }, { 200: { description: 'Detalhe cancelado, histórico e aviso persistidos.', content: reportDetailContent }, 409: { description: 'Versão desatualizada ou estado incompatível.' } }) },
+        [reports + '/{id}/reopening']: { post: reportWrite('Reabrir denúncia própria cancelada e devolvê-la à fila como Enviado', ['expectedVersion'], { expectedVersion: { type: 'integer', minimum: 1 } }, { 200: { description: 'Detalhe reaberto, histórico e aviso persistidos.', content: reportDetailContent }, 409: { description: 'Versão desatualizada ou estado incompatível.' } }) },
         [prefix + '/weather-alerts']: {
             get: {
                 summary: 'Listar cenários climáticos simulados',

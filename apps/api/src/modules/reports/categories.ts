@@ -1,3 +1,4 @@
+import { managerVisibleReports } from './management-visibility.js';
 import { Router, json, type ErrorRequestHandler, type RequestHandler } from 'express';
 import { createCategorySchema, updateCategorySchema } from '@mycity/contracts';
 import type { Database } from '../../database.js';
@@ -15,7 +16,7 @@ export function createCategoriesRouter(db: Database) {
     const select = { id: true, name: true, archived: true, icon: true } as const;
     router.get('/', async (_req, res) => {
         const manager = res.locals.user.role === 'MANAGER';
-        const rows = await db.reportCategoryDefinition.findMany({ select: { ...select, _count: manager && { select: { reports: true } } }, orderBy: [{ position: 'asc' }, { nameKey: 'asc' }] });
+        const rows = await db.reportCategoryDefinition.findMany({ select: { ...select, _count: manager && { select: { reports: { where: managerVisibleReports } } } }, orderBy: [{ position: 'asc' }, { nameKey: 'asc' }] });
         res.json({ data: rows.map(({ icon, _count, ...category }) => ({ ...category, ...(icon && { icon }), ...(manager && { reportCount: _count.reports }) })) });
     });
     const requireManager: RequestHandler = (_req, res, next) => {

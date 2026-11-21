@@ -177,6 +177,8 @@ mc --profile tools run --rm -e UPLOAD_DIR=/app/uploads -v mycity_photos:/app/upl
 
 O inventário lista só diretórios gerados pelo servidor, com mais de 24 horas, apenas com nomes de foto esperados e sem denúncia no banco. Remova cada ID conferido acrescentando `--remove ID`; a ferramenta verifica banco e volume de novo antes de apagar. Depois, `mc up -d --wait api`.
 
+Para conferir arquivos deixados por uma edição interrompida dentro de uma denúncia existente, use o mesmo comando com `--list-files`. A lista contém caminhos relativos na forma `ID/ARQUIVO`. Com a API parada, `--remove-file ID/ARQUIVO` revalida o vínculo e a idade de 24 horas antes de remover apenas o arquivo selecionado.
+
 ## Diagnóstico
 
 | Sintoma                  | Verificação inicial                                                      |
