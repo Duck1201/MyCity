@@ -4,6 +4,7 @@ import request from 'supertest';
 import { afterAll, beforeAll, expect, it } from 'vitest';
 import type { ReportStatus } from '@mycity/contracts';
 import { createDatabase } from '../src/database.js';
+import { managementCsv } from '../src/modules/reports/management-queue.js';
 import { createReportsRouter } from '../src/modules/reports/index.js';
 
 const url = new URL(process.env.DATABASE_URL!);
@@ -130,6 +131,8 @@ it('consulta a fila e exporta todos os resultados da mesma busca, período e ord
         .query(filters)
         .expect('Content-Type', /text\/csv/)
         .expect(200);
+    expect(csv.headers['transfer-encoding']).toBe('chunked');
+    await request(app(manager)).get('/reports/queue.csv').query(filters).set('If-None-Match', csv.headers.etag!).expect(304);
     expect(
         csv.text
             .split('\r\n')
@@ -151,4 +154,51 @@ it('consulta a fila e exporta todos os resultados da mesma busca, período e ord
             .query({ de: '2035-02-02', ate: '2035-02-01' })
             .expect(400);
     }
+});
+
+it('mantém as linhas e a ordenação do CSV quando ocorre uma escrita durante o envio', async () => {
+    const records = Array.from({ length: 260 }, () => ({
+        id: randomUUID(),
+        authorId: author.id,
+        category: 'DEBRIS',
+        latitude: 0,
+        longitude: 0,
+        locationSource: 'GPS' as const,
+        description: 'export snapshot',
+        showIdentity: false,
+        requestHash: 'b'.repeat(64),
+        clientRequestId: randomUUID(),
+        createdAt: day(1),
+    }));
+    await db.report.createMany({ data: records });
+    const expected = records.map(({ id }) => id).sort();
+    const received: string[] = [];
+    let batches = 0;
+    await managementCsv(db, { q: 'export snapshot', ordem: 'antigas' }, new AbortController().signal, async (_etag, chunks) => {
+        for await (const chunk of chunks) {
+            if (chunk.startsWith('\uFEFF')) continue;
+            received.push(
+                ...chunk
+                    .split('\r\n')
+                    .slice(1)
+                    .map((line) => line.split(';')[0]!.slice(1, -1)),
+            );
+            if (++batches === 1) await db.report.update({ where: { id: expected.at(-1)! }, data: { description: 'fora do filtro' } });
+        }
+    });
+    expect(batches).toBeGreaterThan(1);
+    expect(received).toEqual(expected);
+});
+
+it('encerra o cursor quando o consumidor interrompe o CSV', async () => {
+    const controller = new AbortController();
+    await expect(
+        managementCsv(db, { ordem: 'recentes' }, controller.signal, async (_etag, chunks) => {
+            for await (const chunk of chunks) {
+                expect(chunk).toContain('Protocolo');
+                controller.abort(new Error('Download interrompido'));
+            }
+        }),
+    ).rejects.toThrow('Download interrompido');
+    expect(await db.$queryRaw`SELECT name FROM pg_cursors WHERE name = 'queue_export'`).toEqual([]);
 });
