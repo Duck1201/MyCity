@@ -1,4 +1,5 @@
-import type { ComponentProps, ReactNode, Ref } from 'react';
+import { useLayoutEffect, useRef, type ComponentProps, type ReactNode, type Ref } from 'react';
+import { animateHeight } from '../history-motion';
 import { CalendarDays, Check, History, MapPin, MessageSquare, UserRound, UsersRound } from 'lucide-react';
 import { PhotoGallery } from './photo-gallery';
 
@@ -44,7 +45,7 @@ export function OccurrenceReply({ value, change, publish, disabled = false, publ
     );
 }
 
-export type TimelineEntry = { id: number | string; reply: boolean; text: ReactNode; metadata?: ReactNode };
+export type TimelineEntry = { id: number | string; reply: boolean; text: ReactNode; metadata?: ReactNode; archived?: boolean; fresh?: boolean };
 type ContentProps = ComponentProps<typeof PhotoGallery> & {
     description: ReactNode;
     location: ReactNode;
@@ -59,6 +60,13 @@ type ContentProps = ComponentProps<typeof PhotoGallery> & {
 };
 
 export function OccurrenceContent({ description, location, registered, confirmations, author, photos, category, reply, events, count, historyFeedback, historyControls }: ContentProps) {
+    const list = useRef<HTMLOListElement>(null);
+    const listHeight = useRef<number | null>(null);
+    // When entries come or go, the list eases from its previous height.
+    useLayoutEffect(() => {
+        if (listHeight.current !== null) animateHeight(list.current, listHeight.current);
+        listHeight.current = list.current?.getBoundingClientRect().height ?? 0;
+    }, [events.length]);
     return (
         <>
             <section className="occurrence-report" aria-labelledby="report-heading">
@@ -111,9 +119,9 @@ export function OccurrenceContent({ description, location, registered, confirmat
                         </span>
                     </h2>
                     {historyFeedback}
-                    <ol id="occurrence-history">
+                    <ol id="occurrence-history" ref={list}>
                         {events.map((event) => (
-                            <li key={event.id} data-kind={event.reply ? 'reply' : 'status'}>
+                            <li key={event.id} data-kind={event.reply ? 'reply' : 'status'} data-archived={event.archived || undefined} data-fresh={event.fresh || undefined}>
                                 {event.reply && (
                                     <strong>
                                         <MessageSquare size={14} aria-hidden="true" />
