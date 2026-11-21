@@ -10,6 +10,29 @@ export function LiveQueryCacheProvider({ children }: { children: ReactNode }) {
     return createElement(LiveQueryCache.Provider, { value: cache }, children);
 }
 
+// Fetches reads the manager is likely to open next into the session cache, so the
+// screen renders at once and only revalidates. Failures are ignored: the screen's
+// own query reports them when it is opened.
+export function useWarmUp(urls: readonly string[]) {
+    const cache = useContext(LiveQueryCache);
+    const key = urls.join('\n');
+    useEffect(() => {
+        if (!cache) return;
+        const controller = new AbortController();
+        for (const url of key.split('\n')) {
+            if (!url || cache.has(url)) continue;
+            void fetch(url, { cache: 'no-cache', signal: controller.signal })
+                .then(async (response) => {
+                    if (!response.ok || controller.signal.aborted) return;
+                    const data: unknown = await response.json();
+                    if (!controller.signal.aborted && !cache.has(url)) cache.set(url, data);
+                })
+                .catch(() => {});
+        }
+        return () => controller.abort();
+    }, [cache, key]);
+}
+
 // Views keep their last confirmed result while a refresh is pending or unavailable.
 export function useLiveQuery<T>(url: string | null, onSessionExpired: () => void) {
     const cache = useContext(LiveQueryCache);

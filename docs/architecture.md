@@ -88,6 +88,10 @@ O Android usa GPS, câmera, galeria e Google Maps. A geocodificação foi adiada
 
 As telas com polling consultam a cada cinco segundos, com uma requisição ativa por consulta. O Android pausa em segundo plano e o navegador deixa de consultar enquanto a aba está oculta. Ambos consultam ao voltar. Falhas transitórias podem manter o último resultado válido. Notificações são lidas pelo próprio cliente, sem fila, push ou WebSocket.
 
+## Carregamento do painel
+
+Cada seção do painel é um arquivo separado. Depois que a sessão é confirmada, o painel baixa todos esses arquivos em segundo plano. Enquanto o gestor está em outra seção, ele também pré-carrega a fila padrão e o catálogo no cache de memória da sessão (`useWarmUp` em `use-live-query.ts`), com a mesma chave que a fila usa (`queue-endpoint.ts`). Assim, abrir **Atendimento** mostra a fila na hora e só revalida. O motivo é a distância: do Brasil até o servidor da demonstração, cada ida e volta leva cerca de 145 ms, enquanto a API responde em poucos milissegundos.
+
 ## Implantação
 
 O Compose local oferece PostgreSQL e também pode executar os builds de web e API. O Compose de implantação mantém PostgreSQL e API na rede de containers. O HTTPS passa pelo Caddy e chega ao Nginx do painel, que encaminha `/api` ao Express. O Caddy comprime as respostas; o Nginx marca como imutáveis os arquivos com hash de `/assets/` e faz o navegador revalidar o `index.html` a cada visita, para um deploy novo valer na hora. Banco e fotos usam volumes distintos. Consulte [hospedagem própria](deploy.md#preparar-um-servidor) e [CI/CD da demonstração](deploy.md).

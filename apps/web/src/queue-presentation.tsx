@@ -16,7 +16,7 @@ export interface TableRow {
     photo?: { image: string } | undefined;
 }
 type FilterProps = { status: string; category: string; term: string; start: string; end: string; order: string; catalog: { id: string; name: string; archived: boolean; icon: CategoryIcon }[]; invalidPeriod: boolean; apply: (changes: Record<string, string>, focus: string, replace?: boolean) => void; clear: () => void; counts?: ReportStatusCounts | undefined; wasReset?: boolean; placeholder: string };
-export const queuePageSize = 6;
+export { queuePageSize } from './queue-endpoint';
 
 type QueueLayoutProps = {
     total?: number | undefined;
