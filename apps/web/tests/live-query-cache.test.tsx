@@ -1,9 +1,9 @@
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { ManagerAccess } from '../src/manager-access';
-import { useLiveQuery } from '../src/use-live-query';
+import { useLiveQuery, useWarmUp } from '../src/use-live-query';
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -67,4 +67,67 @@ it('descarta as leituras guardadas quando a sessão termina', async () => {
     await user.click(screen.getByRole('button', { name: 'Entrar' }));
     expect(await screen.findByText('Carregando leitura')).toBeVisible();
     expect(screen.queryByText('Leitura da sessão anterior')).toBeNull();
+});
+
+it('retira da tela e do cache uma leitura que deixou de estar disponível', async () => {
+    let reads = 0;
+    vi.stubGlobal(
+        'fetch',
+        vi.fn((url: string) => {
+            if (url === '/api/v1/me') return Promise.resolve(session());
+            reads++;
+            if (reads === 1) return Promise.resolve(Response.json({ label: 'Registro visível' }));
+            return reads === 2 ? Promise.resolve(new Response(null, { status: 404 })) : pending();
+        }),
+    );
+    const user = userEvent.setup();
+    render(<ManagerAccess>{(expire) => <Screens onSessionExpired={expire} />}</ManagerAccess>);
+    expect(await screen.findByText('Registro visível')).toBeVisible();
+    const toggle = screen.getByRole('button', { name: 'Trocar tela' });
+    await user.click(toggle);
+    await user.click(toggle);
+    expect(await screen.findByText('Carregando leitura')).toBeVisible();
+    await user.click(toggle);
+    await user.click(toggle);
+    expect(screen.queryByText('Registro visível')).toBeNull();
+});
+
+it('descarta um pré-carregamento antigo que termina após a negativa de acesso', async () => {
+    let complete!: (response: Response) => void;
+    const warmResult = new Promise<Response>((resolve) => {
+        complete = resolve;
+    });
+    let reads = 0;
+    vi.stubGlobal(
+        'fetch',
+        vi.fn((url: string) => {
+            if (url === '/api/v1/me') return Promise.resolve(session());
+            reads++;
+            if (reads === 1) return warmResult;
+            if (reads === 2) return Promise.resolve(new Response(null, { status: 404 }));
+            return pending();
+        }),
+    );
+    function Panel({ expire }: { expire: () => void }) {
+        useWarmUp(['/api/v1/reports/overview']);
+        const [open, setOpen] = useState(false);
+        return (
+            <>
+                <button onClick={() => setOpen(!open)}>Abrir leitura</button>
+                {open && <Reader onSessionExpired={expire} />}
+            </>
+        );
+    }
+    const user = userEvent.setup();
+    render(<ManagerAccess>{(expire) => <Panel expire={expire} />}</ManagerAccess>);
+    const open = await screen.findByRole('button', { name: 'Abrir leitura' });
+    await user.click(open);
+    expect(reads).toBe(2);
+    await act(async () => {
+        complete(Response.json({ label: 'Conteúdo revogado' }));
+        await warmResult;
+    });
+    await user.click(open);
+    await user.click(open);
+    expect(screen.queryByText('Conteúdo revogado')).toBeNull();
 });

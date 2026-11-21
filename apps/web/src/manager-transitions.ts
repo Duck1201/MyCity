@@ -11,7 +11,7 @@ const standardLabels: Partial<Record<ReportStatus, string>> = {
 export const reopeningHint = 'Ao reabrir, a denúncia e suas fotos voltam ao feed dos cidadãos autenticados.';
 
 export function isReopening(from: ReportStatus, to: ReportStatus) {
-    return to === 'UNDER_REVIEW' && (from === 'RESOLVED' || from === 'REJECTED' || from === 'CANCELED');
+    return (from === 'CANCELED' && to === 'SENT') || (to === 'UNDER_REVIEW' && (from === 'RESOLVED' || from === 'REJECTED' || from === 'CANCELED'));
 }
 
 export function managerTransitions(from: ReportStatus) {

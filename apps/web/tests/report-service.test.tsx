@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, expect, it, vi } from 'vitest';
@@ -191,6 +192,19 @@ it.each(['RESOLVED', 'REJECTED', 'CANCELED'])('reabre %s com a versão exibida e
     expect(screen.getByRole('menuitem', { name: 'Devolver para Enviado' })).toBeVisible();
 });
 
+it('identifica no histórico quando o cidadão reabre a própria denúncia cancelada', async () => {
+    vi.stubGlobal(
+        'fetch',
+        vi.fn(async (url: string) => {
+            if (url.includes('/history')) return page([{ ...created, type: 'STATUS_CHANGED', fromStatus: 'CANCELED', toStatus: 'SENT' }]);
+            if (url.endsWith('/categories')) return categoriesResponse();
+            return Response.json({ data: report });
+        }),
+    );
+    render(<ReportService id="teste" onSessionExpired={vi.fn()} />);
+    expect(await screen.findByText('Reaberta: Cancelado → Enviado')).toBeVisible();
+});
+
 it('reserva a proporção original para ampliar uma foto pequena no detalhe', async () => {
     const photo = { id: 'foto-pequena', position: 0, contentPath: '/api/v1/reports/teste/photos/pequena', width: 74, height: 52, byteSize: 1200 };
     vi.stubGlobal(
@@ -301,40 +315,40 @@ it('anima a lista do histórico ao expandir e recolher e marca só os registros 
     vi.stubGlobal(
         'fetch',
         vi.fn(async (url: string) => {
-            if (url.includes('cursor=')) return page([created]);
+            if (url.includes('cursor=pagina-seguinte')) return page([created]);
+            if (url.includes('cursor=')) return page([{ ...created, type: 'REPLY', text: 'Primeira resposta arquivada.', id: 'pagina-seguinte' }], 'pagina-seguinte');
             if (url.includes('/history')) return page(latest, 'recente-4');
             if (url.endsWith('/categories')) return categoriesResponse();
             return Response.json({ data: report });
         }),
     );
-    // The browser's Web Animations API is the boundary: record what runs and finish on demand.
-    const runs: { element: Element; keyframes: Keyframe[]; finish: () => void }[] = [];
-    const animate = vi.fn(function (this: Element, keyframes: Keyframe[]) {
-        let finish!: () => void;
-        const finished = new Promise<void>((resolve) => (finish = resolve));
-        runs.push({ element: this, keyframes, finish });
-        return { finished, cancel: vi.fn() } as unknown as Animation;
-    });
-    vi.stubGlobal('matchMedia', (query: string) => ({ matches: false, media: query, addEventListener: vi.fn(), removeEventListener: vi.fn() }));
-    const original = HTMLElement.prototype.animate;
-    HTMLElement.prototype.animate = animate as unknown as typeof HTMLElement.prototype.animate;
+    let finish!: () => void;
+    const finished = new Promise<void>((resolve) => (finish = resolve));
+    const original = HTMLElement.prototype.getAnimations;
+    HTMLElement.prototype.getAnimations = () => [{ finished } as unknown as Animation];
     try {
         render(<ReportService id="teste" onSessionExpired={vi.fn()} />);
         const history = within(await screen.findByRole('region', { name: 'Histórico' }));
         await history.findByText('Resposta 1');
-        // The first load is not "new".
         expect(document.querySelectorAll('#occurrence-history li[data-fresh]')).toHaveLength(0);
-        await user.click(screen.getByRole('button', { name: /Ver registros anteriores/ }));
+        const toggle = screen.getByRole('button', { name: /Ver registros anteriores/ });
+        await user.click(toggle);
+        await user.click(await history.findByRole('button', { name: 'Ver mais registros' }));
         await history.findByText('Denúncia enviada');
-        const list = document.getElementById('occurrence-history')!;
-        expect(runs.some((run) => run.element === list && run.keyframes.some((frame) => 'height' in frame))).toBe(true);
-        runs.length = 0;
-        await user.click(screen.getByRole('button', { name: 'Recolher histórico' }));
-        // The older entries fade out first and only then leave the list.
-        const archived = history.getByText('Denúncia enviada').closest('li')!;
-        expect(runs.some((run) => run.element === archived && run.keyframes.some((frame) => 'opacity' in frame))).toBe(true);
-        expect(history.getByText('Denúncia enviada')).toBeInTheDocument();
-        await act(async () => runs.forEach((run) => run.finish()));
+        expect(history.getByText('Primeira resposta arquivada.')).toBeVisible();
+        await user.click(toggle);
+        expect(toggle).toHaveAttribute('aria-expanded', 'false');
+        expect(toggle).toBeEnabled();
+        expect(toggle).toHaveFocus();
+        const archive = document.getElementById(toggle.getAttribute('aria-controls')!)!;
+        expect(archive).toHaveAttribute('inert');
+        await user.click(toggle);
+        await act(async () => finish());
+        expect(toggle).toHaveAttribute('aria-expanded', 'true');
+        expect(archive).not.toHaveAttribute('inert');
+        expect(history.getByText('Primeira resposta arquivada.')).toBeVisible();
+        expect(history.getByText('Denúncia enviada')).toBeVisible();
+        await user.click(toggle);
         expect(history.queryByText('Denúncia enviada')).toBeNull();
         // An entry that arrives later is marked to come in with a short entrance.
         latest = [{ id: 'nova', type: 'REPLY', actorRole: 'MANAGER', text: 'Resposta nova', createdAt: report.createdAt }, ...events.slice(0, 3)];
@@ -343,6 +357,54 @@ it('anima a lista do histórico ao expandir e recolher e marca só os registros 
         });
         expect((await history.findByText('Resposta nova')).closest('li')).toHaveAttribute('data-fresh');
     } finally {
-        HTMLElement.prototype.animate = original;
+        HTMLElement.prototype.getAnimations = original;
     }
 }, 15000);
+
+it('usa toda a largura do relato quando a ocorrência não tem galeria', async () => {
+    vi.stubGlobal(
+        'fetch',
+        vi.fn(async (url: string) => {
+            if (url.includes('/history')) return page([created]);
+            if (url.endsWith('/categories')) return categoriesResponse();
+            return Response.json({ data: { ...report, photos: [] } });
+        }),
+    );
+    render(
+        <div className="console occurrence">
+            <style>{readFileSync('src/occurrence-detail.css', 'utf8')}</style>
+            <ReportService id="teste" onSessionExpired={vi.fn()} />
+        </div>,
+    );
+    const section = await screen.findByRole('region', { name: 'Relato do cidadão' });
+    expect(within(section).queryByRole('figure')).toBeNull();
+    expect(getComputedStyle(section).gridTemplateColumns).toBe('minmax(0px, 1fr)');
+});
+
+it('alinha os valores dos metadados e mantém avatar e nome na mesma linha', async () => {
+    vi.stubGlobal(
+        'fetch',
+        vi.fn(async (url: string) => {
+            if (url.includes('/history')) return page([created]);
+            if (url.endsWith('/categories')) return categoriesResponse();
+            return Response.json({ data: { ...report, author: { name: 'Pessoa de exemplo', photoUrl: '/avatar.jpg' } } });
+        }),
+    );
+    render(
+        <div className="console occurrence">
+            <style>{readFileSync('src/occurrence-detail.css', 'utf8')}</style>
+            <ReportService id="teste" onSessionExpired={vi.fn()} />
+        </div>,
+    );
+    const section = await screen.findByRole('region', { name: 'Relato do cidadão' });
+    const metadata = section.querySelector('dl')!;
+    expect(getComputedStyle(metadata).display).toBe('grid');
+    const values = within(metadata).getAllByRole('definition');
+    expect(values).toHaveLength(4);
+    for (const value of values) {
+        expect(getComputedStyle(value).display).toBe('flex');
+        expect(getComputedStyle(value).alignItems).toBe('center');
+    }
+    const author = within(metadata).getByText('Pessoa de exemplo').closest('dd')!;
+    expect(author.querySelector('img')).not.toBeNull();
+});
