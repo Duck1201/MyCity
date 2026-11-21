@@ -52,7 +52,7 @@ export default function App() {
                     {(fontsLoaded) => (
                         <CitizenAccess apiBase={apiBase} ready={fontsLoaded} onSignedOut={() => selectOwner(null)} onAuthenticated={selectOwner}>
                             {(token, onSessionExpired, onLeave) => (
-                                <QueryCacheProvider key={token}>
+                                <QueryCacheProvider key={token} owner={owner.current}>
                                     <CitizenWorkspace linkedReport={linkedReport} clearLink={clearLink} draftRef={draft} apiBase={apiBase} token={token} onSessionExpired={onSessionExpired} onLeave={onLeave} />
                                 </QueryCacheProvider>
                             )}
