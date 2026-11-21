@@ -39,6 +39,16 @@ it('revalida as leituras autenticadas com ETag e responde 304 quando nada mudou'
     }
 });
 
+it('mantém o ETag para o app sem deixar o cache HTTP do aparelho guardar a resposta', async () => {
+    const login = await request(app).post('/api/v1/sessions').send({ cpf, password, transport: 'bearer' }).expect(201);
+    const bearer = 'Bearer ' + login.body.data.token;
+    const first = await request(app).get('/api/v1/me').set('Authorization', bearer).expect(200);
+    expect(first.headers['cache-control']).toBe('no-store');
+    expect(first.headers.etag).toBeTruthy();
+    const again = await request(app).get('/api/v1/me').set('Authorization', bearer).set('If-None-Match', first.headers.etag!).expect(304);
+    expect(again.headers['cache-control']).toBe('no-store');
+});
+
 it('não guarda escritas nem erros no cache do navegador', async () => {
     const cookie = await signIn();
     const missing = await request(app)

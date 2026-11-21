@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { render, screen, userEvent, waitFor } from '@testing-library/react-native';
 import { AppState, Text } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
@@ -5,6 +6,7 @@ import { CitizenAccess } from '../src/citizen-access';
 import { CitizenAccessLayout } from '../src/components/citizen-login-screen';
 import { QueryCacheProvider, useActiveQuery } from '../src/use-active-query';
 import { useCitizenRequest } from '../src/citizen-api';
+import { clearPersistedQueries } from '../src/persisted-queries';
 
 // The device file system is the external boundary: an in-memory stand-in keeps
 // what the app writes so a later render can read it back like after a restart.
@@ -136,6 +138,45 @@ it('não guarda no aparelho o feed nem o mapa da comunidade', async () => {
     expect(content).toContain('Categorias');
     expect(content).not.toContain('Feed público');
     expect(content).not.toContain('Mapa público');
+});
+
+function Json({ value, path }: { value: unknown; path: string }) {
+    const [load] = useState(() => async () => value);
+    const query = useActiveQuery<unknown>(load, true, path);
+    return <Text>{query.data ? path : 'Carregando'}</Text>;
+}
+
+it('guarda no aparelho só as leituras do próprio cidadão', async () => {
+    const mine = { data: { id: 'minha', isMine: true, description: 'Minha denúncia' } };
+    const other = { data: { id: 'alheia', isMine: false, description: 'Denúncia de outra pessoa' } };
+    await render(
+        <QueryCacheProvider owner="cidada-a">
+            <Json path="/reports?scope=mine" value="Meus registros" />
+            <Json path="/reports?scope=resolved" value="Resolvidas da cidade" />
+            <Json path="/reports/minha" value={mine} />
+            <Json path="/reports/minha/history" value="Histórico próprio" />
+            <Json path="/reports/alheia" value={other} />
+            <Json path="/reports/alheia/history" value="Histórico alheio" />
+            <Json path="/notifications" value="Meus avisos" />
+        </QueryCacheProvider>,
+    );
+    await screen.findByText('/reports/alheia/history');
+    await saved();
+    const content = [...files.values()].join('\n');
+    for (const kept of ['Meus registros', 'Minha denúncia', 'Histórico próprio', 'Meus avisos']) expect(content).toContain(kept);
+    for (const dropped of ['Resolvidas da cidade', 'Denúncia de outra pessoa', 'Histórico alheio']) expect(content).not.toContain(dropped);
+});
+
+it('não recria o arquivo com uma gravação que estava agendada antes de sair', async () => {
+    await render(
+        <QueryCacheProvider owner="cidada-a">
+            <Page load={async () => 'Leitura antes de sair'} path="/reports?scope=mine" />
+        </QueryCacheProvider>,
+    );
+    await screen.findByText('Leitura antes de sair');
+    clearPersistedQueries();
+    await new Promise((resolve) => setTimeout(resolve, 800));
+    expect(files.size).toBe(0);
 });
 
 it.each(['sair', 'expirar'])('apaga as leituras guardadas ao %s', async (how) => {

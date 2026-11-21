@@ -92,7 +92,7 @@ Use Linux x86-64 com Docker e Compose 2.24 ou superior. Aponte um nome DNS para 
     echo "$GHCR_READ_TOKEN" | bash "$DEPLOY_DIR/releases/$release/deploy.sh" "$DEPLOY_DIR" "$release" "$GHCR_USER"
     ```
 
-O [`deploy.sh`](../deploy/deploy.sh) trava contra deploys simultâneos, valida os três digests, baixa as imagens, sobe o banco, aplica as migrações, provisiona o papel restrito `mycity_api`, roda o seed na primeira vez (e depois só sincroniza as senhas das contas), sobe API, painel e proxy, confere a saúde em `127.0.0.1:8090` e registra `current-release` e `previous-release`. Ele não desfaz migrações: antes de uma migração destrutiva, faça backup.
+O [`deploy.sh`](../deploy/deploy.sh) trava contra deploys simultâneos, valida os três digests, baixa as imagens, sobe o banco, aplica as migrações, provisiona o papel restrito `mycity_api`, roda o seed na primeira vez (e depois só sincroniza as senhas das contas), gera as miniaturas que faltam, sobe API, painel e proxy, confere a saúde em `127.0.0.1:8090` e registra `current-release` e `previous-release`. Ele não desfaz migrações: antes de uma migração destrutiva, faça backup.
 
 Para operar a versão ativa, defina um atalho no servidor:
 
@@ -106,7 +106,7 @@ mc() {
 
 ## O `.env.production`
 
-Existe um único `.env.production`, como no projeto Discord: o do servidor, em `<deploy-dir>/.env.production`, espelhado na raiz do checkout do operador (ignorado pelo Git, permissão `0600`). A cópia local é onde você edita; o servidor é o que vale. A skill `prod-vm` traz as receitas para comparar as duas cópias sem exibir valores, enviar a local para o servidor e aplicar a mudança.
+Existe um único `.env.production`: o do servidor, em `<deploy-dir>/.env.production`, espelhado na raiz do checkout do operador (ignorado pelo Git, permissão `0600`). A cópia local é onde você edita; o servidor é o que vale. A skill `prod-vm` traz as receitas para comparar as duas cópias sem exibir valores, enviar a local para o servidor e aplicar a mudança.
 
 Cada deploy aplica ao banco as senhas das contas já habilitadas e revoga somente as sessões das contas cuja senha mudou. Para trocar as três de uma vez, inclusive contas legadas desabilitadas, envie o arquivo novo e execute:
 
