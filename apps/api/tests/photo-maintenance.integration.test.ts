@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { expect, it } from 'vitest';
 import { purgeExpiredPhotos } from '../src/modules/reports/index.js';
 import { createDatabase } from '../src/database.js';
-import { backfillThumbnails, reconcileReportFiles } from '../prisma/report-files.js';
+import { backfillThumbnails, reconcileReportFiles, reconcileUnlinkedPhotos } from '../prisma/report-files.js';
 
 it('inventaria resíduos antigos e remove somente o ID confirmado pelo operador', async () => {
     const url = new URL(process.env.DATABASE_URL!);
@@ -59,6 +59,42 @@ it('trata como resíduo uma pasta órfã com foto e miniatura', async () => {
         await reconcileReportFiles(db, root, orphan);
         expect(await readdir(root)).toEqual([]);
     } finally {
+        await db.$disconnect();
+        await rm(root, { recursive: true, force: true });
+    }
+});
+
+it('reconcilia somente arquivos antigos sem vínculo em pastas de denúncias existentes', async () => {
+    const url = new URL(process.env.DATABASE_URL!);
+    if (url.pathname !== '/mycity_test' || !['localhost', 'test-db', '127.0.0.1'].includes(url.hostname)) throw new Error('Use o banco local de teste.');
+    const db = createDatabase(url.toString());
+    const root = await mkdtemp(join(tmpdir(), 'mycity-edit-orphans-'));
+    const userId = randomUUID(),
+        reportId = randomUUID(),
+        live = randomUUID(),
+        orphan = randomUUID(),
+        recent = randomUUID();
+    const folder = join(root, reportId);
+    try {
+        await mkdir(folder);
+        await db.user.create({ data: { id: userId, cpf: '00000000079', role: 'CITIZEN', password: 'fixture' } });
+        await db.report.create({ data: { id: reportId, authorId: userId, category: 'TREE', clientRequestId: 'edition', requestHash: '0'.repeat(64), description: 'Árvore', latitude: 0, longitude: 0, locationSource: 'GPS', showIdentity: false, photos: { create: { id: live, width: 10, height: 10, byteSize: 50, position: 0 } } } });
+        const old = new Date(Date.now() - 2 * 86400_000);
+        for (const id of [live, orphan, recent])
+            for (const suffix of ['.jpg', '.thumb.jpg']) {
+                const file = join(folder, id + suffix);
+                await writeFile(file, 'fixture');
+                if (id !== recent) await utimes(file, old, old);
+            }
+        const stale = [reportId + '/' + orphan + '.jpg', reportId + '/' + orphan + '.thumb.jpg'];
+        expect(await reconcileUnlinkedPhotos(db, root)).toEqual(stale);
+        await expect(reconcileUnlinkedPhotos(db, root, reportId + '/' + live + '.jpg')).rejects.toThrow();
+        await expect(reconcileUnlinkedPhotos(db, root, '../escape')).rejects.toThrow();
+        for (const file of stale) await reconcileUnlinkedPhotos(db, root, file);
+        expect((await readdir(folder)).sort()).toEqual([live + '.jpg', live + '.thumb.jpg', recent + '.jpg', recent + '.thumb.jpg'].sort());
+    } finally {
+        await db.report.deleteMany({ where: { id: reportId } });
+        await db.user.deleteMany({ where: { id: userId } });
         await db.$disconnect();
         await rm(root, { recursive: true, force: true });
     }

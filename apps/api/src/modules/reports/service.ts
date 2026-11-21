@@ -1,4 +1,5 @@
-import type { ReportEvent, ReportTransition, ReportReply, Role } from '@mycity/contracts';
+import { managerVisibleReports } from './management-visibility.js';
+import type { ReportEvent, ReportStatus, ReportTransition, ReportReply, Role } from '@mycity/contracts';
 import type { Database } from '../../database.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { notifyStatusChange } from '../notifications/index.js';
@@ -21,7 +22,7 @@ function eventDto(row: Prisma.ReportEventGetPayload<{ select: typeof publicEvent
 }
 
 // Every service writer takes this lock before checking the version or appending history.
-async function lockReport(tx: Prisma.TransactionClient, id: string) {
+export async function lockReport(tx: Prisma.TransactionClient, id: string) {
     const rows = await tx.$queryRaw<{ id: string }[]>`SELECT id FROM reports WHERE id = ${id} FOR UPDATE`;
     if (!rows.length) throw reportNotFound();
 }
@@ -29,6 +30,13 @@ async function eventTime(tx: Prisma.TransactionClient, reportId: string) {
     // Timestamps persist at millisecond precision. Consecutive writes must also sort causally.
     const latest = await tx.reportEvent.findFirst({ where: { reportId }, orderBy: { createdAt: 'desc' }, select: { createdAt: true } });
     return new Date(Math.max(Date.now(), (latest?.createdAt.getTime() ?? 0) + 1));
+}
+
+export async function recordStatusChange(tx: Prisma.TransactionClient, report: { id: string; authorId: string; status: ReportStatus }, actorId: string, toStatus: ReportStatus, reason?: string) {
+    const createdAt = await eventTime(tx, report.id);
+    const event = await tx.reportEvent.create({ data: { reportId: report.id, actorId, type: 'STATUS_CHANGED', fromStatus: report.status, toStatus, ...(reason && { text: reason }), createdAt }, select: { id: true } });
+    await notifyStatusChange(tx, { reportId: report.id, eventId: event.id, recipientId: report.authorId, status: toStatus, createdAt });
+    return createdAt;
 }
 
 export async function setConfirmation(tx: Prisma.TransactionClient, reportId: string, citizenId: string, confirmed: boolean) {
@@ -45,24 +53,23 @@ export async function setConfirmation(tx: Prisma.TransactionClient, reportId: st
 
 export async function transitionReport(tx: Prisma.TransactionClient, reportId: string, actor: { id: string; role: Role }, input: ReportTransition) {
     await lockReport(tx, reportId);
-    const report = await tx.report.findFirst({ where: { id: reportId, ...visibleReports(actor) }, select: { authorId: true, status: true, photosExpireAt: true, version: true, events: actor.role === 'MANAGER' && latestStatusChange } });
+    const report = await tx.report.findFirst({ where: { id: reportId, ...visibleReports(actor) }, select: { id: true, authorId: true, status: true, photosExpireAt: true, version: true, events: actor.role === 'MANAGER' && latestStatusChange } });
     if (!report) throw reportNotFound();
-    if (actor.role === 'CITIZEN' && report.authorId !== actor.id) throw new ReportError(403, 'FORBIDDEN', 'Somente o autor pode cancelar a denúncia.');
+    if (actor.role === 'CITIZEN' && report.authorId !== actor.id) throw new ReportError(403, 'FORBIDDEN', 'Somente o autor pode alterar esta denúncia.');
     if (report.version !== input.expectedVersion) throw new ReportError(409, 'VERSION_CONFLICT', 'A denúncia foi atualizada. Consulte o estado atual.');
     if (!canTransition({ from: report.status, to: input.targetStatus, role: actor.role, previousStatus: previousStatusOf(report), isAuthor: actor.id === report.authorId })) throw new ReportError(409, 'INVALID_TRANSITION', 'Esta mudança de status não está disponível.');
-    const createdAt = await eventTime(tx, reportId);
+    const createdAt = await recordStatusChange(tx, report, actor.id, input.targetStatus, input.reason);
     let photosExpireAt = report.photosExpireAt;
     if (photosAvailable(photosExpireAt)) {
         photosExpireAt = isOpenReportStatus(input.targetStatus) ? null : new Date(createdAt.getTime() + 30 * 86400_000);
     }
     await tx.report.update({ where: { id: reportId }, data: { status: input.targetStatus, photosExpireAt, version: { increment: 1 } } });
-    const event = await tx.reportEvent.create({ data: { reportId, actorId: actor.id, type: 'STATUS_CHANGED', fromStatus: report.status, toStatus: input.targetStatus, ...(input.reason && { text: input.reason }), createdAt }, select: { id: true, createdAt: true } });
-    await notifyStatusChange(tx, { reportId, eventId: event.id, recipientId: report.authorId, status: input.targetStatus, createdAt: event.createdAt });
     return readDetail(tx, reportId, actor);
 }
 
 export async function publishReply(tx: Prisma.TransactionClient, reportId: string, actorId: string, input: ReportReply) {
     await lockReport(tx, reportId);
+    if (!(await tx.report.findFirst({ where: { id: reportId, ...managerVisibleReports }, select: { id: true } }))) throw reportNotFound();
     const prior = await tx.reportEvent.findUnique({ where: { reportId_actorId_clientRequestId: { reportId, actorId, clientRequestId: input.clientRequestId } }, select: publicEvent });
     if (prior) {
         if (prior.text !== input.text) throw new ReportError(409, 'IDEMPOTENCY_CONFLICT', 'Este envio já foi usado com outro texto.');

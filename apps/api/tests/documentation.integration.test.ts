@@ -18,7 +18,7 @@ describe('documentação OpenAPI local', () => {
         const response = await request(app).get('/api/openapi.json');
         expect(response.status).toBe(200);
         const spec = await SwaggerParser.validate(structuredClone(response.body));
-        expect(Object.keys(spec.paths!)).toEqual(['/api/v1/health/live', '/api/v1/health/ready', '/api/v1/sessions', '/api/v1/me', '/api/v1/sessions/current', '/api/v1/reports', '/api/v1/reports/{id}', '/api/v1/reports/{id}/photos/{photoId}', '/api/v1/reports/{id}/photos/{photoId}/thumb', '/api/v1/reports/{id}/history', '/api/v1/reports/{id}/transitions', '/api/v1/reports/{id}/replies', '/api/v1/notifications', '/api/v1/notifications/{id}/read', '/api/v1/reports/map', '/api/v1/reports/overview', '/api/v1/reports/queue', '/api/v1/reports/queue.csv', '/api/v1/reports/summary', '/api/v1/reports/{id}/confirmation', '/api/v1/reports/{id}/cancellation', '/api/v1/weather-alerts', '/api/v1/weather-alerts/{id}', '/api/v1/categories', '/api/v1/categories/{id}']);
+        expect(Object.keys(spec.paths!)).toEqual(['/api/v1/health/live', '/api/v1/health/ready', '/api/v1/sessions', '/api/v1/me', '/api/v1/sessions/current', '/api/v1/reports', '/api/v1/reports/{id}', '/api/v1/reports/{id}/photos/{photoId}', '/api/v1/reports/{id}/photos/{photoId}/thumb', '/api/v1/reports/{id}/history', '/api/v1/reports/{id}/transitions', '/api/v1/reports/{id}/replies', '/api/v1/notifications', '/api/v1/notifications/{id}/read', '/api/v1/reports/map', '/api/v1/reports/overview', '/api/v1/reports/queue', '/api/v1/reports/queue.csv', '/api/v1/reports/summary', '/api/v1/reports/{id}/confirmation', '/api/v1/reports/{id}/cancellation', '/api/v1/reports/{id}/reopening', '/api/v1/weather-alerts', '/api/v1/weather-alerts/{id}', '/api/v1/categories', '/api/v1/categories/{id}']);
         expect(Object.keys(response.body.paths['/api/v1/categories/{id}'].patch.responses)).toEqual(['200', '401', '403', '404', '409', '422']);
         for (const path of ['/api/v1/reports', '/api/v1/reports/map', '/api/v1/reports/summary', '/api/v1/reports/{id}/history']) {
             expect(response.body.paths[path].get.responses).toHaveProperty('400');
@@ -44,6 +44,8 @@ describe('documentação OpenAPI local', () => {
             ['', 'post', 201],
             ['', 'post', 200],
             ['/{id}', 'get', 200],
+            ['/{id}', 'patch', 200],
+            ['/{id}/reopening', 'post', 200],
             ['/{id}/transitions', 'post', 200],
             ['/{id}/cancellation', 'post', 200],
         ] as const) {

@@ -1,3 +1,4 @@
+import { managerVisibleSql } from './management-visibility.js';
 import type { ReportCategory, ReportStatus } from '@mycity/contracts';
 import { Prisma } from '../../generated/prisma/client.js';
 import { ReportError } from './upload.js';
@@ -13,7 +14,7 @@ export type ReportQuery = {
 };
 
 export async function reportIds(tx: Prisma.TransactionClient, viewerId: string, query: ReportQuery) {
-    const conditions: Prisma.Sql[] = [];
+    const conditions: Prisma.Sql[] = query.scope === 'management' ? [managerVisibleSql] : [];
     if (query.scope === 'mine') conditions.push(Prisma.sql`r.author_id = ${viewerId}`);
     if (query.category) conditions.push(Prisma.sql`r.category = ${query.category}`);
     if (query.status) conditions.push(Prisma.sql`r.status = ${query.status.toLowerCase()}::report_status`);

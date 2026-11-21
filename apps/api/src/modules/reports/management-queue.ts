@@ -1,3 +1,4 @@
+import { managerVisibleSql } from './management-visibility.js';
 import { createHash } from 'node:crypto';
 import { csvLine, type ManagementQueuePage, type ManagementQueueRequest, type ManagementQueueRow, type QueueFilters, type ReportStatusCounts } from '@mycity/contracts';
 import { Prisma } from '../../generated/prisma/client.js';
@@ -7,7 +8,7 @@ import { photosAvailable } from './rules.js';
 const active = Prisma.sql`r.status IN ('sent','under_review','in_progress')`;
 const zone = 'America/Sao_Paulo';
 function matching(filters: QueueFilters) {
-    const conditions: Prisma.Sql[] = [];
+    const conditions: Prisma.Sql[] = [managerVisibleSql];
     if (filters.category) conditions.push(Prisma.sql`r.category=${filters.category}`);
     if (filters.de) conditions.push(Prisma.sql`r.created_at >= (${filters.de}::date::timestamp AT TIME ZONE ${zone} AT TIME ZONE 'UTC')`);
     if (filters.ate) conditions.push(Prisma.sql`r.created_at < ((${filters.ate}::date+1)::timestamp AT TIME ZONE ${zone} AT TIME ZONE 'UTC')`);
@@ -19,7 +20,7 @@ function matching(filters: QueueFilters) {
             .split(/\s+/)
             .filter(Boolean) ?? [];
     for (const word of words) conditions.push(Prisma.sql`strpos(translate(lower(concat_ws(' ',r.id,r.description,r.latitude,r.longitude)), 'áàâãäéèêëíìîïóòôõöúùûüçñ','aaaaaeeeeiiiiooooouuuucn'),${word})>0`);
-    return conditions.length ? Prisma.sql`WHERE ${Prisma.join(conditions, ' AND ')}` : Prisma.empty;
+    return Prisma.sql`WHERE ${Prisma.join(conditions, ' AND ')}`;
 }
 
 const names = { SENT: 'Enviado', UNDER_REVIEW: 'Em análise', IN_PROGRESS: 'Em andamento', RESOLVED: 'Resolvido', REJECTED: 'Rejeitado', CANCELED: 'Cancelado' };

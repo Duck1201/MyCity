@@ -1,7 +1,7 @@
 import busboy from 'busboy';
 import type { IncomingHttpHeaders } from 'node:http';
 import sharp from 'sharp';
-import { reportMetadataSchema } from '@mycity/contracts';
+import { reportEditSchema, reportMetadataSchema } from '@mycity/contracts';
 import { createHash } from 'node:crypto';
 import { thumbnailOf } from './thumbnail.js';
 
@@ -50,14 +50,14 @@ function parts(headers: IncomingHttpHeaders, body: Buffer) {
             });
         parser.on('error', reject);
         parser.on('close', () => {
-            if (invalid || !metadata || !photos.length) reject(badInput('Envie os dados da denúncia e entre uma e três fotos JPEG de até 5 MiB.'));
+            if (invalid || !metadata) reject(badInput('Envie os dados da denúncia e entre uma e três fotos JPEG de até 5 MiB.'));
             else resolve({ metadata, photos });
         });
         parser.end(body);
     });
 }
 
-export async function parseUpload(headers: IncomingHttpHeaders, body: Buffer) {
+async function readMultipart(headers: IncomingHttpHeaders, body: Buffer) {
     let multipart;
     try {
         multipart = await parts(headers, body);
@@ -71,7 +71,21 @@ export async function parseUpload(headers: IncomingHttpHeaders, body: Buffer) {
     } catch {
         throw badInput('Os dados da denúncia devem estar em JSON.');
     }
-    return prepareReportInput(input, multipart.photos);
+    return { input, originals: multipart.photos };
+}
+
+export async function parseUpload(headers: IncomingHttpHeaders, body: Buffer) {
+    const { input, originals } = await readMultipart(headers, body);
+    return prepareReportInput(input, originals);
+}
+
+export async function parseEditUpload(headers: IncomingHttpHeaders, body: Buffer) {
+    const { input, originals } = await readMultipart(headers, body);
+    const parsed = reportEditSchema.safeParse(input);
+    if (!parsed.success) throw badInput('Confira os dados da edição e as fotos mantidas.');
+    const count = parsed.data.retainedPhotoIds.length + originals.length;
+    if (count < 1 || count > 3) throw badInput('Mantenha ou adicione de uma a três fotos.');
+    return { metadata: parsed.data, photos: await preparePhotos(originals) };
 }
 
 export async function prepareReportInput(input: unknown, originals: Buffer[]) {
@@ -81,9 +95,13 @@ export async function prepareReportInput(input: unknown, originals: Buffer[]) {
     const parsed = reportMetadataSchema.safeParse(input);
     if (!parsed.success) throw badInput('Confira a categoria, descrição, localização e identificação.');
     const hash = createHash('sha256').update(JSON.stringify(parsed.data));
+    for (const source of originals) hash.update(createHash('sha256').update(source).digest());
+    return { metadata: parsed.data, photos: await preparePhotos(originals), requestHash: hash.digest('hex') };
+}
+
+async function preparePhotos(originals: Buffer[]) {
     const photos = [];
     for (const source of originals) {
-        hash.update(createHash('sha256').update(source).digest());
         try {
             const image = sharp(source, { limitInputPixels: 1600 * 1600, failOn: 'warning' });
             const metadata = await image.metadata();
@@ -96,5 +114,5 @@ export async function prepareReportInput(input: unknown, originals: Buffer[]) {
             throw badInput('Não foi possível ler a foto JPEG.');
         }
     }
-    return { metadata: parsed.data, photos, requestHash: hash.digest('hex') };
+    return photos;
 }

@@ -27,6 +27,31 @@ export async function reconcileReportFiles(db: Database, root: string, removeId?
     return orphans.sort();
 }
 
+// Editing can also leave unlinked files in a live report folder. The offline
+// repair accepts a single generated filename, never the folder containing it.
+export async function reconcileUnlinkedPhotos(db: Database, root: string, removeFile?: string) {
+    if (removeFile !== undefined && !new RegExp('^' + uuid + '/' + uuid + '(\\.thumb)?\\.jpg$').test(removeFile)) throw new Error('Nome de arquivo inválido.');
+    if ((await realpath(root)) !== resolve(root)) throw new Error('Diretório de uploads inválido.');
+    const cutoff = Date.now() - 86400_000;
+    const found: string[] = [];
+    for (const folder of await readdir(root, { withFileTypes: true })) {
+        if (!folder.isDirectory() || !reportFolder.test(folder.name) || (removeFile && !removeFile.startsWith(folder.name + '/'))) continue;
+        const report = await db.report.findUnique({ where: { id: folder.name }, select: { photos: { select: { id: true } } } });
+        if (!report) continue;
+        const linked = new Set(report.photos.flatMap(({ id }) => [id + '.jpg', thumbnailFile(id)]));
+        for (const file of await readdir(join(root, folder.name), { withFileTypes: true })) {
+            const relative = folder.name + '/' + file.name;
+            if ((removeFile && removeFile !== relative) || !file.isFile() || !photoName.test(file.name) || linked.has(file.name)) continue;
+            const path = join(root, relative);
+            if ((await lstat(path)).mtimeMs >= cutoff) continue;
+            found.push(relative);
+            if (removeFile) await unlink(path);
+        }
+    }
+    if (removeFile && !found.length) throw new Error('Arquivo ausente do inventário de resíduos removíveis.');
+    return found.sort();
+}
+
 // Use only entries that belonged to the database before an explicit reset.
 export async function removeResetPhotos(root: string, photos: readonly { id: string; reportId: string }[]) {
     if (!photos.length) return;

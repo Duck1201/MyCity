@@ -22,6 +22,12 @@ function app(actor: typeof citizen | typeof manager) {
 async function fixture(authorId = citizen.id) {
     return db.report.create({ data: { authorId, clientRequestId: randomUUID(), requestHash: 'a'.repeat(64), category: 'TREE', description: 'Galho na calçada', latitude: 0, longitude: 0, locationSource: 'GPS', showIdentity: false, events: { create: { actorId: authorId, type: 'CREATED', toStatus: 'SENT' } } } });
 }
+async function managerResponds(id: string) {
+    await request(app(manager))
+        .post('/reports/' + id + '/replies')
+        .send({ text: 'Vistoria solicitada.', clientRequestId: randomUUID() })
+        .expect(201);
+}
 beforeAll(async () => {
     await db.user.createMany({
         data: [
@@ -74,6 +80,7 @@ it('limita a listagem de minhas denúncias ao autor com paginação', async () =
 
 it.each(['RESOLVED', 'REJECTED', 'CANCELED'] as const)('publica resposta idempotente em %s sem alterar versão ou emitir aviso', async (status) => {
     const report = await fixture();
+    if (status === 'CANCELED') await managerResponds(report.id);
     await db.report.update({ where: { id: report.id }, data: { status, version: 4 } });
     const url = '/reports/' + report.id + '/replies';
     const body = { text: '  ' + 'x'.repeat(2000) + '  ', clientRequestId: randomUUID() };
@@ -253,6 +260,7 @@ it.each(['RESOLVED', 'REJECTED', 'CANCELED'] as const)('preserva confirmações 
     const report = await fixture();
     const path = '/reports/' + report.id + '/confirmation';
     await request(app(other)).put(path).expect(200);
+    if (status === 'CANCELED') await managerResponds(report.id);
     await db.report.update({ where: { id: report.id }, data: { status } });
     // A canceled report is hidden from other citizens, including previous participants.
     const expected = status === 'CANCELED' ? 404 : 409;
@@ -292,6 +300,7 @@ it('serializa confirmação e encerramento sem mudar a contagem após o estado f
 it('mantém o cancelamento do autor no histórico e devolve a ocorrência à consulta pública somente ao reabrir', async () => {
     const report = await fixture();
     const path = '/reports/' + report.id;
+    await managerResponds(report.id);
     await request(app(citizen))
         .post(path + '/cancellation')
         .send({ expectedVersion: 1 })
@@ -313,7 +322,7 @@ it('mantém o cancelamento do autor no histórico e devolve a ocorrência à con
     const history = await request(app(other))
         .get(path + '/history')
         .expect(200);
-    expect(history.body.data.slice(1)).toEqual([expect.objectContaining({ type: 'STATUS_CHANGED', actorRole: 'CITIZEN', fromStatus: 'SENT', toStatus: 'CANCELED' }), expect.objectContaining({ type: 'STATUS_CHANGED', actorRole: 'MANAGER', fromStatus: 'CANCELED', toStatus: 'UNDER_REVIEW' })]);
+    expect(history.body.data.slice(1)).toEqual([expect.objectContaining({ type: 'REPLY', actorRole: 'MANAGER' }), expect.objectContaining({ type: 'STATUS_CHANGED', actorRole: 'CITIZEN', fromStatus: 'SENT', toStatus: 'CANCELED' }), expect.objectContaining({ type: 'STATUS_CHANGED', actorRole: 'MANAGER', fromStatus: 'CANCELED', toStatus: 'UNDER_REVIEW' })]);
 });
 
 it('só desfaz o último avanço, mesmo com resposta posterior, e bloqueia recuo após reabertura ou sem histórico', async () => {
@@ -354,6 +363,7 @@ it('só desfaz o último avanço, mesmo com resposta posterior, e bloqueia recuo
 
 it.each(['RESOLVED', 'REJECTED', 'CANCELED'] as const)('conta 30 dias a partir do encerramento em %s e cancela o prazo na reabertura antecipada', async (targetStatus) => {
     const report = await fixture();
+    if (targetStatus === 'CANCELED') await managerResponds(report.id);
     const from = targetStatus === 'RESOLVED' ? 'IN_PROGRESS' : 'UNDER_REVIEW';
     await db.report.update({ where: { id: report.id }, data: { status: from } });
     const endpoint = '/reports/' + report.id + '/transitions';
@@ -393,4 +403,53 @@ it.each(['RESOLVED', 'REJECTED', 'CANCELED'] as const)('conta 30 dias a partir d
     } finally {
         vi.useRealTimers();
     }
+});
+
+it('permite ao autor reabrir cancelada e mantém o bloqueio de edição após qualquer atendimento do gestor', async () => {
+    const report = await fixture();
+    const path = '/reports/' + report.id;
+    const author = request(app(citizen));
+    expect((await author.get(path).expect(200)).body.data.allowedActions).toContain('EDIT');
+    await author
+        .post(path + '/cancellation')
+        .send({ expectedVersion: 1 })
+        .expect(200);
+    expect((await author.get(path).expect(200)).body.data.allowedActions).toContain('REOPEN');
+    await request(app(manager))
+        .post(path + '/reopening')
+        .send({ expectedVersion: 2 })
+        .expect(403);
+    await request(app(other))
+        .post(path + '/reopening')
+        .send({ expectedVersion: 2 })
+        .expect(404);
+    await author
+        .post(path + '/reopening')
+        .send({ expectedVersion: 1 })
+        .expect(409);
+    const reopened = await author
+        .post(path + '/reopening')
+        .send({ expectedVersion: 2 })
+        .expect(200);
+    expect(reopened.body.data).toMatchObject({ status: 'SENT', version: 3, allowedActions: expect.arrayContaining(['EDIT', 'CANCEL']) });
+    expect(reopened.body.data).not.toHaveProperty('photosExpireAt');
+    expect((await author.get(path + '/history')).body.data.at(-1)).toMatchObject({ type: 'STATUS_CHANGED', actorRole: 'CITIZEN', fromStatus: 'CANCELED', toStatus: 'SENT' });
+    await request(app(manager))
+        .post(path + '/replies')
+        .send({ text: 'Equipe informada.', clientRequestId: randomUUID() })
+        .expect(201);
+    expect((await author.get(path)).body.data.allowedActions).not.toContain('EDIT');
+    await author.patch(path).send('inválido').expect(409);
+});
+
+it('não devolve edição ao desfazer uma transição do gestor', async () => {
+    const path = '/reports/' + (await fixture()).id;
+    for (const [index, targetStatus] of ['UNDER_REVIEW', 'SENT'].entries()) {
+        await request(app(manager))
+            .post(path + '/transitions')
+            .send({ targetStatus, expectedVersion: index + 1 })
+            .expect(200);
+    }
+    expect((await request(app(citizen)).get(path)).body.data.allowedActions).not.toContain('EDIT');
+    await request(app(citizen)).patch(path).send('inválido').expect(409);
 });

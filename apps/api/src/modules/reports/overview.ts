@@ -1,3 +1,4 @@
+import { managerVisibleReports } from './management-visibility.js';
 import type { ManagementOverview, ReportStatus } from '@mycity/contracts';
 import { categoryIconFor } from '@mycity/contracts';
 import type { Database } from '../../database.js';
@@ -8,7 +9,7 @@ const pending: ReportStatus[] = ['SENT', 'UNDER_REVIEW', 'IN_PROGRESS'];
 export function managementOverview(db: Database): Promise<ManagementOverview> {
     return db.$transaction(
         async (tx) => {
-            const groups = await tx.report.groupBy({ by: ['status', 'category'], _count: { _all: true } });
+            const groups = await tx.report.groupBy({ by: ['status', 'category'], where: managerVisibleReports, _count: { _all: true } });
             const counts: ManagementOverview['counts'] = { SENT: 0, UNDER_REVIEW: 0, IN_PROGRESS: 0, RESOLVED: 0, REJECTED: 0, CANCELED: 0 };
             const pendingByCategory = new Map<string, number>();
             for (const { status, category, _count } of groups) {

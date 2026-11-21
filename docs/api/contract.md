@@ -55,6 +55,8 @@ Escolha `icon` entre os [símbolos do contrato compartilhado](../../packages/con
 | GET `/reports/queue.csv`                   | Gestor                     | mesmos filtros e ordenação, sem paginação                  | 200: CSV UTF-8 com todas as linhas correspondentes.                                                                      |
 | GET `/reports/summary`                     | Gestor                     | category?                                                  | 200: objeto com os seis estados e suas contagens no universo filtrado por categoria, sem paginação.                      |
 | GET `/reports/{id}`                        | Leitor autorizado          | ID                                                         | 200: ReportDetail, incluindo versão e ações permitidas.                                                                  |
+| PATCH `/reports/{id}`                      | Autor                      | Multipart de edição                                        | 200: ReportDetail atualizado.                                                                                            |
+| POST `/reports/{id}/reopening`             | Autor                      | `{expectedVersion}`                                        | 200: ReportDetail novamente em Enviado, com histórico e aviso.                                                           |
 | GET `/reports/{id}/history`                | Leitor autorizado          | limit, cursor, order                                       | 200: ReportEvent[] por createdAt e id, crescentes (oldest, padrão) ou decrescentes (newest).                             |
 | GET `/reports/{id}/photos/{photoId}`       | Leitor autorizado          | IDs                                                        | 200 image/jpeg; sem caminho do disco no contrato. `Cache-Control: private, no-cache` (com `Bearer`: `no-store`).         |
 | GET `/reports/{id}/photos/{photoId}/thumb` | Leitor autorizado          | IDs                                                        | 200 image/jpeg com maior lado até 320 px, mesma autorização e cache da original; sem miniatura gerada, serve a original. |
@@ -98,11 +100,15 @@ Exemplo da parte `metadata` (coordenadas ilustrativas, não destino fixo do app)
 }
 ```
 
+Na edição, o campo multipart `metadata` contém `expectedVersion`, `category`, `description`, `location`, `showIdentity` e `retainedPhotoIds` (IDs das fotos que continuam, em ordem). Anexe as fotos novas no campo `photos`. O conjunto final deve ter de uma a três fotos. O detalhe oferece `EDIT` ao autor em Enviado ou Cancelado enquanto o histórico não tiver resposta ou mudança de situação do gestor. Somente abrir a denúncia preserva essa possibilidade. O autor de uma cancelada recebe `REOPEN`. Tanto a reabertura explícita quanto o PATCH bem-sucedido da cancelada devolvem o mesmo protocolo à fila em Enviado. Neste PATCH, conteúdo, reabertura, evento, aviso e incremento único de versão são confirmados na mesma transação. Fotos vencidas continuam indisponíveis.
+
+Uma denúncia cancelada sem atendimento do gestor fica restrita ao autor. A gestão a exclui das contagens, filas, CSV e consultas por ID, incluindo histórico, fotos e miniaturas. Uma cancelada que já recebeu resposta ou transição do gestor permanece acessível à gestão.
+
 ### Identificação opcional da denúncia — decisão aprovada
 
 No formulário, “Quero mostrar minha cara” começa marcado (`showIdentity: true`). Marcado: leitores autorizados veem nome e foto de perfil. Desmarcado: veem “Anônimo”, sem nome, foto, CPF, e-mail, ID de usuário ou URL de perfil, inclusive no painel do gestor. `showIdentity` ausente é inválido; a API não presume consentimento a partir de campo omitido.
 
-`authorId` permanece interno para propriedade, cancelamento e notificações. A anonimização deve ser aplicada pelo backend em todos os DTOs e eventos, não apenas escondida pela interface. Nome/foto do perfil serão fictícios e pré-provisionados junto das contas; não existe edição/cadastro público de perfil neste recorte. Alterar essa opção após publicar ainda precisa de decisão; não criar endpoint de alteração automaticamente.
+`authorId` permanece interno para propriedade, cancelamento e notificações. A anonimização deve ser aplicada pelo backend em todos os DTOs e eventos, não apenas escondida pela interface. Nome/foto do perfil serão fictícios e pré-provisionados junto das contas; não existe edição/cadastro público de perfil neste recorte. O autor pode alterar essa opção durante a edição permitida.
 
 ### DTOs
 

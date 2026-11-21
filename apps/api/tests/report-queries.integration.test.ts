@@ -67,11 +67,12 @@ it('disponibiliza o detalhe e o histórico dos estados visíveis e mantém o can
             .expect(status === 'CANCELED' ? 404 : 200);
         await request(app(manager))
             .get('/reports/' + id)
-            .expect(200);
+            .expect(status === 'CANCELED' ? 404 : 200);
         const own = await request(app(author))
             .get('/reports/' + id)
             .expect(200);
-        expect(own.body.data.allowedActions).toEqual(['SENT', 'UNDER_REVIEW'].includes(status) ? ['CANCEL'] : []);
+        const ownActions: Partial<Record<ReportStatus, string[]>> = { SENT: ['CANCEL', 'EDIT'], UNDER_REVIEW: ['CANCEL'], CANCELED: ['EDIT', 'REOPEN'] };
+        expect([...own.body.data.allowedActions].sort()).toEqual(ownActions[status] ?? []);
     }
     const resolved = await request(app(other)).get('/reports').query({ scope: 'feed', category: 'DEBRIS', status: 'RESOLVED' }).expect(200);
     expect(resolved.body.data.map((r: { id: string }) => r.id)).toEqual([ids.RESOLVED]);
@@ -89,14 +90,14 @@ it('prioriza confirmações nos pendentes, desempata pela mais antiga e conta to
     const result = await request(app(manager)).get('/reports').query({ scope: 'management', category: 'DEBRIS', limit: 2 }).expect(200);
     expect(result.body.data.map((r: { id: string }) => r.id)).toEqual([ids.IN_PROGRESS, ids.SENT]);
     const next = await request(app(manager)).get('/reports').query({ scope: 'management', category: 'DEBRIS', limit: 2, cursor: result.body.page.nextCursor }).expect(200);
-    expect(next.body.data.map((r: { id: string }) => r.id)).toEqual([ids.UNDER_REVIEW, ids.CANCELED]);
+    expect(next.body.data.map((r: { id: string }) => r.id)).toEqual([ids.UNDER_REVIEW, ids.REJECTED]);
     expect(result.body.data[0]).toMatchObject({ confirmationCount: 1, confirmedByMe: false });
     const personal = await request(app(other))
         .get('/reports/' + ids.IN_PROGRESS)
         .expect(200);
     expect(personal.body.data).toMatchObject({ confirmationCount: 1, confirmedByMe: true, allowedActions: ['WITHDRAW'] });
     const summary = await request(app(manager)).get('/reports/summary?category=DEBRIS').expect(200);
-    expect(summary.body.data).toEqual(Object.fromEntries(states.map((s) => [s, 1])));
+    expect(summary.body.data).toEqual(Object.fromEntries(states.map((s) => [s, s === 'CANCELED' ? 0 : 1])));
     await request(app(other)).get('/reports/summary').expect(403);
     await request(app(manager)).get('/reports/summary?limit=1').expect(400);
 });
@@ -201,4 +202,23 @@ it('encerra o cursor quando o consumidor interrompe o CSV', async () => {
         }),
     ).rejects.toThrow('Download interrompido');
     expect(await db.$queryRaw`SELECT name FROM pg_cursors WHERE name = 'queue_export'`).toEqual([]);
+});
+
+it('oculta cancelamentos sem atendimento em toda a gestão e preserva os que já receberam resposta', async () => {
+    const base = '/reports/' + ids.CANCELED;
+    const panel = request(app(manager));
+    await panel.get(base + '/history').expect(404);
+    await panel
+        .post(base + '/replies')
+        .send({ text: 'Resposta fictícia', clientRequestId: randomUUID() })
+        .expect(404);
+    const filter = { status: 'CANCELED', category: 'DEBRIS', q: ids.CANCELED };
+    const hidden = await panel.get('/reports/queue').query(filter).expect(200);
+    expect(hidden.body).toMatchObject({ total: 0, data: [], counts: { CANCELED: 0 } });
+    expect((await panel.get('/reports/queue.csv').query(filter)).text).not.toContain(ids.CANCELED);
+    await db.reportEvent.create({ data: { reportId: ids.CANCELED, actorId: manager.id, type: 'REPLY', clientRequestId: randomUUID(), text: 'Resposta anterior ao cancelamento' } });
+    await panel.get(base).expect(200);
+    await panel.get(base + '/history').expect(200);
+    expect((await panel.get('/reports/queue').query(filter)).body.total).toBe(1);
+    expect((await panel.get('/reports/queue.csv').query(filter)).text).toContain(ids.CANCELED);
 });

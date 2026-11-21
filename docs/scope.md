@@ -10,12 +10,12 @@ O [guia de hospedagem](deploy.md#preparar-um-servidor) descreve web, API e Postg
 
 ## Atores e responsabilidades
 
-| Ator                     | Responsabilidades                                                                            |
-| ------------------------ | -------------------------------------------------------------------------------------------- |
-| Cidadão autor            | Criar, acompanhar e, quando permitido, cancelar sua denúncia; ler notificações.              |
-| Outro cidadão            | Consultar denúncias e confirmar/retirar sua confirmação.                                     |
-| Gestor                   | Consultar sem restrição territorial, atender denúncias e gerenciar o catálogo de categorias. |
-| Operador da demonstração | Preparar ambiente, executar seed e instalar APK; não é um quarto papel da aplicação.         |
+| Ator                     | Responsabilidades                                                                                                             |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
+| Cidadão autor            | Criar, acompanhar, editar antes do atendimento, cancelar quando permitido e reabrir sua denúncia cancelada; ler notificações. |
+| Outro cidadão            | Consultar denúncias e confirmar/retirar sua confirmação.                                                                      |
+| Gestor                   | Consultar sem restrição territorial, atender denúncias e gerenciar o catálogo de categorias.                                  |
+| Operador da demonstração | Preparar ambiente, executar seed e instalar APK; não é um quarto papel da aplicação.                                          |
 
 ## Funcional e persistido
 
