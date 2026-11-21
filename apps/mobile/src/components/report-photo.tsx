@@ -53,11 +53,11 @@ function ReportImage({ source, onUnavailable, ...props }: Omit<ImageProps, 'sour
     return <Image {...props} cachePolicy="disk" source={memoryUri ? { uri: memoryUri } : source} onError={() => void recover()} />;
 }
 
-export function ReportThumbnail({ source, label }: { source: PhotoSource; label?: string }) {
+export function ReportThumbnail({ source, label, fillFrame = false }: { source: PhotoSource; label?: string; fillFrame?: boolean }) {
     const resource = source.uri;
     const [failedResource, setFailedResource] = useState<typeof resource | null>(null);
     if (resource === failedResource) return null;
-    return <ReportImage key={resource} source={source} accessible={!!label} {...(label && { accessibilityLabel: label })} contentFit="cover" onUnavailable={() => setFailedResource(resource)} style={styles.thumb} />;
+    return <ReportImage key={resource} source={source} accessible={!!label} {...(label && { accessibilityLabel: label })} contentFit="cover" onUnavailable={() => setFailedResource(resource)} style={fillFrame ? StyleSheet.absoluteFill : styles.thumb} />;
 }
 
 export function ReportPhoto({ path, index, apiBase, token, width, height, onExpand }: { path: string; index: number; apiBase: string; token: string; width: number; height: number; onExpand?: () => void }) {
@@ -89,7 +89,7 @@ export function ReportPhoto({ path, index, apiBase, token, width, height, onExpa
 
 const styles = StyleSheet.create({
     thumb: { width: 68, height: 72, flexShrink: 0, borderRadius: 9, backgroundColor: colors.pale },
-    frame: { width: '100%', backgroundColor: colors.canvas, borderRadius: 10, overflow: 'hidden', justifyContent: 'center', alignItems: 'center' },
+    frame: { width: '100%', minHeight: 64, maxHeight: 184, backgroundColor: colors.canvas, borderRadius: 10, overflow: 'hidden', justifyContent: 'center', alignItems: 'center' },
     feedback: { paddingHorizontal: 12, gap: 4, borderRadius: 8, backgroundColor: colors.canvas, alignItems: 'flex-start', paddingTop: 8 },
     retry: { minHeight: 48, justifyContent: 'center' },
     retryText: { color: colors.teal, fontSize: 15, fontWeight: '700' },

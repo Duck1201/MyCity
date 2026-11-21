@@ -40,7 +40,7 @@ Regressão acompanha a mesma alteração de feature/bug. Não apagar casos, redu
 | T16 | Integração/interface           | Resolvida aparece no histórico correto, preservando eventos e exibindo fotos até o vencimento. AC09, C04.                        |
 | T17 | Interface/integração           | Três níveis climáticos, marcação simulated e nenhuma chamada meteorológica/envio real. AC10.                                     |
 | T18 | Integração                     | Acesso direto a IDs alheios, papéis forjados e ausência de sessão não contornam autorização. AC11.                               |
-| T19 | Unitário/integração            | Autor cancela Enviado/Em análise, outro cidadão não; Em andamento e finais bloqueiam. AC12.                                      |
+| T19 | Unitário/integração            | Autor edita antes do atendimento, cancela em Enviado/Em análise e reabre sua cancelada em Enviado. AC12.                         |
 | T20 | Integração concorrente         | Cancelamento disputa com avanço para Em andamento; só uma intenção vence, estado final válido e efeitos consistentes. AC12.      |
 | T21 | Integração/interface           | Mudança gera um aviso ao autor; não aparece na conta B; avisos persistem entre sessões. AC13.                                    |
 | T22 | Integração/interface           | Marcar aviso lido é idempotente e só destinatário altera; erro não simula sucesso. AC13.                                         |
@@ -139,6 +139,8 @@ Em cinco novas sessões autenticadas, o Chrome mediu da navegação até a prime
 Os testes locais cobrem inicialização conjunta, Ctrl+C, persistência e reexecução do seed, recuperação de falhas e reset em PostgreSQL descartável. O banco usado para desenvolvimento fica fora dos testes destrutivos.
 
 ## Verificações físicas no Android
+
+Em 21/11/2026, no Galaxy M32 (Android 13), um cidadão criou pelo Expo Go uma denúncia fictícia com duas fotos da galeria e ponto manual, voltou a **Meus registros** e reabriu o detalhe. Em **Ações da denúncia → Editar denúncia**, manteve a primeira foto, removeu a segunda, adicionou outra e ajustou o ponto. A API local confirmou o ID preservado, o ID substituído e a nova localização manual. **Manter denúncia** conservou o estado Enviado. **Confirmar cancelamento** passou para Cancelado e **Salvar e reabrir** voltou a Enviado com os dois anexos e o evento do cidadão no histórico. Na folha de origem da foto, Tab focou **Tirar foto** e Voltar fechou a folha preservando o rascunho.
 
 Os testes automatizados simulam câmera, GPS e mapa. No Galaxy M32 (Android 13), a rodada final do app integrado foi feita pelo Expo Go com a API local e cobriu o botão **+**, campos pendentes, câmera negada com alternativa na galeria, filtros, Voltar, mapa claro em Viçosa com GPS negado, resumo e retorno ao marcador, movimento reduzido e abertura sem tela cinza.
 

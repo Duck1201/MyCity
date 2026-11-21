@@ -111,9 +111,14 @@ export function CitizenCover({ open, closed, ready }: { open: number; closed: nu
         <View style={styles.cover}>
             <Image source={lake} style={styles.lake} resizeMode="cover" accessible={false} />
             <View style={styles.coverContent}>
-                <View style={styles.place}>
-                    <Icon name="pin" color="#e8f2fc" size={16} />
-                    <Text style={styles.placeName}>Viçosa, Minas Gerais</Text>
+                <View style={styles.coverHeading}>
+                    <Text accessibilityRole="header" style={styles.coverTitle}>
+                        Início
+                    </Text>
+                    <View style={styles.place}>
+                        <Icon name="pin" color="#e8f2fc" size={16} />
+                        <Text style={styles.placeName}>Viçosa, Minas Gerais</Text>
+                    </View>
                 </View>
                 {ready && (
                     <View style={styles.metrics}>
@@ -141,14 +146,16 @@ const styles = StyleSheet.create({
     actions: { flexDirection: 'row' },
     iconButton: { width: 48, minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: 12 },
     pressed: { backgroundColor: colors.pale },
-    cover: { overflow: 'hidden', backgroundColor: '#0b2339', borderRadius: 8, minHeight: 134, justifyContent: 'center' },
+    cover: { overflow: 'hidden', backgroundColor: '#0b2339', borderRadius: 8, justifyContent: 'center' },
     lake: { position: 'absolute', width: '100%', height: '100%', opacity: 0.34 },
-    coverContent: { padding: 17, gap: 4 },
+    coverContent: { paddingHorizontal: 14, paddingVertical: 10, gap: 5 },
+    coverHeading: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', columnGap: 8 },
+    coverTitle: { fontSize: 23, color: 'white', fontWeight: '700' },
     place: { flexDirection: 'row', gap: 5, alignItems: 'center' },
     placeName: { fontSize: 16, color: '#e8f2fc', fontWeight: '700' },
-    metrics: { marginTop: 5, alignItems: 'stretch', flexDirection: 'row', flexWrap: 'wrap', gap: 14 },
-    metric: { gap: 0 },
+    metrics: { alignItems: 'stretch', flexDirection: 'row', flexWrap: 'wrap', gap: 14 },
+    metric: { flexDirection: 'row', alignItems: 'baseline', gap: 5 },
     lastMetric: { paddingLeft: 14, borderLeftWidth: 1, borderColor: '#adc6d6' },
-    number: { fontSize: 24, fontWeight: '800', color: 'white' },
+    number: { fontSize: 19, fontWeight: '800', color: 'white' },
     metricLabel: { fontSize: 14, fontWeight: '600', color: 'white' },
 });

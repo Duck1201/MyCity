@@ -11,10 +11,10 @@ export function categoryLabel(item: { category: string; categoryName?: string | 
     return item.categoryName ?? reportCategoryLabels[item.category] ?? 'Categoria indisponível';
 }
 
-export function CategoryCatalog({ request, children, activeOnly = false }: { activeOnly?: boolean; request: CitizenRequest; children: (categories: ReportCategoryOption[]) => ReactNode }) {
+export function CategoryCatalog({ request, children, activeOnly = false, keepCategory }: { activeOnly?: boolean; keepCategory?: string | undefined; request: CitizenRequest; children: (categories: ReportCategoryOption[]) => ReactNode }) {
     const load = useCallback((signal: AbortSignal) => request<{ data: ReportCategoryOption[] }>('/categories', signal), [request]);
     const catalog = useActiveQuery(load, true, '/categories');
-    const options = catalog.data?.data.filter((option) => !activeOnly || !option.archived);
+    const options = catalog.data?.data.filter((option) => !activeOnly || !option.archived || option.id === keepCategory);
     return (
         <>
             {catalog.failed && (

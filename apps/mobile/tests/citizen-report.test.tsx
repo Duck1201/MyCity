@@ -52,9 +52,11 @@ it('preserva o formulário após perda da resposta e reenvia fotos e metadados i
     globalThis.fetch = async (url, init) => (String(url).endsWith('/categories') ? categoryResponse() : upload(url, init));
     try {
         await render(<CitizenReport apiBase="https://example.test/api/v1" token="test-token" onSessionExpired={jest.fn()} />);
+        await fireEvent.press(await screen.findByRole('button', { name: /^Escolher categoria:/ }));
         await fireEvent.press(screen.getByText('Buraco na via'));
         await fireEvent.changeText(screen.getByLabelText('Descrição'), 'Via com buraco');
-        await fireEvent.press(screen.getByText('Galeria'));
+        await fireEvent.press(screen.getByRole('button', { name: 'Adicionar foto' }));
+        await fireEvent.press(screen.getByText('Escolher da galeria'));
         jest.mocked(location.requestForegroundPermissionsAsync).mockResolvedValueOnce({ granted: false } as Awaited<ReturnType<typeof location.requestForegroundPermissionsAsync>>);
         await fireEvent.press(screen.getByText('Escolher no mapa'));
         await fireEvent.press(screen.getByRole('button', { name: 'Usar GPS' }));
@@ -81,6 +83,24 @@ it('preserva o formulário após perda da resposta e reenvia fotos e metadados i
     }
 });
 
+it('fecha a escolha de origem sem alterar o rascunho de duas fotos', async () => {
+    const catalog = jest.spyOn(globalThis, 'fetch').mockImplementation(async () => categoryResponse());
+    const draft = { category: 'POTHOLE', description: 'Relato provisório', photos: ['file:///a.jpg', 'file:///b.jpg'], location: null, showIdentity: false, requestId: 'duas' };
+    const draftRef = { current: draft };
+    try {
+        await render(<CitizenReport apiBase="https://example.test" token="teste" onSessionExpired={jest.fn()} draftRef={draftRef} />);
+        await fireEvent.press(screen.getByRole('button', { name: 'Adicionar foto' }));
+        expect(screen.getByRole('button', { name: 'Tirar foto' })).toBeVisible();
+        expect(screen.getByRole('button', { name: 'Escolher da galeria' })).toBeVisible();
+        await fireEvent.press(screen.getByRole('button', { name: 'Fechar' }));
+        expect(screen.queryByRole('button', { name: 'Tirar foto' })).toBeNull();
+        expect(screen.getByText('Fotos (2/3)')).toBeVisible();
+        expect(draftRef.current).toEqual(draft);
+    } finally {
+        catalog.mockRestore();
+    }
+});
+
 it('identifica somente a foto pendente e substitui o aviso pela orientação da câmera', async () => {
     const catalog = jest.spyOn(globalThis, 'fetch').mockImplementation(async () => categoryResponse());
     const draft = { category: 'POTHOLE', description: 'Praça', photos: [], location: { latitude: 0, longitude: 0, source: 'MANUAL' as const }, showIdentity: false, requestId: 'original' };
@@ -90,10 +110,12 @@ it('identifica somente a foto pendente e substitui o aviso pela orientação da 
         expect(screen.getByText('Adicione pelo menos uma foto.')).toBeVisible();
         expect(screen.queryByText('Selecione uma categoria.')).toBeNull();
         jest.mocked(pickReportPhoto).mockRejectedValueOnce(new Error('Permita o acesso à câmera ou escolha uma foto da galeria.'));
-        await fireEvent.press(screen.getByRole('button', { name: 'Câmera' }));
+        await fireEvent.press(screen.getByRole('button', { name: 'Adicionar foto' }));
+        await fireEvent.press(screen.getByRole('button', { name: 'Tirar foto' }));
         expect(screen.getByText('Permita o acesso à câmera ou escolha uma foto da galeria.')).toBeVisible();
         expect(screen.queryByText('Adicione pelo menos uma foto.')).toBeNull();
-        await fireEvent.press(screen.getByRole('button', { name: 'Galeria' }));
+        await fireEvent.press(screen.getByRole('button', { name: 'Adicionar foto' }));
+        await fireEvent.press(screen.getByRole('button', { name: 'Escolher da galeria' }));
         expect(screen.queryByText(/Permita o acesso/)).toBeNull();
         expect(screen.getByText('Fotos (1/3)')).toBeVisible();
     } finally {
@@ -331,7 +353,13 @@ it('consulta o catálogo autenticado, recupera uma falha e envia o identificador
         await render(<CitizenReport draftRef={draftRef} apiBase="https://demo.test/api/v1" token="token-teste" onSessionExpired={jest.fn()} />);
         await fireEvent.press(await screen.findByRole('button', { name: 'Tentar carregar categorias' }));
         expect(screen.getByLabelText('Descrição')).toHaveProp('value', 'Rascunho preservado');
+        await fireEvent.press(await screen.findByRole('button', { name: /^Escolher categoria:/ }));
         await fireEvent.press(await screen.findByRole('radio', { name: option.name }));
+        const selectedCategory = screen.getByRole('button', { name: 'Escolher categoria: ' + option.name });
+        expect(screen.queryByRole('radio', { name: option.name })).toBeNull();
+        await fireEvent.press(selectedCategory);
+        expect(screen.getByRole('radio', { name: option.name })).toBeChecked();
+        await fireEvent.press(selectedCategory);
         await fireEvent.press(screen.getByText('Enviar denúncia'));
         expect(await screen.findByText('Rascunho preservado')).toBeVisible();
         expect(screen.queryByText('caso-novo')).toBeNull();
@@ -356,13 +384,15 @@ it('limita a três fotos e envia o multipart na ordem visível depois de remover
         await render(<CitizenReport apiBase="https://example.test/api/v1" token="test-token" onSessionExpired={jest.fn()} draftRef={draftRef} />);
         for (const id of [1, 2, 3]) {
             jest.mocked(pickReportPhoto).mockResolvedValueOnce(uri(id));
-            await fireEvent.press(await screen.findByRole('button', { name: 'Galeria' }));
+            await fireEvent.press(screen.getByRole('button', { name: 'Adicionar foto' }));
+            await fireEvent.press(await screen.findByRole('button', { name: 'Escolher da galeria' }));
         }
         expect(screen.getByText('Fotos (3/3)')).toBeVisible();
-        expect(screen.queryByRole('button', { name: 'Galeria' })).toBeNull();
+        expect(screen.queryByRole('button', { name: 'Adicionar foto' })).toBeNull();
         await fireEvent.press(screen.getByRole('button', { name: 'Remover foto 2' }));
         jest.mocked(pickReportPhoto).mockResolvedValueOnce(uri(4));
-        await fireEvent.press(screen.getByRole('button', { name: 'Galeria' }));
+        await fireEvent.press(screen.getByRole('button', { name: 'Adicionar foto' }));
+        await fireEvent.press(screen.getByRole('button', { name: 'Escolher da galeria' }));
         await fireEvent.press(screen.getByRole('button', { name: 'Enviar denúncia' }));
         expect(await screen.findByText('Relato demonstrativo')).toBeVisible();
         expect(screen.queryByText('registro-multifoto')).toBeNull();
@@ -425,6 +455,8 @@ it('retoma o rascunho no mapa, publica e volta do acompanhamento para a lista pe
         expect(await screen.findByText('Você ainda não registrou denúncias.')).toBeVisible();
         await fireEvent.press(screen.getByRole('tab', { name: 'Feed' }));
         await fireEvent.press(screen.getByRole('button', { name: 'Continuar rascunho' }));
+        expect(screen.getByRole('header', { name: 'Registrar denúncia' })).toBeVisible();
+        expect(screen.queryByText('Voltar')).toBeNull();
         await fireEvent.press(screen.getByRole('button', { name: 'Voltar' }));
         expect(screen.getByRole('tab', { name: 'Feed', selected: true })).toBeVisible();
         await fireEvent.press(screen.getByRole('tab', { name: 'Mapa' }));
@@ -475,5 +507,100 @@ it.each([403, 404])('preserva o comprovante do envio durante falha de rede e o o
         expect(screen.queryByLabelText('Foto 1 da denúncia')).toBeNull();
     } finally {
         fetcher.mockRestore();
+    }
+});
+
+it.each([
+    ['SENT', 'Salvar alterações'],
+    ['CANCELED', 'Salvar e reabrir'],
+])('edita a própria denúncia %s, mantém fotos escolhidas e envia apenas os arquivos novos após falha de rede', async (status, saveLabel) => {
+    const picture = (id: string) => ({ id, contentPath: '/api/v1/reports/one/photos/' + id, thumbnailPath: '/api/v1/reports/one/photos/' + id + '/thumb', width: 320, height: 200 });
+    const original = { id: 'one', isMine: true, status, createdAt: '2026-01-01', version: 3, allowedActions: ['EDIT'], category: 'TREE', description: 'Ramos na rua', location: { source: 'MANUAL', latitude: -20, longitude: -42 }, showIdentity: false, photos: [picture('a'), picture('b')] };
+    let current = original;
+    const payloads: FormData[] = [];
+    const spy = jest.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+        const path = String(input);
+        if (path.endsWith('/categories')) return categoryResponse();
+        if (init?.method === 'PATCH') {
+            expect(path).toBe('https://example.test/api/v1/reports/one');
+            const form = init.body as FormData;
+            payloads.push(form);
+            if (payloads.length === 1) throw Error('offline');
+            current = { ...original, status: 'SENT', description: 'Relato atualizado', version: 4 };
+        }
+        const data = path.includes('/history') ? { data: [], page: { nextCursor: null } } : path.includes('/reports?') ? { data: new URL(path).searchParams.get('scope') === 'mine' ? [current] : [], page: { nextCursor: null } } : { data: current };
+        return { ok: true, json: async () => data } as Response;
+    });
+    try {
+        const draft = { current: null };
+        await render(<CitizenWorkspace apiBase="https://example.test/api/v1" token="test-token" onSessionExpired={jest.fn()} draftRef={draft} />);
+        await fireEvent.press(await screen.findByText('Ramos na rua'));
+        await fireEvent.press(await screen.findByRole('button', { name: 'Ações da denúncia' }));
+        await fireEvent.press(await screen.findByRole('button', { name: 'Editar denúncia' }));
+        expect(screen.getByLabelText('Descrição')).toHaveDisplayValue('Ramos na rua');
+        expect(screen.getByText('Fotos (2/3)')).toBeVisible();
+        expect(screen.getByLabelText('Prévia da foto 1')).toHaveStyle({ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 });
+        if (status === 'CANCELED') expect(screen.getByText(/voltará à fila do gestor/)).toBeVisible();
+        await fireEvent.press(await screen.findByRole('button', { name: /^Escolher categoria:/ }));
+        await fireEvent.press(screen.getByText('Buraco na via'));
+        await fireEvent(screen.getByLabelText('Quero mostrar minha cara'), 'valueChange', true);
+        await fireEvent.press(screen.getByText('Ajustar ponto no mapa'));
+        await fireEvent(screen.getByTestId('location-map'), 'press', { nativeEvent: { coordinate: { latitude: -21, longitude: -43 } } });
+        await fireEvent.press(screen.getByText('Confirmar ponto'));
+        await fireEvent.press(screen.getByRole('button', { name: 'Remover foto 1' }));
+        await fireEvent.press(screen.getByRole('button', { name: 'Adicionar foto' }));
+        await fireEvent.press(screen.getByText('Escolher da galeria'));
+        await fireEvent.changeText(screen.getByLabelText('Descrição'), 'Relato atualizado');
+        await fireEvent.press(screen.getByRole('button', { name: 'Voltar' }));
+        expect(payloads).toHaveLength(0);
+        if (status === 'CANCELED') expect(await screen.findByText('Status: Cancelado')).toBeVisible();
+        await fireEvent.press(await screen.findByRole('button', { name: 'Ações da denúncia' }));
+        await fireEvent.press(await screen.findByRole('button', { name: 'Editar denúncia' }));
+        expect(screen.getByLabelText('Descrição')).toHaveDisplayValue('Relato atualizado');
+        await fireEvent.press(screen.getByRole('button', { name: saveLabel }));
+        expect(await screen.findByText(/dados foram preservados/)).toBeVisible();
+        await fireEvent.press(screen.getByRole('button', { name: saveLabel }));
+        expect(await screen.findByText('Relato atualizado')).toBeVisible();
+        expect(screen.getByText('Status: Enviado')).toBeVisible();
+        expect(spy.mock.calls.some(([url]) => String(url).endsWith('/reopening'))).toBe(false);
+        expect(payloads).toHaveLength(2);
+        for (const form of payloads) {
+            expect(JSON.parse(String(form.get('metadata')))).toEqual({ expectedVersion: 3, retainedPhotoIds: ['b'], category: 'POTHOLE', description: 'Relato atualizado', showIdentity: true, location: { source: 'MANUAL', latitude: -21, longitude: -43 } });
+            expect(form.getAll('photos')).toHaveLength(1);
+        }
+        expect(draft.current).toBeNull();
+    } finally {
+        spy.mockRestore();
+    }
+});
+
+it('permite escolher anonimato quando o perfil está indisponível ao salvar', async () => {
+    const original = { id: 'one', isMine: true, status: 'CANCELED', version: 3, category: 'TREE', description: 'Ramos na rua', createdAt: '2026-01-01', location: { source: 'MANUAL', latitude: -20, longitude: -42 }, allowedActions: ['EDIT', 'REOPEN'], photos: [{ id: 'a', contentPath: '/api/v1/reports/one/photos/a', width: 320, height: 320 }], showIdentity: true };
+    let current = original;
+    const spy = jest.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+        const path = String(input);
+        if (path.endsWith('/categories')) return categoryResponse();
+        if (init?.method === 'PATCH') {
+            const metadata = JSON.parse(String((init.body as FormData).get('metadata')));
+            if (metadata.showIdentity) return { ok: false, status: 409, json: async () => ({ error: { code: 'PROFILE_UNAVAILABLE' } }) } as Response;
+            current = { ...original, showIdentity: false, status: 'SENT', version: 4 };
+        }
+        const data = path.includes('/history') ? { data: [], page: { nextCursor: null } } : path.includes('/reports?') ? { data: new URL(path).searchParams.get('scope') === 'mine' ? [current] : [], page: { nextCursor: null } } : { data: current };
+        return { ok: true, json: async () => data } as Response;
+    });
+    try {
+        await render(<CitizenWorkspace apiBase="https://example.test/api/v1" token="test-token" onSessionExpired={jest.fn()} draftRef={{ current: null }} />);
+        await fireEvent.press(await screen.findByText(original.description));
+        await fireEvent.press(await screen.findByRole('button', { name: 'Ações da denúncia' }));
+        await fireEvent.press(await screen.findByRole('button', { name: 'Editar denúncia' }));
+        await fireEvent.press(screen.getByRole('button', { name: 'Salvar e reabrir' }));
+        expect(await screen.findByText(/Seu perfil está indisponível/)).toBeVisible();
+        expect(screen.getByLabelText('Descrição')).toHaveDisplayValue(original.description);
+        await fireEvent(screen.getByLabelText('Quero mostrar minha cara'), 'valueChange', false);
+        await fireEvent.press(screen.getByRole('button', { name: 'Salvar e reabrir' }));
+        expect(await screen.findByText('Status: Enviado')).toBeVisible();
+        expect(screen.getByText('Autor: Anônimo')).toBeVisible();
+    } finally {
+        spy.mockRestore();
     }
 });

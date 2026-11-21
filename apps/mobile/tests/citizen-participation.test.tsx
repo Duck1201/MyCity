@@ -207,7 +207,7 @@ it('filtra o feed por categoria e confirma e retira a participação através do
             expect(url.searchParams.get('scope')).toBe('feed');
             return response(page(url.searchParams.get('category') === 'POTHOLE' ? [report] : []));
         }
-        if (path === '/reports/p-4/history') return response(page([]));
+        if (path === '/reports/p-4/history?order=newest') return response(page([]));
         if (path === '/reports/p-4/confirmation') {
             if (init?.method === 'PUT') confirmed = true;
             else if (init?.method === 'DELETE') confirmed = false;
@@ -322,14 +322,19 @@ it('só cancela após confirmar e envia a versão exibida; conflito recarrega a 
     await openApp();
     expect(screen.getByRole('header', { name: 'Meus registros' })).toBeVisible();
     await fireEvent.press(await screen.findByText('Pista quebrada'));
+    expect(screen.queryByRole('button', { name: 'Nova denúncia' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Cancelar denúncia' })).toBeNull();
+    await fireEvent.press(await screen.findByRole('button', { name: 'Ações da denúncia' }));
     await fireEvent.press(await screen.findByText('Cancelar denúncia'));
     await fireEvent.press(screen.getByText('Manter denúncia'));
     expect(api.mock.calls.some(([u]) => String(u).endsWith('/cancellation'))).toBe(false);
+    await fireEvent.press(screen.getByRole('button', { name: 'Ações da denúncia' }));
     await fireEvent.press(screen.getByText('Cancelar denúncia'));
     await fireEvent.press(screen.getByText('Confirmar cancelamento'));
     expect(await screen.findByText('Status: Em andamento')).toBeVisible();
-    expect(screen.queryByText('Cancelar denúncia')).toBeNull();
     expect(screen.getByText(/situação da denúncia mudou/)).toBeVisible();
+    await fireEvent.press(screen.getByRole('button', { name: 'Ações da denúncia' }));
+    expect(screen.queryByText('Cancelar denúncia')).toBeNull();
 });
 
 it('abre link de denúncia rejeitada após login e compartilha somente seu endereço público autenticado', async () => {
@@ -340,7 +345,7 @@ it('abre link de denúncia rejeitada após login e compartilha somente seu ender
         if (String(input).endsWith('/sessions')) return response({ data: { user: { id: 'leitor', role: 'CITIZEN' }, token: 'local', expiresAt: new Date(Date.now() + 86400000).toISOString() } }, 201);
         expect(init?.headers).toMatchObject({ Authorization: 'Bearer local' });
         if (String(input).endsWith('/categories')) return categoryResponse();
-        if (String(input).endsWith('/reports/p-4/history')) return response(page([]));
+        if (String(input).endsWith('/reports/p-4/history?order=newest')) return response(page([]));
         if (String(input).endsWith('/reports/p-4')) return response({ data: { ...report, status: 'REJECTED', allowedActions: [] } });
         throw Error('rota inesperada');
     });
@@ -350,6 +355,7 @@ it('abre link de denúncia rejeitada após login e compartilha somente seu ender
     expect(api).not.toHaveBeenCalled();
     await fireEvent.press(screen.getByText('Entrar'));
     expect(await screen.findByText('Status: Rejeitado')).toBeVisible();
+    await fireEvent.press(screen.getByRole('button', { name: 'Ações da denúncia' }));
     await fireEvent.press(screen.getByText('Compartilhar link'));
     expect(share).toHaveBeenCalledWith({ message: 'mycity://reports/p-4' });
 });
@@ -509,10 +515,99 @@ it('retira o registro do cache do feed após cancelar mesmo se a próxima consul
     );
     await fireEvent.press(screen.getByRole('tab', { name: 'Feed' }));
     await fireEvent.press(await screen.findByText(report.description));
+    expect(screen.queryByRole('button', { name: 'Nova denúncia' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Cancelar denúncia' })).toBeNull();
+    await fireEvent.press(await screen.findByRole('button', { name: 'Ações da denúncia' }));
     await fireEvent.press(await screen.findByText('Cancelar denúncia'));
     await fireEvent.press(screen.getByText('Confirmar cancelamento'));
     expect(await screen.findByText('Status: Cancelado')).toBeVisible();
     await fireEvent.press(screen.getByRole('button', { name: 'Voltar ao feed' }));
     await screen.findByText(/Não foi possível atualizar/);
     expect(screen.queryByText(report.description)).toBeNull();
+});
+
+it('reabre uma denúncia cancelada com a versão exibida e atualiza as ações', async () => {
+    let reopened = false;
+    const initial = { ...report, isMine: true, version: 4, status: 'CANCELED', allowedActions: ['REOPEN'] };
+    const updated = { ...initial, version: 5, status: 'SENT', allowedActions: ['EDIT', 'CANCEL'] };
+    jest.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+        const url = new URL(String(input));
+        if (url.pathname.endsWith('/reopening')) {
+            expect(init?.method).toBe('POST');
+            expect(JSON.parse(String(init?.body))).toEqual({ expectedVersion: 4 });
+            reopened = true;
+        }
+        if (url.pathname.endsWith('/reports')) return response(page(url.searchParams.get('scope') === 'mine' ? [initial] : []));
+        if (url.pathname.endsWith('/history')) return response(page([]));
+        return response({ data: reopened ? updated : initial });
+    });
+    await openApp();
+    await fireEvent.press(await screen.findByText(report.description));
+    await fireEvent.press(await screen.findByRole('button', { name: 'Ações da denúncia' }));
+    expect(screen.queryByRole('button', { name: 'Editar denúncia' })).toBeNull();
+    await fireEvent.press(await screen.findByRole('button', { name: 'Reabrir denúncia' }));
+    expect(await screen.findByText('Status: Enviado')).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Editar denúncia' })).toBeNull();
+    await fireEvent.press(screen.getByRole('button', { name: 'Ações da denúncia' }));
+    expect(screen.getByRole('button', { name: 'Editar denúncia' })).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Reabrir denúncia' })).toBeNull();
+});
+
+it('agrupa edição e reabertura sem alterações na folha de ações da cancelada própria', async () => {
+    const initial = { ...report, isMine: true, version: 4, status: 'CANCELED', allowedActions: ['EDIT', 'REOPEN'] };
+    let reopened = false;
+    jest.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+        const url = new URL(String(input));
+        if (url.pathname.endsWith('/reopening')) {
+            expect(JSON.parse(String(init?.body))).toEqual({ expectedVersion: 4 });
+            reopened = true;
+        }
+        if (url.pathname.endsWith('/reports')) return response(page(url.searchParams.get('scope') === 'mine' ? [initial] : []));
+        if (url.pathname.endsWith('/history')) return response(page([]));
+        return response({ data: reopened ? { ...initial, version: 5, status: 'SENT', allowedActions: ['EDIT', 'CANCEL'] } : initial });
+    });
+    await openApp();
+    await fireEvent.press(await screen.findByText(report.description));
+    await screen.findByRole('button', { name: 'Ações da denúncia' });
+    expect(screen.queryByRole('button', { name: 'Editar denúncia' })).toBeNull();
+    expect(screen.queryByText('Sua denúncia')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Reabrir sem editar' })).toBeNull();
+    await fireEvent.press(screen.getByRole('button', { name: 'Ações da denúncia' }));
+    expect(screen.getByRole('button', { name: 'Editar denúncia' })).toBeVisible();
+    expect(screen.queryByText('Compartilhar link')).toBeNull();
+    await fireEvent.press(screen.getByRole('button', { name: 'Fechar' }));
+    expect(screen.queryByRole('button', { name: 'Reabrir sem editar' })).toBeNull();
+    await fireEvent.press(screen.getByRole('button', { name: 'Ações da denúncia' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Reabrir sem editar' }));
+    expect(await screen.findByText('Status: Enviado')).toBeVisible();
+});
+
+it('preserva a edição na tela e atualiza o detalhe após conflito com um atendimento do gestor', async () => {
+    const original = { ...report, isMine: true, showIdentity: false, allowedActions: ['EDIT'], photos: [{ id: 'p', width: 320, height: 200, contentPath: '/api/v1/reports/p-4/photos/p' }] };
+    let conflict = false;
+    const api = jest.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+        const url = new URL(String(input));
+        if (url.pathname.endsWith('/categories')) return categoryResponse();
+        if (url.pathname.endsWith('/reports')) return response(page(url.searchParams.get('scope') === 'mine' ? [original] : []));
+        if (url.pathname.endsWith('/history')) return response(page([]));
+        if (init?.method === 'PATCH') {
+            conflict = true;
+            return response({ error: { code: 'EDIT_UNAVAILABLE' } }, 409);
+        }
+        return response({ data: conflict ? { ...original, version: 2, allowedActions: [] } : original });
+    });
+    await openApp();
+    await fireEvent.press(await screen.findByText(report.description));
+    await fireEvent.press(await screen.findByRole('button', { name: 'Ações da denúncia' }));
+    await fireEvent.press(await screen.findByRole('button', { name: 'Editar denúncia' }));
+    await fireEvent.changeText(screen.getByLabelText('Descrição'), 'Texto não enviado');
+    await fireEvent.press(screen.getByRole('button', { name: 'Salvar alterações' }));
+    expect(await screen.findByText(/Volte ao detalhe/)).toBeVisible();
+    expect(screen.getByLabelText('Descrição')).toHaveDisplayValue('Texto não enviado');
+    expect(screen.getByRole('button', { name: 'Salvar alterações' })).toBeDisabled();
+    await fireEvent.press(screen.getByRole('button', { name: 'Voltar' }));
+    expect(await screen.findByText(report.description)).toBeVisible();
+    await fireEvent.press(screen.getByRole('button', { name: 'Ações da denúncia' }));
+    expect(screen.queryByRole('button', { name: 'Editar denúncia' })).toBeNull();
+    expect(api.mock.calls.filter(([, init]) => init?.method === 'PATCH')).toHaveLength(1);
 });

@@ -29,8 +29,8 @@ export function statusTint(status: ReportStatus) {
 }
 
 export const mobileStyles = StyleSheet.create({
-    page: { paddingHorizontal: 18, paddingTop: 22, paddingBottom: 30, gap: 12, backgroundColor: colors.canvas },
-    title: { color: colors.ink, fontSize: 27, letterSpacing: -0.7, fontWeight: '700', marginBottom: 4 },
+    page: { paddingHorizontal: 14, paddingTop: 12, paddingBottom: 18, gap: 8, backgroundColor: colors.canvas },
+    title: { color: colors.ink, fontSize: 24, letterSpacing: -0.6, fontWeight: '700' },
     heading: { color: colors.deepTeal, fontSize: 20, fontWeight: '700' },
     label: { color: colors.ink, fontSize: 16, fontWeight: '700' },
     body: { color: colors.ink, fontSize: 16, lineHeight: 23 },

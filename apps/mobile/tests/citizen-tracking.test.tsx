@@ -1,6 +1,6 @@
 import { reportPhotoSource } from '../src/components/report-photo';
 import { categoryResponse } from './category-fixture';
-import { act, fireEvent, render, screen } from '@testing-library/react-native';
+import { act, fireEvent, render, screen, within } from '@testing-library/react-native';
 import { AppState, BackHandler, type AppStateStatus } from 'react-native';
 import App from '../src/app';
 import * as SecureStore from 'expo-secure-store';
@@ -37,8 +37,8 @@ it('preserva o rascunho ao acompanhar o histórico da própria denúncia e as re
         if (path === '/me') return ok({ data: { id: 'autor', role: 'CITIZEN' } });
         if (path === '/reports?scope=mine') return ok(page([report]));
         if (path === '/reports/' + report.id) return ok({ data: report });
-        if (path === '/reports/' + report.id + '/history') return ok(page([event], 'pagina-2'));
-        if (path === '/reports/' + report.id + '/history?cursor=pagina-2') return ok(page([{ ...event, id: 'e-2', type: 'REPLY', text: 'Resposta complementar' }]));
+        if (path === '/reports/' + report.id + '/history?order=newest') return ok(page([event], 'pagina-2'));
+        if (path === '/reports/' + report.id + '/history?order=newest&cursor=pagina-2') return ok(page([{ ...event, id: 'e-2', type: 'REPLY', text: 'Resposta complementar' }]));
         throw Error('Rota inesperada');
     });
     await render(<App />);
@@ -51,11 +51,13 @@ it('preserva o rascunho ao acompanhar o histórico da própria denúncia e as re
     expect(screen.getByRole('button', { name: 'Abrir Iluminação pública' }).props.accessibilityHint).not.toContain(report.id);
     await fireEvent.press(screen.getByText('Poste da praça'));
     expect(await screen.findByText('Manutenção já realizada')).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Continuar rascunho' })).toBeNull();
     expect(screen.getByText(report.description)).toBeVisible();
     expect(screen.queryByText(new RegExp(report.id))).toBeNull();
+    await fireEvent.press(screen.getByRole('button', { name: 'Ver histórico completo' }));
     await fireEvent.press(screen.getByText('Próxima página'));
     expect(await screen.findByText('Resposta complementar')).toBeVisible();
-    await fireEvent.press(screen.getByText('Voltar aos meus registros'));
+    await fireEvent.press(screen.getByRole('button', { name: 'Voltar aos meus registros' }));
     await fireEvent.press(screen.getByRole('button', { name: 'Continuar rascunho' }));
     expect(screen.getByLabelText('Descrição')).toHaveProp('value', 'Rascunho preservado');
     expect(fetcher.mock.calls.some(([url]) => String(url).includes('authorId'))).toBe(false);
@@ -69,7 +71,7 @@ it('abre o aviso, permite repetir uma leitura que falhou e exibe o estado confir
         if (path === '/me') return ok({ data: { id: 'autor', role: 'CITIZEN' } });
         if (path === '/notifications') return ok(page([{ ...notice, readAt: readAttempts > 1 ? report.createdAt : null }]));
         if (path === '/reports/' + report.id) return ok({ data: report });
-        if (path === '/reports/' + report.id + '/history') return ok(page([event]));
+        if (path === '/reports/' + report.id + '/history?order=newest') return ok(page([event]));
         if (path === '/notifications/n-1/read' && init?.method === 'PUT') {
             if (++readAttempts === 1) throw Error('Sem conexão');
             return ok({ data: { ...notice, readAt: report.createdAt } });
@@ -84,7 +86,7 @@ it('abre o aviso, permite repetir uma leitura que falhou e exibe o estado confir
     await fireEvent.press(screen.getByText('Não lida'));
     expect(await screen.findByText('Manutenção já realizada')).toBeVisible();
     await fireEvent.press(await screen.findByText('Tentar marcar como lida'));
-    await fireEvent.press(screen.getByText('Voltar às notificações'));
+    await fireEvent.press(screen.getByRole('button', { name: 'Voltar às notificações' }));
     expect(await screen.findByText('Lida')).toBeVisible();
     expect(fetcher.mock.calls.filter(([url]) => String(url).endsWith('/n-1/read'))).toHaveLength(2);
 });
@@ -209,7 +211,7 @@ it.each(['RESOLVED', 'REJECTED', 'CANCELED'])('identifica reabertura de %s no av
         if (path === '/me') return ok({ data: { id: 'autor', role: 'CITIZEN' } });
         if (path === '/notifications') return ok(page([{ ...notice, readAt: notice.createdAt, status: 'UNDER_REVIEW', fromStatus }]));
         if (path === '/reports/' + report.id) return ok({ data: { ...report, status: 'UNDER_REVIEW' } });
-        if (path === '/reports/' + report.id + '/history') return ok(page([reopened, closure]));
+        if (path === '/reports/' + report.id + '/history?order=newest') return ok(page([reopened, closure]));
         throw Error('Rota inesperada');
     });
     await render(<App />);
@@ -235,7 +237,7 @@ it('apresenta uma ocorrência pública no Início mesmo sem registros pessoais e
     await fireEvent.press(await screen.findByRole('button', { name: 'Abrir ocorrência: Semáforo em manutenção' }));
     expect(await screen.findByText(publicReport.description)).toBeVisible();
     expect(screen.queryByText(new RegExp(report.id))).toBeNull();
-    await fireEvent.press(screen.getByText('Voltar aos meus registros'));
+    await fireEvent.press(screen.getByRole('button', { name: 'Voltar aos meus registros' }));
     await fireEvent.press(await screen.findByRole('button', { name: 'Ver feed' }));
     expect(await screen.findByRole('header', { name: 'Denúncias da comunidade' })).toBeVisible();
 });
@@ -348,13 +350,39 @@ it('pede o histórico junto com o detalhe ao abrir uma denúncia, sem esperar o 
         if (path === '/me') return ok({ data: { id: 'autor', role: 'CITIZEN' } });
         if (path === '/reports?scope=mine') return ok(page([report]));
         if (path === '/reports/' + report.id) return new Promise<Response>((resolve) => (releaseDetail = () => resolve(ok({ data: report }))));
-        if (path === '/reports/' + report.id + '/history') return ok(page([event]));
+        if (path === '/reports/' + report.id + '/history?order=newest') return ok(page([event]));
         throw Error('Rota inesperada');
     });
     await render(<App />);
     await fireEvent.press(await screen.findByText('Poste da praça'));
     expect(requested).toContain('/reports/' + report.id);
-    expect(requested).toContain('/reports/' + report.id + '/history');
+    expect(requested).toContain('/reports/' + report.id + '/history?order=newest');
     await act(async () => releaseDetail());
     expect(await screen.findByText('Manutenção já realizada')).toBeVisible();
+});
+
+it('mostra as duas atualizações mais recentes e expande o restante sob demanda', async () => {
+    jest.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+        const url = new URL(String(input));
+        if (url.pathname.endsWith('/categories')) return categoryResponse();
+        if (url.pathname.endsWith('/me')) return ok({ data: { id: 'autor', role: 'CITIZEN' } });
+        if (url.pathname.endsWith('/reports')) return ok(page(url.searchParams.get('scope') === 'mine' ? [report] : []));
+        if (url.pathname.endsWith('/reports/' + report.id)) return ok({ data: report });
+        if (url.pathname.endsWith('/history')) {
+            expect(url.searchParams.get('order')).toBe('newest');
+            return ok(page(['Mais recente', 'Anterior', 'Primeira'].map((text, i) => ({ ...event, id: 'event-' + i, text }))));
+        }
+        throw Error('Rota inesperada');
+    });
+    await render(<App />);
+    await fireEvent.press(await screen.findByText(report.description));
+    expect(await screen.findByText('Mais recente')).toBeVisible();
+    expect(screen.getByText('Anterior')).toBeVisible();
+    expect(screen.queryByText('Primeira')).toBeNull();
+    const heading = screen.getByRole('button', { name: 'Ver histórico completo', expanded: false });
+    expect(within(heading).getByText('Histórico do atendimento')).toBeVisible();
+    await fireEvent.press(heading);
+    expect(screen.getByText('Primeira')).toBeVisible();
+    await fireEvent.press(screen.getByRole('button', { name: 'Recolher histórico' }));
+    expect(screen.queryByText('Primeira')).toBeNull();
 });
