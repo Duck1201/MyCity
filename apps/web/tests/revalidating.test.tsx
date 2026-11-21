@@ -32,7 +32,6 @@ function Toggle({ children }: { children: ReactNode }) {
 }
 
 it.each([
-    ['Visão geral', (expire: () => void) => <ManagerOverview onSessionExpired={expire} />],
     ['Atendimento', (expire: () => void) => <ManagementReports onSessionExpired={expire} />],
     ['detalhe', (expire: () => void) => <ReportService id={report.id} onSessionExpired={expire} />],
 ])('avisa em %s que a leitura guardada está sendo atualizada até a rede responder', async (_screen, section) => {
@@ -62,4 +61,38 @@ it.each([
         held.splice(0).forEach((release) => release());
     });
     expect(screen.queryByText(/Atualizando…/)).toBeNull();
+});
+
+it('não mostra "Atualizando…" na capa da Visão geral enquanto revalida a leitura guardada', async () => {
+    let holding = false;
+    const held: (() => void)[] = [];
+    vi.stubGlobal(
+        'fetch',
+        vi.fn((url: string) => {
+            if (url === '/api/v1/me') return Promise.resolve(session());
+            if (!holding) return Promise.resolve(reads(url));
+            return new Promise<Response>((resolve) => held.push(() => resolve(reads(url))));
+        }),
+    );
+    history.replaceState({}, '', '/');
+    const user = userEvent.setup();
+    render(
+        <ManagerAccess>
+            {(expire) => (
+                <Toggle>
+                    <ManagerOverview onSessionExpired={expire} />
+                </Toggle>
+            )}
+        </ManagerAccess>,
+    );
+    const toggle = await screen.findByRole('button', { name: 'Trocar tela' }, { timeout: 3000 });
+    holding = true;
+    await user.click(toggle);
+    await user.click(screen.getByRole('button', { name: 'Trocar tela' }));
+    expect(screen.getByRole('heading', { name: 'Visão geral' })).toBeVisible();
+    expect(held.length).toBeGreaterThan(0);
+    expect(screen.queryByText(/Atualizando/)).toBeNull();
+    await act(async () => {
+        held.splice(0).forEach((release) => release());
+    });
 });
