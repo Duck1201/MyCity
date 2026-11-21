@@ -8,6 +8,7 @@ import type { Database } from './database.js';
 import { createHealthRouter } from './health.js';
 import { mountDocumentation } from './documentation.js';
 import { documentationEnabled, type DocumentationOptions } from './documentation-policy.js';
+import { httpCachePolicy } from './http-cache.js';
 
 export function createApp(database: Database, options: DocumentationOptions & { webOrigin?: string; proxyHops?: number; uploadDir?: string } = {}) {
     const app = express();
@@ -17,9 +18,9 @@ export function createApp(database: Database, options: DocumentationOptions & { 
     app.use(createHealthRouter(database));
     app.use('/api/v1', (_req, res, next) => {
         res.locals.requestId = randomUUID();
-        res.set('Cache-Control', 'no-store');
         next();
     });
+    app.use('/api/v1', httpCachePolicy);
     const sessions = createSessionRoutes(database, options.webOrigin ?? 'http://localhost:8090');
     app.use(sessions.router);
     app.use('/api/v1/weather-alerts', sessions.authenticate, createWeatherAlertsRouter());

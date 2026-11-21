@@ -4,6 +4,7 @@ import express, { type RequestHandler, type Request, type Response } from 'expre
 import type { Database } from '../../database.js';
 import { createIdentity, credentialHash } from './index.js';
 import { createLoginLimits } from './login-limits.js';
+import { clearBrowserCache } from '../../http-cache.js';
 
 const lifetime = 24 * 60 * 60 * 1000;
 const cookieName = '__Host-mycity';
@@ -24,6 +25,8 @@ function sessionCredential(req: Request) {
     if (token && /^[a-zA-Z0-9_-]{43}$/.test(token)) return { token, transport: cookies.length ? 'cookie' : 'bearer' };
 }
 
+const presentsSession = (req: Request) => !!req.get('authorization') || (req.get('cookie') ?? '').split(';').some((value) => value.trim().startsWith(cookieName + '='));
+
 export function createSessionRoutes(database: Database, origin: string) {
     const router = express.Router();
     const identity = createIdentity(database);
@@ -33,11 +36,15 @@ export function createSessionRoutes(database: Database, origin: string) {
     const unauthenticated = (res: Response) => reject(res, 401, 'UNAUTHENTICATED', 'Sessão inválida ou expirada.');
     const authenticate: RequestHandler = async (req, res, next) => {
         const credential = sessionCredential(req);
-        if (!credential) return unauthenticated(res);
+        if (!credential) {
+            // A session cookie or token that no longer parses still means a session ended here.
+            if (presentsSession(req)) clearBrowserCache(res);
+            return unauthenticated(res);
+        }
         if (credential.transport === 'cookie' && !['GET', 'HEAD', 'OPTIONS'].includes(req.method) && !fromWeb(req)) return forbidden(res);
         const tokenHash = digest(credential.token);
         const session = await database.session.findUnique({ where: { tokenHash }, select: { expiresAt: true, transport: true, credentialHash: true, user: { select: { id: true, role: true, password: true, loginEnabled: true } } } });
-        if (!session?.user.loginEnabled || session.credentialHash !== credentialHash(session.user.password) || session.transport !== credential.transport || session.expiresAt.getTime() <= Date.now()) return unauthenticated(res);
+        if (!session?.user.loginEnabled || session.credentialHash !== credentialHash(session.user.password) || session.transport !== credential.transport || session.expiresAt.getTime() <= Date.now()) return unauthenticated(clearBrowserCache(res));
         res.locals.user = { id: session.user.id, role: session.user.role };
         res.locals.sessionExpiresAt = session.expiresAt;
         res.locals.tokenHash = tokenHash;
@@ -71,7 +78,7 @@ export function createSessionRoutes(database: Database, origin: string) {
     router.delete('/api/v1/sessions/current', authenticate, async (_req, res) => {
         await database.session.deleteMany({ where: { tokenHash: res.locals.tokenHash } });
         if (res.locals.transport === 'cookie') res.clearCookie(cookieName, cookieOptions);
-        res.sendStatus(204);
+        clearBrowserCache(res).sendStatus(204);
     });
     return { router, authenticate };
 }

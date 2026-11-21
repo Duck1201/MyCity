@@ -1,4 +1,5 @@
 import { LoadingMark } from './panel-loading';
+import { LiveQueryCacheProvider } from './use-live-query';
 import { useCallback, useEffect, useRef, useState, type ChangeEvent, type FormEvent, type KeyboardEvent, type ReactNode } from 'react';
 import { MapPin } from 'lucide-react';
 import { cpfDigits, formatCpfInput } from '@mycity/contracts';
@@ -130,7 +131,12 @@ export function ManagerAccess({ children }: { children: (onSessionExpired: () =>
             </main>
         );
     }
-    if (access === 'manager') return <ManagerShell leave={leave}>{(navigation) => children(expire, navigation)}</ManagerShell>;
+    if (access === 'manager')
+        return (
+            <LiveQueryCacheProvider>
+                <ManagerShell leave={leave}>{(navigation) => children(expire, navigation)}</ManagerShell>
+            </LiveQueryCacheProvider>
+        );
     return (
         <main className="entry-page">
             <div className="entry-content">
