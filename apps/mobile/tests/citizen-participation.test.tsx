@@ -10,7 +10,9 @@ import { CitizenWorkspace } from '../src/citizen-workspace';
 
 jest.mock('react-native-maps', () => ({ __esModule: true, default: 'MapView', Marker: 'Marker', PROVIDER_GOOGLE: 'google' }));
 jest.mock('expo-location', () => ({
-    Accuracy: { Balanced: 3 },
+    Accuracy: { Balanced: 3, High: 4 },
+    hasServicesEnabledAsync: jest.fn(),
+    getLastKnownPositionAsync: jest.fn(),
     requestForegroundPermissionsAsync: jest.fn(),
     getCurrentPositionAsync: jest.fn(),
     watchPositionAsync: jest.fn(),
@@ -30,6 +32,8 @@ beforeEach(() => {
         .mockReset()
         .mockResolvedValue({ granted: false } as Location.PermissionResponse);
     jest.mocked(Location.watchPositionAsync).mockReset();
+    jest.mocked(Location.hasServicesEnabledAsync).mockReset().mockResolvedValue(true);
+    jest.mocked(Location.getLastKnownPositionAsync).mockReset().mockResolvedValue(null);
 });
 afterEach(() => {
     Object.defineProperty(AppState, 'currentState', currentState);
@@ -96,6 +100,35 @@ it('centraliza a câmera com uma leitura pontual e consulta uma área aproximada
     expect(screen.getByTestId('community-map').props.initialRegion).toMatchObject(gps);
     expect(Location.requestForegroundPermissionsAsync).toHaveBeenCalledTimes(1);
     expect(Location.watchPositionAsync).toHaveBeenCalledTimes(1);
+});
+
+it('recentraliza no ponto recente do Android e identifica quando uma nova leitura falha', async () => {
+    const coords = { latitude: -19.9, longitude: -43.9, accuracy: 22 };
+    jest.mocked(Location.requestForegroundPermissionsAsync).mockResolvedValue({ granted: true } as Location.PermissionResponse);
+    jest.mocked(Location.getLastKnownPositionAsync).mockResolvedValueOnce({ coords, timestamp: Date.now() } as Location.LocationObject);
+    jest.mocked(Location.watchPositionAsync).mockResolvedValue({ remove: jest.fn() });
+    jest.spyOn(globalThis, 'fetch').mockResolvedValue(response(page([])));
+    await openApp();
+    await fireEvent.press(screen.getByRole('tab', { name: 'Mapa' }));
+    expect(screen.getByTestId('device-location')).toHaveProp('coordinate', { latitude: coords.latitude, longitude: coords.longitude });
+    expect(screen.getByTestId('community-map').props.initialRegion).toMatchObject({ latitude: coords.latitude, longitude: coords.longitude });
+    expect(Location.getLastKnownPositionAsync).toHaveBeenCalledWith({ maxAge: 30000, requiredAccuracy: 100 });
+    jest.mocked(Location.watchPositionAsync).mockRejectedValueOnce(new Error('indisponível'));
+    await fireEvent.press(screen.getByRole('button', { name: 'Minha localização' }));
+    expect(Location.watchPositionAsync).toHaveBeenCalledWith(expect.objectContaining({ accuracy: Location.Accuracy.High, distanceInterval: 0, timeInterval: 1000 }), expect.any(Function), expect.any(Function));
+    expect(screen.getByText(/última localização/i)).toBeVisible();
+});
+
+it('ignora o ponto conhecido quando a localização do sistema foi desligada', async () => {
+    jest.mocked(Location.requestForegroundPermissionsAsync).mockResolvedValue({ granted: true } as Location.PermissionResponse);
+    jest.mocked(Location.hasServicesEnabledAsync).mockResolvedValue(false);
+    jest.mocked(Location.watchPositionAsync).mockResolvedValue({ remove: jest.fn() });
+    jest.spyOn(globalThis, 'fetch').mockResolvedValue(response(page([])));
+    await openApp();
+    await fireEvent.press(screen.getByRole('tab', { name: 'Mapa' }));
+    expect(screen.getByText(/GPS indisponível/)).toBeVisible();
+    expect(Location.getLastKnownPositionAsync).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('device-location')).toBeNull();
 });
 
 it('preserva a área explorada quando a primeira leitura de GPS chega atrasada', async () => {

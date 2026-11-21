@@ -150,6 +150,8 @@ Em 21/11/2026, o Metro foi reiniciado após a troca de `PORT` de 3000 para 3019.
 
 No APK de release compilado localmente em 21/11/2026, a primeira abertura do mapa exibiu o marcador **Sua localização**. Uma tentativa de recentralização expirou. Em nova tentativa, o provedor de localização combinado do Android entregou uma posição recente, o marcador apareceu e o aviso de indisponibilidade saiu da tela. A permissão precisa estava concedida e o app permaneceu em primeiro plano. Com o mapa carregado, em três rodadas de dois arrastos, o SurfaceFlinger mediu mediana de 22,1 ms entre apresentações de quadros, p95 de 33,2 ms e máximo de 33,5 ms. O percurso mapa → lista → mapa funcionou no mesmo APK.
 
+No Galaxy M32 com GPS ativo e permissão precisa, **Minha localização** falhou em três de quatro tentativas no APK publicado da v1.0.3. No Expo Go com a correção e a API local, quatro arrastos tiraram o marcador do centro e quatro toques no botão voltaram a centralizá-lo sem aviso de erro. Em outra abertura, a última posição do provedor combinado tinha 37 segundos. Após a centralização, o Android registrava uma leitura de 2,6 segundos com precisão de 30 metros.
+
 As duas fotos da capa de um livro foram comprimidas pelo app para JPEG de 1.200 × 1.600 px (110.076 e 118.963 bytes). No detalhe da denúncia no Chrome, o título e o subtítulo de letras menores puderam ser lidos nas duas imagens e coincidiram com o texto de referência, inclusive na primeira foto, com sombra.
 
 ### Fotos no APK v1.0.1 (21/11/2026)
