@@ -496,10 +496,6 @@
     margin-top: 6px;
     font-size: 13px;
 }
-.occurrence-updating {
-    color: var(--case-muted);
-    font-size: 13px;
-}
 .console .case-gallery-frame .case-gallery-open {
     /* The photo is the button: undo the round arrow-button look of the frame. */
     position: static;
