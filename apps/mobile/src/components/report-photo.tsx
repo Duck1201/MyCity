@@ -60,7 +60,7 @@ export function ReportThumbnail({ source, label }: { source: PhotoSource; label?
     return <ReportImage key={resource} source={source} accessible={!!label} {...(label && { accessibilityLabel: label })} contentFit="cover" onUnavailable={() => setFailedResource(resource)} style={styles.thumb} />;
 }
 
-export function ReportPhoto({ path, index, apiBase, token, width, height }: { path: string; index: number; apiBase: string; token: string; width: number; height: number }) {
+export function ReportPhoto({ path, index, apiBase, token, width, height, onExpand }: { path: string; index: number; apiBase: string; token: string; width: number; height: number; onExpand?: () => void }) {
     const source = reportPhotoSource(path, apiBase, token);
     const [state, setState] = useState<'loading' | 'loaded' | 'failed'>('loading');
     const label = 'Foto ' + (index + 1) + ' da denúncia';
@@ -80,10 +80,10 @@ export function ReportPhoto({ path, index, apiBase, token, width, height }: { pa
     }
     const aspectRatio = width > 0 && height > 0 ? Math.max(1, Math.min(2.5, width / height)) : 1.5;
     return (
-        <View style={[styles.frame, { aspectRatio }]}>
+        <MotionPressable accessibilityRole="button" accessibilityLabel={'Ampliar foto ' + (index + 1) + ' da denúncia'} disabled={!onExpand} onPress={onExpand} style={[styles.frame, { aspectRatio }]}>
             <ReportImage key={source.uri} accessibilityLabel={label} source={source} contentFit="contain" style={StyleSheet.absoluteFill} onUnavailable={() => setState('failed')} onLoad={() => setState('loaded')} />
             {state === 'loading' && <ActivityIndicator color={colors.teal} accessibilityLabel={'Carregando foto ' + (index + 1)} />}
-        </View>
+        </MotionPressable>
     );
 }
 
