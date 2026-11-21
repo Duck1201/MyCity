@@ -50,7 +50,7 @@ export function ManagerOverview({ onSessionExpired }: { onSessionExpired: () => 
                     </button>
                 </p>
             )}
-            {overview && <OverviewPanel updating={query.revalidating} counts={overview.counts} ranked={ranked} oldest={oldest ?? undefined} priorities={priorities} recent={<RecentQueue categories={overview.categories} onSessionExpired={onSessionExpired} />} />}
+            {overview && <OverviewPanel counts={overview.counts} ranked={ranked} oldest={oldest ?? undefined} priorities={priorities} recent={<RecentQueue categories={overview.categories} onSessionExpired={onSessionExpired} />} />}
         </main>
     );
 }
