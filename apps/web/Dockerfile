@@ -16,5 +16,6 @@ RUN npm run build:contracts && npm run build -w @mycity/web
 
 FROM nginx:1.29-alpine
 COPY deploy/nginx.conf /etc/nginx/conf.d/default.conf
+COPY deploy/panel-security.conf /etc/nginx/panel-security.conf
 COPY --from=build /app/apps/web/dist /usr/share/nginx/html
 EXPOSE 80

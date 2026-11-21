@@ -16,6 +16,8 @@ Para entrar em contato sobre uma vulnerabilidade, siga o [procedimento de relato
 
 A API aplica cotas por IP antes da leitura do corpo do login, da consulta de prontidão e da entrega da documentação habilitada. As cotas são independentes por processo. A implantação hospedada usa uma instância da API e dois proxies (Caddy e Nginx). Os limites e a resposta HTTP 429 estão no [contrato HTTP](api/contract.md).
 
+O Nginx aplica ao painel uma CSP que carrega scripts e fontes da mesma origem e permite imagens da mesma origem ou incorporadas como dados. Estilos inline atendem à galeria e ao redimensionamento da navegação. A política bloqueia objetos, alteração de URL base e incorporação em frames. Também envia `X-Frame-Options: DENY` e `Referrer-Policy: strict-origin-when-cross-origin`, inclusive nas respostas de erro.
+
 Os diagnósticos do Caddy preservam o método e o caminho da requisição. O log de acesso do Nginx também registra os status e a duração. Ambos omitem os parâmetros de consulta e o cabeçalho `Referer`. Em `/api/`, o status do proxy no registro de acesso permite identificar falhas de encaminhamento sem registrar o diagnóstico bruto do Nginx que contém a URL original.
 
 ## Recebimento e leitura de fotos

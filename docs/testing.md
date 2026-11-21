@@ -115,6 +115,17 @@ Antes de criar uma tag, rode a suíte completa e os revisores de segurança e re
 
 A suíte cobre CPF, escolha de identificação e projeção dos dados do autor. A suíte de documentação cobre Swagger local, bloqueio em produção, bind e atualização do OpenAPI.
 
+## Exportação CSV da gestão
+
+Com PostgreSQL local, medição de 21/11/2026 do tempo de conclusão e do pico de RSS do processo da API. Cada download continha todos os registros fictícios esperados.
+
+| Linhas por CSV | Downloads simultâneos | Tempo antes → depois | Pico de RSS antes → depois |
+| -------------- | --------------------- | -------------------- | -------------------------- |
+| 2.000          | 1                     | 0,20 → 0,21 s        | 151,2 → 170,1 MiB          |
+| 2.000          | 4                     | 0,30 → 0,33 s        | 178,2 → 197,2 MiB          |
+| 12.000         | 1                     | 0,66 → 1,11 s        | 252,2 → 199,3 MiB          |
+| 12.000         | 4                     | 1,17 → 1,89 s        | 416,2 → 357,8 MiB          |
+
 ## Desenvolvimento e ciclo do banco
 
 Os testes locais cobrem inicialização conjunta, Ctrl+C, persistência e reexecução do seed, recuperação de falhas e reset em PostgreSQL descartável. O banco usado para desenvolvimento fica fora dos testes destrutivos.

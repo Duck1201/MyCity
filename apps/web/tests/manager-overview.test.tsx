@@ -1,6 +1,7 @@
 import userEvent from '@testing-library/user-event';
 import { render, screen, within } from '@testing-library/react';
 import { expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
 import { ManagerOverview } from '../src/manager-overview';
 
 it('consulta os indicadores autenticados e abre a fila e o detalhe pelos IDs do servidor', async () => {
@@ -77,6 +78,32 @@ it('mostra em cada prioridade a categoria com o ícone e há quanto tempo foi ab
         const category = within(first).getByText(/Ciclovias/);
         expect(category.querySelector('svg.category-symbol')).not.toBeNull();
         expect(first.textContent).not.toContain('p1');
+    } finally {
+        fetcher.mockRestore();
+    }
+});
+
+it('centraliza a miniatura e o ícone substituto na coluna das prioridades', async () => {
+    const dashboardStyles = readFileSync('src/components/dashboard.css', 'utf8');
+    const report = { category: 'grupo', description: 'Pintura da faixa', status: 'SENT', confirmationCount: 1, createdAt: new Date().toISOString() };
+    const priorities = [
+        { ...report, id: 'com-foto', photoPath: '/foto.jpg' },
+        { ...report, id: 'sem-foto' },
+    ];
+    const data = { counts: { SENT: 2, UNDER_REVIEW: 0, IN_PROGRESS: 0, RESOLVED: 0, REJECTED: 0, CANCELED: 0 }, oldest: null, categories: [], priorities };
+    const fetcher = vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json({ data }));
+    try {
+        render(
+            <div className="console">
+                <style>{dashboardStyles}</style>
+                <ManagerOverview onSessionExpired={vi.fn()} />
+            </div>,
+        );
+        const cards = await screen.findAllByRole('link', { name: 'Abrir denúncia: Pintura da faixa' });
+        for (const card of cards) {
+            const thumbnail = card.querySelector('img, .priority-photo-fallback')!;
+            expect(getComputedStyle(thumbnail).alignSelf).toBe('center');
+        }
     } finally {
         fetcher.mockRestore();
     }
