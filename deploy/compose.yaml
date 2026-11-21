@@ -56,6 +56,8 @@ services:
         volumes:
             - photos:/app/uploads
         environment:
+            # Only lists photos and writes files: use the API's restricted role, not the owner.
+            DATABASE_URL: postgresql://mycity_api:${API_DATABASE_PASSWORD:?Configure a senha exclusiva da API}@db:5432/mycity
             UPLOAD_DIR: /app/uploads
         command: [npm, run, photos:backfill-thumbnails, -w, '@mycity/api']
     api:
