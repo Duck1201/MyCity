@@ -32,7 +32,6 @@ export function createReportsRouter(database: Database, uploadDir: string) {
     let activeUploads = 0;
     const windows = new Map<string, { until: number; attempts: number }>();
     router.use((_req, res, next) => {
-        res.set('Cache-Control', 'private, no-store');
         if (!res.locals.user) throw new ReportError(401, 'UNAUTHENTICATED', 'Entre para continuar.');
         next();
     });

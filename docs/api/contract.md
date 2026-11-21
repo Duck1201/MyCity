@@ -9,6 +9,7 @@ Esta referência descreve a API implementada. O [OpenAPI gerado](../../apps/api/
 - Resposta de entidade: `{ "data": ... }`. Listas: `{ "data": [...], "page": { "nextCursor": null } }`.
 - Erros: `{ "error": { "code": "...", "message": "..." }, "requestId": "..." }`. `requestId` pode estar ausente, por exemplo em rotas inexistentes e erros das rotas de saúde. Mensagens em pt-BR e códigos em inglês.
 - Na paginação por cursor, `limit` vai de 1 a 100 e o padrão é 20. Envie o `page.nextCursor` recebido mantendo os mesmos filtros e a mesma ordenação. Um cursor inválido para a consulta retorna 400 `INVALID_CURSOR`. Reinicie a paginação após mutações que alterem o conjunto ou a ordem dos resultados.
+- Cache: leituras (`GET`) bem-sucedidas saem com `Cache-Control: private, no-cache` e `ETag`; repita a consulta com `If-None-Match` e receba `304` sem corpo quando nada mudou. Escritas e respostas de erro saem com `no-store`. Fotos usam `private, max-age=31536000, immutable`. O logout e um 401 para uma sessão apresentada que não vale mais incluem `Clear-Site-Data: "cache"`.
 - Coleções de fotos e eventos retornam ordem explícita. Não depender da ordem natural do banco.
 - Consulta de denúncias, fotos, mapa e histórico exige sessão, conforme decisão aprovada em C04. As operações de escrita também exigem autenticação. Credenciais, hashes e caminhos internos jamais aparecem nos DTOs.
 
