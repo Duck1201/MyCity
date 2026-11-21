@@ -104,11 +104,11 @@ it('fecha o visualizador ao clicar fora da foto e só amplia com clique sobre el
         for (const [key, value] of Object.entries({ naturalWidth: 100, naturalHeight: 300, clientWidth: 800, clientHeight: 600 })) Object.defineProperty(image, key, { value, configurable: true });
         return { stage, image };
     };
-    let { stage, image } = await open();
+    const first = await open();
     // The dark band beside the photo closes the viewer instead of zooming.
-    fireEvent.click(stage, { clientX: 100, clientY: 300 });
+    fireEvent.click(first.stage, { clientX: 100, clientY: 300 });
     expect(screen.queryByRole('dialog')).toBeNull();
-    ({ stage, image } = await open());
+    const { stage, image } = await open();
     fireEvent.click(stage, { clientX: 400, clientY: 300 });
     expect(transformOf(image).scale).toBe(2.5);
     // Zoomed, the photo is 500 px wide (x 150..650): the background still showing at x 100 closes it too.
