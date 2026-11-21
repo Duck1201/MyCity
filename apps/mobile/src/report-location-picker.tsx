@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, Modal, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import MapView, { PROVIDER_GOOGLE, type Camera, type LatLng, type Region } from 'react-native-maps';
+import MapView, { PROVIDER_GOOGLE, type Camera, type LatLng, type Region } from './map-view';
 import Svg, { Circle, Path } from 'react-native-svg';
 import * as GPS from 'expo-location';
 import { locationSchema, type Location } from '@mycity/contracts';

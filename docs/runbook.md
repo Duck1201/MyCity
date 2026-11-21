@@ -52,6 +52,12 @@ Confira o banco de destino e execute **uma** das opções abaixo, conforme o amb
 
 Para uma instalação vazia, use o seed normal. Se faltar uma conta em uma instalação anterior, o seed cria a conta ausente e preserva as demais. Depois execute a rotação para substituir as credenciais antigas.
 
+## Prévia do cidadão no navegador
+
+Com a API e o painel iniciados por `npm run dev`, rode `npm run dev:mobile:web` em outro terminal e abra <http://localhost:8093>. Entre com uma conta de cidadão do banco de desenvolvimento. A prévia encaminha as chamadas para a mesma API local do painel e mantém a sessão do cidadão em memória. Recarregar a página exige novo login.
+
+A galeria usa o seletor de arquivos do navegador, e o GPS depende da permissão de localização dele. Para testar um endereço específico, escolha o ponto no mapa. A prévia usa uma base local de ruas do centro de Viçosa e consulta os marcadores da API para a área visível. A validação de Google Maps, câmera nativa, armazenamento offline e permissões do sistema continua no Android.
+
 ## Configuração do Android
 
 Para usar um endereço explícito no app, defina `EXPO_PUBLIC_API_URL` terminando em `/api/v1`. No emulador, `10.0.2.2` aponta para a máquina de desenvolvimento. Para usar o mapa em um build, restrinja `GOOGLE_MAPS_ANDROID_API_KEY` ao pacote `br.edu.mycity.app` e ao SHA-1 do certificado da variante.

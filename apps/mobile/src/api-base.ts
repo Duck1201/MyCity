@@ -1,11 +1,13 @@
 type ApiEnvironment = {
     development: boolean;
+    webOrigin?: string | undefined;
     developmentPort?: string | undefined;
     configuredUrl?: string | undefined;
     metroHostUri?: string | undefined;
 };
 
-export function resolveApiBase({ development, configuredUrl, metroHostUri, developmentPort = '3000' }: ApiEnvironment): string {
+export function resolveApiBase({ development, configuredUrl, webOrigin, metroHostUri, developmentPort = '3000' }: ApiEnvironment): string {
+    if (webOrigin) return new URL('/api/v1', webOrigin).href;
     const override = configuredUrl?.trim().replace(/\/+$/, '');
     if (override) return override;
     if (!development) return 'https://mycity.private-gateway.site:8080/api/v1';

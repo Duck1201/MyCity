@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import { pickReportPhoto } from '../src/report-photos';
 import * as ImagePicker from 'expo-image-picker';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
@@ -95,4 +96,16 @@ it('apaga saída vazia e libera contexto e imagem renderizada', async () => {
     expect(fileState.delete).toHaveBeenCalledTimes(1);
     expect(mockRenderRelease).toHaveBeenCalledTimes(1);
     expect(mockContextRelease).toHaveBeenCalledTimes(1);
+});
+
+it('libera a URL de uma imagem que o navegador não conseguiu decodificar', async () => {
+    jest.replaceProperty(Platform, 'OS', 'web');
+    const release = jest.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+    try {
+        configureImage(0, 0, 'blob:http://localhost/foto');
+        await expect(pickReportPhoto('gallery')).rejects.toThrow('dimensões válidas');
+        expect(release).toHaveBeenCalledWith('blob:http://localhost/foto');
+    } finally {
+        jest.restoreAllMocks();
+    }
 });

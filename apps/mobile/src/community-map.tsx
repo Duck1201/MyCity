@@ -9,7 +9,7 @@ import { Icon } from './components/civic-header';
 import { MotionPressable } from './components/motion-pressable';
 import { useMotionEnabled } from './components/use-motion-enabled';
 import { Text } from './components/typography';
-import MapView, { Marker, PROVIDER_GOOGLE, type LatLng, type Region } from 'react-native-maps';
+import MapView, { Marker, PROVIDER_GOOGLE, type LatLng, type Region } from './map-view';
 import { locationSchema, type ReportMarker } from '@mycity/contracts';
 import { statusLabels } from './report-overview';
 import { activeStatuses, Filters, filteredPath, type ReportFilters } from './report-filters';
@@ -137,7 +137,7 @@ export function CommunityMap({ request, filters, setFilters, viewport, setViewpo
     );
     const inspecting = !showList && (!!selected || group.length > 0);
     useEffect(() => {
-        if (!inspecting) return;
+        if (!inspecting || Platform.OS === 'web') return;
         const handler = BackHandler.addEventListener('hardwareBackPress', () => {
             select(null);
             return true;

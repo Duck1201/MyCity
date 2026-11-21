@@ -3,7 +3,7 @@ import { useMotionEnabled } from './components/use-motion-enabled';
 import { CitizenAccessLayout, CitizenLoginScreen, accessStyles } from './components/citizen-login-screen';
 import { mobileStyles } from './theme';
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
-import { View } from 'react-native';
+import { Platform, View } from 'react-native';
 import { Text } from './components/typography';
 import * as SecureStore from 'expo-secure-store';
 import { clearCachedPhotos } from './components/report-photo';
@@ -24,6 +24,7 @@ export function CitizenAccess({ apiBase, children, onSignedOut, onAuthenticated,
     const [busy, setBusy] = useState(false);
     const [expiresAt, setExpiresAt] = useState(0);
     const motion = useMotionEnabled();
+    const sessionStore = Platform.OS === 'web' ? null : SecureStore;
 
     const expire = useCallback(() => {
         setAccess('checking');
@@ -32,16 +33,16 @@ export function CitizenAccess({ apiBase, children, onSignedOut, onAuthenticated,
         setMessage('Sua sessão expirou. Entre novamente.');
         clearCachedPhotos();
         clearPersistedQueries();
-        void SecureStore.deleteItemAsync(sessionKey).then(
+        void (sessionStore?.deleteItemAsync(sessionKey) ?? Promise.resolve()).then(
             () => setAccess('login'),
             () => setAccess('offline'),
         );
-    }, []);
+    }, [sessionStore]);
     useEffect(() => {
         let active = true;
         async function restore() {
             try {
-                const saved = await SecureStore.getItemAsync(sessionKey);
+                const saved = await sessionStore?.getItemAsync(sessionKey);
                 if (!active) return;
                 if (!saved) return setAccess('login');
                 const session = JSON.parse(saved);
@@ -65,7 +66,7 @@ export function CitizenAccess({ apiBase, children, onSignedOut, onAuthenticated,
         return () => {
             active = false;
         };
-    }, [apiBase, attempt, expire, onAuthenticated]);
+    }, [apiBase, attempt, expire, onAuthenticated, sessionStore]);
     useEffect(() => {
         if (access !== 'citizen' || !expiresAt) return;
         const timer = setTimeout(expire, Math.max(0, expiresAt - Date.now()));
@@ -87,7 +88,7 @@ export function CitizenAccess({ apiBase, children, onSignedOut, onAuthenticated,
             setToken(data.token);
             setPassword('');
             try {
-                await SecureStore.setItemAsync(sessionKey, JSON.stringify({ apiBase, token: data.token, expiresAt: Date.parse(data.expiresAt) }));
+                await sessionStore?.setItemAsync(sessionKey, JSON.stringify({ apiBase, token: data.token, expiresAt: Date.parse(data.expiresAt) }));
             } catch {
                 setAccess('logoutFailed');
                 return;
@@ -107,7 +108,7 @@ export function CitizenAccess({ apiBase, children, onSignedOut, onAuthenticated,
         try {
             const response = await fetch(apiBase + '/sessions/current', { method: 'DELETE', headers: { Authorization: 'Bearer ' + token } });
             if (!response.ok && response.status !== 401) throw new Error();
-            await SecureStore.deleteItemAsync(sessionKey);
+            await sessionStore?.deleteItemAsync(sessionKey);
             clearCachedPhotos();
             clearPersistedQueries();
             setToken('');

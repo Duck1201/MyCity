@@ -3,7 +3,7 @@ import Constants from 'expo-constants';
 import { resolveApiBase } from './api-base';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, SafeAreaView, initialWindowMetrics } from 'react-native-safe-area-context';
-import { Linking, StyleSheet } from 'react-native';
+import { Linking, Platform, StyleSheet } from 'react-native';
 import { AppFonts } from './components/app-fonts';
 import { CitizenAccess } from './citizen-access';
 import { CitizenWorkspace } from './citizen-workspace';
@@ -11,7 +11,7 @@ import { type CitizenDraft } from './citizen-report';
 import { QueryCacheProvider } from './use-active-query';
 import { colors } from './theme';
 
-const apiBase = resolveApiBase({ development: __DEV__, configuredUrl: process.env.EXPO_PUBLIC_API_URL, developmentPort: process.env.EXPO_PUBLIC_API_PORT, metroHostUri: Constants.expoConfig?.hostUri });
+const apiBase = resolveApiBase({ development: __DEV__, webOrigin: Platform.OS === 'web' && typeof window !== 'undefined' ? window.location.origin : undefined, configuredUrl: process.env.EXPO_PUBLIC_API_URL, developmentPort: process.env.EXPO_PUBLIC_API_PORT, metroHostUri: Constants.expoConfig?.hostUri });
 
 export default function App() {
     const [linkedReport, setLinkedReport] = useState<{ id: string } | null>(null);

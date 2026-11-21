@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { Marker, type Region } from 'react-native-maps';
+import { Marker, type Region } from './map-view';
 import type { ReportMarker } from '@mycity/contracts';
 import { categoryLabel } from './category-catalog';
 import { Icon } from './components/civic-header';

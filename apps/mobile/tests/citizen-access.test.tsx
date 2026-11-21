@@ -1,5 +1,5 @@
 import { act, render, screen, userEvent, fireEvent } from '@testing-library/react-native';
-import { Text } from 'react-native';
+import { Platform, Text } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { CitizenAccess } from '../src/citizen-access';
 import { CitizenAccessLayout } from '../src/components/citizen-login-screen';
@@ -125,4 +125,33 @@ it('exibe a abertura até concluir a leitura da sessão e então libera o login'
     await act(async () => finish(null));
     expect(await screen.findByLabelText('CPF')).toBeVisible();
     expect(screen.queryByRole('progressbar')).toBeNull();
+});
+
+it('no navegador autentica e revoga em memória sem usar o armazenamento do aparelho', async () => {
+    jest.replaceProperty(Platform, 'OS', 'web');
+    jest.clearAllMocks();
+    const apiBase = 'http://localhost/api/v1';
+    const transport = jest
+        .spyOn(globalThis, 'fetch')
+        .mockResolvedValueOnce(Response.json({ data: { token: 'teste-web', expiresAt: new Date(Date.now() + 60000).toISOString(), user: { id: 'demo', role: 'CITIZEN' } } }, { status: 201 }))
+        .mockResolvedValueOnce(new Response(null, { status: 204 }));
+    await render(
+        <CitizenAccess apiBase={apiBase}>
+            {(_token, _expire, leave) => (
+                <CitizenAccessLayout onLeave={leave}>
+                    <Text>Área privada</Text>
+                </CitizenAccessLayout>
+            )}
+        </CitizenAccess>,
+    );
+    await fireEvent.changeText(await screen.findByLabelText('CPF'), '00000000001');
+    await fireEvent.changeText(screen.getByLabelText('Senha'), 'senha-ficticia');
+    await fireEvent.press(screen.getByRole('button', { name: 'Entrar' }));
+    expect(await screen.findByText('Área privada')).toBeVisible();
+    await fireEvent.press(screen.getByRole('button', { name: 'Sair' }));
+    expect(await screen.findByLabelText('CPF')).toBeVisible();
+    expect(transport).toHaveBeenCalledWith(apiBase + '/sessions/current', expect.objectContaining({ method: 'DELETE', headers: { Authorization: 'Bearer teste-web' } }));
+    expect(SecureStore.getItemAsync).not.toHaveBeenCalled();
+    expect(SecureStore.setItemAsync).not.toHaveBeenCalled();
+    expect(SecureStore.deleteItemAsync).not.toHaveBeenCalled();
 });

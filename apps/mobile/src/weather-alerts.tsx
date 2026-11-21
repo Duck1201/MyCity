@@ -1,5 +1,5 @@
 import { useCallback, useEffect } from 'react';
-import { BackHandler, ScrollView, StyleSheet, View } from 'react-native';
+import { BackHandler, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { MotionPressable as Pressable } from './components/motion-pressable';
 import { Text } from './components/typography';
 import type { WeatherAlert } from '@mycity/contracts';
@@ -136,7 +136,7 @@ function AlertDetail({ request, id, back }: { request: CitizenRequest; id: strin
 
 export function WeatherAlerts({ request, id, setId, cursors, setCursors }: { request: CitizenRequest; id: string | null; setId: (id: string | null) => void; cursors: (string | null)[]; setCursors: (next: (string | null)[]) => void }) {
     useEffect(() => {
-        if (!id) return;
+        if (Platform.OS === 'web' || !id) return;
         const listener = BackHandler.addEventListener('hardwareBackPress', () => {
             setId(null);
             return true;

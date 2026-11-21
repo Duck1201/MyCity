@@ -1,4 +1,5 @@
 import { createContext, createElement, useEffect, useState, type ReactNode } from 'react';
+import { Platform } from 'react-native';
 import { clearPersistedQueries, persistGeneration, readPersistedQueries, writePersistedQueries } from './persisted-queries';
 
 const entryLimit = 96;
@@ -94,7 +95,7 @@ class SessionCache {
 export const QueryCache = createContext<SessionCache | null>(null);
 // owner is the signed-in citizen; without it the cache stays in memory only.
 export function QueryCacheProvider({ children, owner }: { children: ReactNode; owner?: string | null | undefined }) {
-    const [cache] = useState(() => new SessionCache(owner ?? undefined));
+    const [cache] = useState(() => new SessionCache(Platform.OS === 'web' ? undefined : (owner ?? undefined)));
     useEffect(() => {
         void cache.restore();
         return () => cache.dispose();

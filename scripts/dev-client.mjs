@@ -12,6 +12,15 @@ try {
     if (client === 'web') {
         env.MYCITY_API_PROXY ??= proxy;
         command = ['vite', '--host', 'localhost', '--port', String(webPort), '--strictPort'];
+    } else if (client === 'mobile-web') {
+        env.MYCITY_API_PROXY ??= proxy;
+        env.MYCITY_MOBILE_WEB = '1';
+        env.EXPO_NO_DOTENV = '1';
+        env.EXPO_NO_TELEMETRY = '1';
+        env.EXPO_OFFLINE = '1';
+        delete env.EXPO_PUBLIC_API_URL;
+        delete env.GOOGLE_MAPS_ANDROID_API_KEY;
+        command = ['expo', 'start', '--web', '--localhost', '--port', '8093'];
     } else if (client === 'mobile') {
         env.EXPO_PUBLIC_API_PORT = String(readPort(env.EXPO_PUBLIC_API_PORT ?? local.EXPO_PUBLIC_API_PORT ?? apiPort, 'EXPO_PUBLIC_API_PORT'));
         const url = env.EXPO_PUBLIC_API_URL ?? local.EXPO_PUBLIC_API_URL;

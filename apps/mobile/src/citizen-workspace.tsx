@@ -6,7 +6,7 @@ import { CitizenCover, Icon, type IconName } from './components/civic-header';
 import { ReportCard } from './components/report-card';
 import { listPhotoPath, reportPhotoSource } from './components/report-photo';
 import { useCallback, useContext, useEffect, useRef, useMemo, useState } from 'react';
-import { BackHandler, ScrollView, StyleSheet, View } from 'react-native';
+import { BackHandler, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { MotionPressable as Pressable } from './components/motion-pressable';
 import { ScreenTransition, TabIndicator } from './components/navigation-motion';
 import { CitizenAccessLayout } from './components/citizen-login-screen';
@@ -369,7 +369,7 @@ export function CitizenWorkspace({ token, apiBase, onSessionExpired, onLeave, dr
         setForm(origin.form);
     }, [returnStack]);
     useEffect(() => {
-        if (!selection && !formOpen && !hasOrigin) return;
+        if (Platform.OS === 'web' || (!selection && !formOpen && !hasOrigin)) return;
         const handler = BackHandler.addEventListener('hardwareBackPress', () => {
             if (formOpen) closeForm();
             else if (selection) setSelection(null);

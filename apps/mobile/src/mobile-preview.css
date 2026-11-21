@@ -1,0 +1,16 @@
+.mobile-preview {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    height: 100vh;
+    height: 100dvh;
+    background: #e7edf3;
+}
+.mobile-screen {
+    display: flex;
+    flex-direction: column;
+    width: min(100%, 390px);
+    min-height: 0;
+    overflow: hidden;
+    background: white;
+}
