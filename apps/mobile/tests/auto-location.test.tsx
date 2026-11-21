@@ -45,8 +45,10 @@ it('obtém o ponto no formulário enquanto permite categoria e foto, e envia o G
     const published = jest.fn();
     await render(<CitizenReport {...props} onPublished={published} />);
     expect(screen.getByText('Buscando sua localização…')).toBeVisible();
+    await fireEvent.press(await screen.findByRole('button', { name: /^Escolher categoria:/ }));
     await fireEvent.press(screen.getByText('Buraco na via'));
-    await fireEvent.press(screen.getByRole('button', { name: 'Câmera' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Adicionar foto' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Tirar foto' }));
     await fireEvent.changeText(screen.getByLabelText('Descrição'), 'Buraco próximo à praça');
     await act(() => reading(position));
     expect(screen.getByText('Localização obtida por GPS')).toBeVisible();
@@ -114,7 +116,8 @@ it('mostra recuperação no formulário após falha da leitura e permite escolhe
     await render(<CitizenReport {...props} />);
     expect(screen.getByText(/GPS indisponível/)).toBeVisible();
     expect(screen.getByRole('button', { name: 'Escolher no mapa' })).toBeEnabled();
-    await fireEvent.press(screen.getByRole('button', { name: 'Galeria' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Adicionar foto' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Escolher da galeria' }));
     expect(screen.getByText('Fotos (1/3)')).toBeVisible();
     await fireEvent.press(screen.getByRole('button', { name: 'Tentar GPS novamente' }));
     await act(() => reading(position));

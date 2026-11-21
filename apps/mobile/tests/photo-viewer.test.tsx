@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react-native';
+import { act, fireEvent, render, screen, within } from '@testing-library/react-native';
 import { AppState } from 'react-native';
 import { State } from 'react-native-gesture-handler';
 import { fireGestureHandler, getByGestureTestId } from 'react-native-gesture-handler/jest-utils';
@@ -8,6 +8,14 @@ import { ReportOverview } from '../src/report-overview';
 const apiBase = 'https://demo.test/api/v1';
 const photos = [1, 2].map((n) => ({ id: 'foto-' + n, position: n - 1, width: 1600, height: 1200, byteSize: 300_000, contentPath: '/api/v1/reports/r/photos/foto-' + n, thumbnailPath: '/api/v1/reports/r/photos/foto-' + n + '/thumb' }));
 const detail = { id: 'r', category: 'POTHOLE', categoryName: 'Buraco na via', description: 'Buraco fundo', status: 'SENT', location: { latitude: -20, longitude: -42, source: 'GPS' }, createdAt: '2026-11-19T12:00:00Z', updatedAt: '2026-11-19T12:00:00Z', confirmationCount: 0, confirmedByMe: false, isMine: true, showIdentity: false, photos, version: 1, allowedActions: [] } satisfies ReportDetail;
+
+it('agrupa as fotos em uma linha e mostra a contagem do autor nos dados da denúncia', async () => {
+    await render(<ReportOverview detail={detail} apiBase={apiBase} token="sessao" />);
+    const gallery = screen.getByTestId('report-photos');
+    expect(gallery).toHaveStyle({ flexDirection: 'row' });
+    expect(within(gallery).getAllByRole('button', { name: /Ampliar foto/ })).toHaveLength(2);
+    expect(within(screen.getByTestId('report-metadata')).getByText('0 confirmações')).toBeVisible();
+});
 
 it('amplia a foto tocada em tela cheia, troca de foto e fecha', async () => {
     await render(<ReportOverview detail={detail} apiBase={apiBase} token="sessao" />);

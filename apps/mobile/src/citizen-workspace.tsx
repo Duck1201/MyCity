@@ -6,7 +6,7 @@ import { CitizenCover, Icon, type IconName } from './components/civic-header';
 import { ReportCard } from './components/report-card';
 import { listPhotoPath, reportPhotoSource } from './components/report-photo';
 import { useCallback, useContext, useEffect, useRef, useMemo, useState } from 'react';
-import { BackHandler, Share, ScrollView, StyleSheet, View } from 'react-native';
+import { BackHandler, ScrollView, StyleSheet, View } from 'react-native';
 import { MotionPressable as Pressable } from './components/motion-pressable';
 import { ScreenTransition, TabIndicator } from './components/navigation-motion';
 import { CitizenAccessLayout } from './components/citizen-login-screen';
@@ -20,7 +20,7 @@ import { QueryCache } from './query-cache';
 
 import { FilterVisibilityContext, Filters, filteredPath, activeStatuses, type ReportFilters } from './report-filters';
 import { ApiConfirmation, confirmationLabel } from './report-confirmation';
-import { Participation } from './report-participation';
+import { ReportActions } from './report-participation';
 import { useCitizenRequest, type CitizenRequest as Request } from './citizen-api';
 import { WeatherAlerts } from './weather-alerts';
 import { CommunityMap, type MapViewport } from './community-map';
@@ -29,8 +29,10 @@ const primaryTabs = ['mine', 'feed', 'map', 'alerts'] as const;
 type PrimaryTab = (typeof primaryTabs)[number];
 type SecondaryTab = 'resolved' | 'notifications';
 type Tab = PrimaryTab | SecondaryTab;
-type Selection = { id: string; noticeId?: string; published?: ReportDetail };
-type ReturnScreen = { tab: Tab; pages: (string | null)[]; filters: ReportFilters; selection: Selection | null; creating: boolean };
+type Selection = { id: string; noticeId?: string; published?: ReportDetail; updated?: ReportDetail };
+type EditForm = { report: ReportDetail; draft: { current: CitizenDraft | null } };
+type Form = 'create' | EditForm | null;
+type ReturnScreen = { tab: Tab; pages: (string | null)[]; filters: ReportFilters; selection: Selection | null; form: Form };
 const tabLabels = { feed: 'Feed', map: 'Mapa', mine: 'Início', alerts: 'Alertas' };
 const date = (value: string) => new Date(value).toLocaleString('pt-BR');
 const withCursor = (path: string, cursor: string | null) => (cursor ? path + (path.includes('?') ? '&' : '?') + 'cursor=' + encodeURIComponent(cursor) : path);
@@ -39,6 +41,7 @@ const tabIcons: Record<PrimaryTab, IconName> = { mine: 'inbox', feed: 'feed', ma
 
 function transitionLabel(from: ReportEvent['fromStatus'], to: ReportNotification['status']) {
     if (to === 'UNDER_REVIEW' && (from === 'RESOLVED' || from === 'REJECTED' || from === 'CANCELED')) return 'Atendimento reaberto para análise';
+    if (to === 'SENT' && from === 'CANCELED') return 'Denúncia reaberta pelo autor';
     if (to === 'SENT' && from === 'UNDER_REVIEW') return 'Denúncia devolvida à fila de entrada';
     if (to === 'UNDER_REVIEW' && from === 'IN_PROGRESS') return 'Atendimento devolvido para análise';
     return null;
@@ -89,14 +92,7 @@ function ReportList({ request, feed, resolved, offsets, open, pages, setPages, s
     const filterButton = <Filters request={request} filters={filters} statuses={scope === 'resolved' ? [] : scope === 'mine' ? reportStatusSchema.options : [...activeStatuses, 'RESOLVED']} onChange={onChange} />;
     return (
         <ScrollView testID="report-list" contentOffset={contentOffset} onScroll={(event) => offsets.set(path, event.nativeEvent.contentOffset.y)} scrollEventThrottle={64} contentContainerStyle={styles.page}>
-            {scope === 'mine' && (
-                <>
-                    <Text accessibilityRole="header" style={styles.title}>
-                        Início
-                    </Text>
-                    <CitizenCover ready={completeHome} open={openCount} closed={rows.length - openCount} />
-                </>
-            )}
+            {scope === 'mine' && <CitizenCover ready={completeHome} open={openCount} closed={rows.length - openCount} />}
             <View style={styles.headingRow}>
                 <Text accessibilityRole="header" style={[scope === 'mine' ? styles.heading : styles.title, styles.headingText]}>
                     {scope === 'mine' ? 'Meus registros' : scope === 'feed' ? 'Denúncias da comunidade' : 'Histórico de resolvidas'}
@@ -117,8 +113,8 @@ function ReportList({ request, feed, resolved, offsets, open, pages, setPages, s
             )}
             {!query.updating && query.data?.data.length === 0 && <Text style={styles.emptyList}>{scope === 'mine' && !filters.status && !filters.category ? 'Você ainda não registrou denúncias.' : 'Nenhuma denúncia encontrada.'}</Text>}
             {query.data?.data.map((report) => (
-                <ReportCard key={report.id} feed={scope === 'feed'} category={categoryLabel(report)} description={report.description} status={report.status} when={date(report.createdAt)} photo={report.coverPhoto && !hidden(report.photosExpireAt) ? reportPhotoSource(listPhotoPath(report.coverPhoto), apiBase, token) : undefined} onPress={() => open({ id: report.id })}>
-                    {scope === 'feed' && !query.updating ? <ApiConfirmation report={report} onError={(message) => setVoteError({ id: report.id, message })} request={request} update={(vote) => query.replace((previous) => previous && { ...previous, data: previous.data.map((row) => (row.id === report.id ? { ...row, ...vote } : row)) })} refresh={query.retry} /> : <Text style={styles.meta}>{confirmationLabel(report.confirmationCount)}</Text>}
+                <ReportCard key={report.id} feed={scope === 'feed'} category={categoryLabel(report)} description={report.description} status={report.status} when={date(report.createdAt)} photo={report.coverPhoto && !hidden(report.photosExpireAt) ? reportPhotoSource(listPhotoPath(report.coverPhoto), apiBase, token) : undefined} onPress={() => open({ id: report.id })} confirmations={scope !== 'feed' || query.updating ? confirmationLabel(report.confirmationCount) : undefined}>
+                    {scope === 'feed' && !query.updating && <ApiConfirmation report={report} onError={(message) => setVoteError({ id: report.id, message })} request={request} update={(vote) => query.replace((previous) => previous && { ...previous, data: previous.data.map((row) => (row.id === report.id ? { ...row, ...vote } : row)) })} refresh={query.retry} />}
                 </ReportCard>
             ))}
             {!query.updating && <Pagination pages={pages} next={query.data?.page.nextCursor ?? null} setPages={setPages} />}
@@ -133,17 +129,23 @@ function Notifications({ request, open, pages, setPages, back }: ListProps & { b
     const query = useActiveQuery(load, true, path);
     return (
         <ScrollView contentContainerStyle={styles.page}>
-            <ActionButton variant="secondary" label="Voltar" onPress={back} />
-            <Text accessibilityRole="header" style={styles.title}>
-                Avisos de atendimento
-            </Text>
+            <View style={styles.headingRow}>
+                <Pressable accessibilityRole="button" accessibilityLabel="Voltar" onPress={back} style={styles.backIcon}>
+                    <Icon name="back" size={20} />
+                </Pressable>
+                <Text accessibilityRole="header" style={[styles.title, styles.headingText]}>
+                    Avisos de atendimento
+                </Text>
+            </View>
             <QueryFeedback failed={query.failed} loading={!query.data} updating={query.updating} revalidating={query.revalidating} retry={query.retry} />
             {!query.updating && query.data?.data.length === 0 && <Text>Você ainda não recebeu notificações.</Text>}
             {query.data?.data.map((n) => (
                 <Pressable accessibilityRole="button" style={styles.card} key={n.id} onPress={() => open({ id: n.reportId, ...(!n.readAt && { noticeId: n.id }) })}>
                     <Text style={styles.label}>{transitionLabel(n.fromStatus, n.status) ?? 'Status atualizado: ' + statusLabels[n.status]}</Text>
-                    <Text style={styles.status}>{n.readAt ? 'Lida' : 'Não lida'}</Text>
-                    <Text>{date(n.createdAt)}</Text>
+                    <View style={styles.noticeMeta}>
+                        <Text style={styles.status}>{n.readAt ? 'Lida' : 'Não lida'}</Text>
+                        <Text style={styles.meta}>{date(n.createdAt)}</Text>
+                    </View>
                 </Pressable>
             ))}
             {!query.updating && <Pagination pages={pages} next={query.data?.page.nextCursor ?? null} setPages={setPages} />}
@@ -155,41 +157,72 @@ function History({ request, path, pages, setPages }: { request: Request; path: s
     const url = withCursor(path, pages.at(-1) ?? null);
     const load = useCallback((signal: AbortSignal) => request<Page<ReportEvent>>(url, signal), [url, request]);
     const query = useActiveQuery(load, true, url);
+    const [expanded, setExpanded] = useState(false);
+    const events = query.data?.data ?? [];
+    const hasArchive = events.length > 2 || !!query.data?.page.nextCursor || pages.length > 1;
+    const shown = expanded ? events : events.slice(0, 2);
+    const heading = (
+        <Text accessibilityRole="header" style={[styles.heading, styles.historyTitle]}>
+            Histórico do atendimento
+        </Text>
+    );
     return (
-        <View style={styles.section}>
-            <Text accessibilityRole="header" style={styles.heading}>
-                Histórico do atendimento
-            </Text>
+        <View style={styles.historySection}>
+            {hasArchive ? (
+                <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={expanded ? 'Recolher histórico' : 'Ver histórico completo'}
+                    accessibilityState={{ expanded }}
+                    style={styles.historyToggle}
+                    onPress={() => {
+                        if (expanded && pages.length > 1) setPages([null]);
+                        setExpanded(!expanded);
+                    }}
+                >
+                    {heading}
+                    <View style={{ transform: [{ rotate: expanded ? '-90deg' : '90deg' }] }}>
+                        <Icon name="next" size={18} color={colors.teal} />
+                    </View>
+                </Pressable>
+            ) : (
+                heading
+            )}
             <QueryFeedback failed={query.failed} loading={!query.data} updating={query.updating} revalidating={query.revalidating} retry={query.retry} />
             {!query.updating && query.data?.data.length === 0 && <Text>Nenhum evento registrado.</Text>}
-            {query.data?.data.map((event) => (
-                <View key={event.id} style={styles.event}>
-                    <Text style={styles.label}>{event.type === 'CREATED' ? 'Denúncia registrada' : event.type === 'REPLY' ? 'Resposta do gestor' : event.toStatus ? (transitionLabel(event.fromStatus, event.toStatus) ?? statusLabels[event.toStatus]) : 'Atualização de status'}</Text>
-                    {event.text && <Text style={mobileStyles.body}>{event.text}</Text>}
-                    <Text style={mobileStyles.meta}>
-                        {date(event.createdAt)} · {event.actorRole === 'MANAGER' ? 'Gestor' : 'Cidadão'}
-                    </Text>
+            {shown.map((event, index) => (
+                <View key={event.id} style={styles.historyEvent}>
+                    <View accessible={false} importantForAccessibility="no-hide-descendants" style={styles.historyRail}>
+                        {index + 1 < shown.length && <View style={styles.historyLine} />}
+                        <View style={[styles.historyDot, index === 0 && pages.length === 1 && styles.historyCurrent]} />
+                    </View>
+                    <View style={styles.historyCopy}>
+                        <Text style={styles.label}>{event.type === 'CREATED' ? 'Denúncia registrada' : event.type === 'REPLY' ? 'Resposta do gestor' : event.toStatus ? (transitionLabel(event.fromStatus, event.toStatus) ?? statusLabels[event.toStatus]) : 'Atualização de status'}</Text>
+                        {event.text && <Text style={mobileStyles.body}>{event.text}</Text>}
+                        <Text style={mobileStyles.meta}>
+                            {date(event.createdAt)} · {event.actorRole === 'MANAGER' ? 'Gestor' : 'Cidadão'}
+                        </Text>
+                    </View>
                 </View>
             ))}
-            {!query.updating && <Pagination pages={pages} next={query.data?.page.nextCursor ?? null} setPages={setPages} />}
+            {expanded && !query.updating && <Pagination pages={pages} next={query.data?.page.nextCursor ?? null} setPages={setPages} />}
         </View>
     );
 }
 
-function ReportTracking({ request, selection, apiBase, token, back, backLabel }: { request: Request; selection: Selection; apiBase: string; token: string; back: () => void; backLabel: string }) {
+function ReportTracking({ request, selection, apiBase, token, back, backLabel, edit }: { edit: (report: ReportDetail) => void; request: Request; selection: Selection; apiBase: string; token: string; back: () => void; backLabel: string }) {
     const path = '/reports/' + encodeURIComponent(selection.id);
     const load = useCallback((signal: AbortSignal) => request<{ data: ReportDetail }>(path, signal), [path, request]);
     const query = useActiveQuery(load, true, path);
     // Each round trip to the server costs about 150 ms, so the first history page is
     // requested together with the detail; History reads it from the session cache.
-    const historyPath = path + '/history';
+    const historyPath = path + '/history?order=newest';
     const loadHistory = useCallback((signal: AbortSignal) => request<Page<ReportEvent>>(historyPath, signal), [historyPath, request]);
     // Stops once the page is in the cache, so History is the only one polling it.
     const historyCached = useContext(QueryCache)?.entries.has(historyPath) ?? false;
     useActiveQuery(loadHistory, !historyCached, historyPath);
-    const detail = query.unavailable ? undefined : (query.data?.data ?? selection.published);
+    const detail = query.unavailable ? undefined : (query.data?.data ?? selection.updated ?? selection.published);
     const [pages, setPages] = useState<(string | null)[]>([null]);
-    const [shareError, setShareError] = useState(false);
+    const [actionNotice, setActionNotice] = useState('');
     const [historyRevision, setHistoryRevision] = useState(0);
     const [readError, setReadError] = useState(false);
     const [attempt, setAttempt] = useState(0);
@@ -203,62 +236,73 @@ function ReportTracking({ request, selection, apiBase, token, back, backLabel }:
         return () => controller.abort();
     }, [canMarkRead, selection.noticeId, attempt, request]);
     return (
-        <ScrollView contentContainerStyle={styles.page}>
-            <Pressable accessibilityRole="button" onPress={back} style={({ pressed }) => [styles.back, pressed && styles.pressedLink]}>
-                <Icon name="back" size={18} />
-                <Text style={styles.backText}>{backLabel}</Text>
-            </Pressable>
-            <Text accessibilityRole="header" style={styles.title}>
-                {selection.published ? 'Denúncia enviada' : 'Detalhes da denúncia'}
-            </Text>
-            {query.unavailable ? <Text accessibilityLiveRegion="polite">Esta denúncia não está disponível para sua conta.</Text> : <QueryFeedback failed={query.failed} loading={!detail} retry={query.retry} />}
-            {readError && (
-                <View style={styles.message}>
-                    <Text accessibilityLiveRegion="polite">Não foi possível confirmar a leitura da notificação.</Text>
-                    <ActionButton
-                        label="Tentar marcar como lida"
-                        onPress={() => {
-                            setReadError(false);
-                            setAttempt((v) => v + 1);
-                        }}
-                    />
-                </View>
-            )}
-            {detail && (
-                <>
-                    <ReportOverview detail={detail} apiBase={apiBase} token={token} />
-                    {detail.status !== 'CANCELED' && (
-                        <ActionButton
-                            variant="secondary"
-                            label="Compartilhar link"
-                            onPress={() => {
-                                setShareError(false);
-                                void Share.share({ message: 'mycity://reports/' + encodeURIComponent(detail.id) }).catch(() => setShareError(true));
+        <View style={styles.detailScreen}>
+            <View style={styles.detailNav}>
+                <Pressable accessibilityRole="button" accessibilityLabel={backLabel} onPress={back} style={({ pressed }) => [styles.navButton, pressed && styles.pressedLink]}>
+                    <Icon name="back" size={22} color={colors.ink} />
+                </Pressable>
+                <Text accessibilityRole="header" style={styles.detailTitle}>
+                    {selection.published ? 'Denúncia enviada' : 'Detalhes da denúncia'}
+                </Text>
+                <View style={styles.navButton}>
+                    {detail && (
+                        <ReportActions
+                            detail={detail}
+                            edit={() => edit(detail)}
+                            request={request}
+                            notify={setActionNotice}
+                            update={(next) => query.replace({ data: next }, true)}
+                            refresh={() => {
+                                query.retry();
+                                setHistoryRevision((n) => n + 1);
                             }}
                         />
                     )}
-                    {shareError && <Text accessibilityLiveRegion="polite">Não foi possível compartilhar o link.</Text>}
-                    <Participation
-                        detail={detail}
-                        request={request}
-                        update={(next) => query.replace({ data: next }, true)}
-                        updateVote={(vote) =>
-                            query.replace((previous) => {
-                                const current = previous?.data;
-                                if (!current) return previous;
-                                const allowedActions = current.allowedActions.map((action) => (action === 'CONFIRM' || action === 'WITHDRAW' ? (vote.confirmedByMe ? 'WITHDRAW' : 'CONFIRM') : action));
-                                return { data: { ...current, ...vote, allowedActions } };
-                            })
-                        }
-                        refresh={() => {
-                            query.retry();
-                            setHistoryRevision((n) => n + 1);
-                        }}
-                    />
-                    <History key={historyRevision} request={request} path={path + '/history'} pages={pages} setPages={setPages} />
-                </>
-            )}
-        </ScrollView>
+                </View>
+            </View>
+            <ScrollView contentContainerStyle={mobileStyles.page}>
+                {!!actionNotice && (
+                    <Text accessibilityLiveRegion="polite" style={mobileStyles.body}>
+                        {actionNotice}
+                    </Text>
+                )}
+                {query.unavailable ? <Text accessibilityLiveRegion="polite">Esta denúncia não está disponível para sua conta.</Text> : <QueryFeedback failed={query.failed} loading={!detail} retry={query.retry} />}
+                {readError && (
+                    <View style={styles.message}>
+                        <Text accessibilityLiveRegion="polite">Não foi possível confirmar a leitura da notificação.</Text>
+                        <ActionButton
+                            label="Tentar marcar como lida"
+                            onPress={() => {
+                                setReadError(false);
+                                setAttempt((v) => v + 1);
+                            }}
+                        />
+                    </View>
+                )}
+                {detail && (
+                    <>
+                        <ReportOverview detail={detail} apiBase={apiBase} token={token} />
+                        {!detail.isMine && (
+                            <ApiConfirmation
+                                report={detail}
+                                request={request}
+                                allowedActions={detail.allowedActions ?? []}
+                                refresh={query.retry}
+                                update={(vote) =>
+                                    query.replace((previous) => {
+                                        const current = previous?.data;
+                                        if (!current) return previous;
+                                        const allowedActions = current.allowedActions.map((action) => (action === 'CONFIRM' || action === 'WITHDRAW' ? (vote.confirmedByMe ? 'WITHDRAW' : 'CONFIRM') : action));
+                                        return { data: { ...current, ...vote, allowedActions } };
+                                    })
+                                }
+                            />
+                        )}
+                        <History key={historyRevision} request={request} path={historyPath} pages={pages} setPages={setPages} />
+                    </>
+                )}
+            </ScrollView>
+        </View>
     );
 }
 
@@ -268,11 +312,19 @@ export function CitizenWorkspace({ token, apiBase, onSessionExpired, onLeave, dr
     const [weatherId, setWeatherId] = useState<string | null>(null);
     const [weatherPages, setWeatherPages] = useState<(string | null)[]>([null]);
     const offsets = useRef(new Map<string, number>());
-    const [creating, setCreating] = useState(false);
+    const [form, setForm] = useState<Form>(null);
+    const formOpen = form !== null;
+    const editing = typeof form === 'object' ? form : null;
+    const editDraft = useRef<EditForm | null>(null);
+    const cache = useContext(QueryCache);
+    function openEdit(report: ReportDetail) {
+        if (editDraft.current?.report.id !== report.id || editDraft.current.report.version !== report.version) editDraft.current = { report, draft: { current: null } };
+        setForm(editDraft.current);
+    }
     const [hasDraft, setHasDraft] = useState(() => !!draftRef.current);
     const closeForm = useCallback(() => {
         setHasDraft(!!draftRef.current);
-        setCreating(false);
+        setForm(null);
     }, [draftRef]);
     const [selection, setSelection] = useState<Selection | null>(null);
     const [pages, setPages] = useState<(string | null)[]>([null]);
@@ -285,7 +337,7 @@ export function CitizenWorkspace({ token, apiBase, onSessionExpired, onLeave, dr
     const hasOrigin = returnStack.length > 0;
     const request = useCitizenRequest(apiBase, token, onSessionExpired);
     function resetToTab(value: Tab) {
-        if (creating) closeForm();
+        if (formOpen) closeForm();
         if (tab === 'mine' || tab === 'feed') savedLists.current.set(tab, { pages, filters });
         const saved = savedLists.current.get(value);
         setSelection(null);
@@ -294,7 +346,7 @@ export function CitizenWorkspace({ token, apiBase, onSessionExpired, onLeave, dr
         setFilters(saved?.filters ?? {});
     }
     function selectTab(value: PrimaryTab) {
-        if (value === tab && !selection && !creating) return;
+        if (value === tab && !selection && !formOpen) return;
         setReturnStack([]);
         resetToTab(value);
     }
@@ -303,7 +355,7 @@ export function CitizenWorkspace({ token, apiBase, onSessionExpired, onLeave, dr
             setSelection(null);
             return;
         }
-        setReturnStack([...returnStack, { tab, pages, filters, selection, creating }]);
+        setReturnStack([...returnStack, { tab, pages, filters, selection, form }]);
         resetToTab(value);
     }
     const returnToOrigin = useCallback(() => {
@@ -314,21 +366,21 @@ export function CitizenWorkspace({ token, apiBase, onSessionExpired, onLeave, dr
         setPages(origin.pages);
         setFilters(origin.filters);
         setSelection(origin.selection);
-        setCreating(origin.creating);
+        setForm(origin.form);
     }, [returnStack]);
     useEffect(() => {
-        if (!selection && !creating && !hasOrigin) return;
+        if (!selection && !formOpen && !hasOrigin) return;
         const handler = BackHandler.addEventListener('hardwareBackPress', () => {
-            if (creating) closeForm();
+            if (formOpen) closeForm();
             else if (selection) setSelection(null);
             else returnToOrigin();
             return true;
         });
         return () => handler.remove();
-    }, [selection, creating, closeForm, hasOrigin, returnToOrigin]);
+    }, [selection, formOpen, closeForm, hasOrigin, returnToOrigin]);
     useEffect(() => {
         if (linkedReport) {
-            if (creating) closeForm();
+            if (formOpen) closeForm();
             setReturnStack([]);
             setTab('feed');
             setFilters({});
@@ -336,7 +388,7 @@ export function CitizenWorkspace({ token, apiBase, onSessionExpired, onLeave, dr
             setSelection({ id: linkedReport.id });
             clearLink?.();
         }
-    }, [linkedReport, clearLink, creating, closeForm]);
+    }, [linkedReport, clearLink, formOpen, closeForm]);
     const primaryTab = tab === 'resolved' ? 'feed' : tab;
     function tabButton(value: PrimaryTab) {
         const active = primaryTab === value;
@@ -350,7 +402,7 @@ export function CitizenWorkspace({ token, apiBase, onSessionExpired, onLeave, dr
     }
     const listProps = { request, pages, setPages, open: setSelection };
     const createLabel = hasDraft ? 'Continuar rascunho' : 'Nova denúncia';
-    const create = () => setCreating(true);
+    const create = () => setForm('create');
     const floatingCreate = (
         <Pressable accessibilityRole="button" accessibilityLabel={createLabel} onPress={create} style={({ pressed }) => [styles.floatingCreate, pressed && styles.pressedCreate]}>
             <Icon name="add" size={28} color={colors.surface} />
@@ -362,26 +414,43 @@ export function CitizenWorkspace({ token, apiBase, onSessionExpired, onLeave, dr
             <Text style={styles.headerActionLabel}>Notificações</Text>
         </Pressable>
     );
-    const route = creating ? 'create' : selection ? 'report/' + selection.id : tab === 'alerts' && weatherId ? 'alert/' + weatherId : tab;
-    const depth = returnStack.length + Number(!!selection || (tab === 'alerts' && !!weatherId)) + Number(creating);
+    const route = editing ? 'edit/' + editing.report.id : formOpen ? 'create' : selection ? 'report/' + selection.id : tab === 'alerts' && weatherId ? 'alert/' + weatherId : tab;
+    const depth = returnStack.length + Number(!!selection || (tab === 'alerts' && !!weatherId)) + Number(formOpen);
     return (
         <CitizenAccessLayout onLeave={onLeave} headerAction={notifications}>
             <View style={styles.content}>
                 <FilterVisibilityContext.Provider value={setFiltersOpen}>
                     <ScreenTransition route={route} depth={depth} fadeContent={false}>
-                        {selection && !creating ? (
-                            <ReportTracking key={selection.id} selection={selection} request={request} apiBase={apiBase} token={token} backLabel={tab === 'notifications' ? 'Voltar às notificações' : tab === 'feed' ? 'Voltar ao feed' : tab === 'map' ? 'Voltar ao mapa' : tab === 'resolved' ? 'Voltar às resolvidas' : 'Voltar aos meus registros'} back={() => setSelection(null)} />
-                        ) : creating ? (
+                        {selection && !formOpen ? (
+                            <ReportTracking edit={openEdit} key={selection.id} selection={selection} request={request} apiBase={apiBase} token={token} backLabel={tab === 'notifications' ? 'Voltar às notificações' : tab === 'feed' ? 'Voltar ao feed' : tab === 'map' ? 'Voltar ao mapa' : tab === 'resolved' ? 'Voltar às resolvidas' : 'Voltar aos meus registros'} back={() => setSelection(null)} />
+                        ) : formOpen ? (
                             <CitizenReport
                                 onBack={closeForm}
-                                draftRef={draftRef}
+                                key={editing?.report.id ?? 'create'}
+                                draftRef={editing?.draft ?? draftRef}
+                                {...(editing && {
+                                    editing: editing.report,
+                                    onConflict: () => {
+                                        cache?.invalidate();
+                                        editDraft.current = null;
+                                        setSelection({ id: editing.report.id });
+                                    },
+                                })}
                                 token={token}
                                 apiBase={apiBase}
                                 onSessionExpired={onSessionExpired}
                                 onPublished={(published) => {
+                                    if (editing) {
+                                        cache?.invalidate();
+                                        cache?.remember('/reports/' + encodeURIComponent(published.id), { data: published });
+                                        setSelection({ id: published.id, updated: published });
+                                        editDraft.current = null;
+                                        setForm(null);
+                                        return;
+                                    }
                                     draftRef.current = null;
                                     setHasDraft(false);
-                                    setCreating(false);
+                                    setForm(null);
                                     setReturnStack([]);
                                     setTab('mine');
                                     setPages([null]);
@@ -414,7 +483,7 @@ export function CitizenWorkspace({ token, apiBase, onSessionExpired, onLeave, dr
                         )}
                     </ScreenTransition>
                 </FilterVisibilityContext.Provider>
-                {!creating && !filtersOpen && floatingCreate}
+                {!selection && !formOpen && !filtersOpen && floatingCreate}
             </View>
             <View accessibilityRole="tablist" accessibilityLabel="Navegação principal" style={styles.primaryNav}>
                 {primaryTabs.map(tabButton)}
@@ -429,8 +498,10 @@ const styles = StyleSheet.create({
     headingRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8 },
     headingText: { flexGrow: 1, flexShrink: 1, minWidth: 130 },
     emptyList: { ...mobileStyles.body, color: colors.muted, backgroundColor: colors.surface, borderRadius: 12, padding: 14, borderWidth: 1, borderColor: colors.line },
-    back: { minHeight: 48, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, paddingRight: 8 },
-    backText: { fontSize: 15, fontWeight: '700', color: colors.teal, flexShrink: 1 },
+    detailScreen: { flex: 1, minHeight: 0 },
+    detailNav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.surface, paddingHorizontal: 4, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.line },
+    detailTitle: { flex: 1, textAlign: 'center', fontSize: 18, fontWeight: '700', color: colors.ink, paddingVertical: 8 },
+    navButton: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
     pressedLink: { opacity: 0.7 },
     listControls: { flexDirection: 'row', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 },
     floatingCreate: { position: 'absolute', right: 16, bottom: 16, width: 56, height: 56, alignItems: 'center', justifyContent: 'center', borderRadius: 28, backgroundColor: colors.teal, elevation: 4 },
@@ -449,9 +520,18 @@ const styles = StyleSheet.create({
     label: mobileStyles.label,
     status: { color: colors.deepTeal, fontWeight: '700' },
     meta: mobileStyles.meta,
-    card: mobileStyles.card,
-    event: { backgroundColor: colors.surface, borderLeftWidth: 3, borderLeftColor: colors.teal, padding: 12, gap: 6 },
-    section: { gap: 10, marginTop: 8 },
+    card: { ...mobileStyles.card, paddingHorizontal: 12, paddingVertical: 10, gap: 4, minHeight: 48 },
+    noticeMeta: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', columnGap: 8 },
+    backIcon: { minWidth: 48, minHeight: 48, alignItems: 'center', justifyContent: 'center' },
+    historySection: { marginTop: 4 },
+    historyTitle: { flexShrink: 1, minWidth: 0 },
+    historyToggle: { minHeight: 48, flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'space-between' },
+    historyEvent: { flexDirection: 'row', alignItems: 'stretch', gap: 8 },
+    historyRail: { width: 10 },
+    historyLine: { position: 'absolute', left: 4, top: 10, bottom: -10, width: 1, backgroundColor: colors.line },
+    historyDot: { width: 7, height: 7, marginTop: 8, marginLeft: 1, borderRadius: 4, backgroundColor: colors.muted },
+    historyCurrent: { backgroundColor: colors.teal },
+    historyCopy: { flex: 1, minWidth: 0, gap: 2, paddingBottom: 8 },
     pages: { gap: 8 },
     message: mobileStyles.message,
 });

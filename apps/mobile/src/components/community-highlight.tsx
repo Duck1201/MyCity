@@ -45,9 +45,9 @@ export function CommunityHighlight({ report, message, open, feed }: Props) {
 const styles = StyleSheet.create({
     section: { gap: 4 },
     heading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' },
-    link: { flexDirection: 'row', alignItems: 'center', gap: 3, minHeight: 44, paddingHorizontal: 4 },
+    link: { flexDirection: 'row', alignItems: 'center', gap: 3, minHeight: 48, paddingHorizontal: 4 },
     linkText: { color: colors.teal, fontWeight: '700', fontSize: 14 },
-    story: { flexDirection: 'row', alignItems: 'center', borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.line, paddingVertical: 12, gap: 14 },
+    story: { flexDirection: 'row', alignItems: 'center', borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.line, paddingVertical: 8, gap: 10 },
     copy: { flex: 1, gap: 3, minWidth: 0 },
     category: { color: colors.teal, fontSize: 13, fontWeight: '700' },
     title: { fontSize: 17, lineHeight: 22, fontWeight: '800', color: colors.ink },
