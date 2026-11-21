@@ -3,7 +3,7 @@ import { AppState } from 'react-native';
 
 const positionTimeout = 6000;
 
-export function readDevicePosition(signal: AbortSignal, { allowRecentFix = false } = {}) {
+export function readDevicePosition(signal: AbortSignal) {
     return new Promise<Location.LocationObject>((resolve, reject) => {
         let subscription: Location.LocationSubscription | undefined;
         let settled = false;
@@ -25,15 +25,11 @@ export function readDevicePosition(signal: AbortSignal, { allowRecentFix = false
         signal.addEventListener('abort', stop, { once: true });
         async function acquire() {
             if (signal.aborted) return stop();
-            if (allowRecentFix) {
-                if (!(await Location.hasServicesEnabledAsync())) return stop();
-                if (settled) return;
-                const recent = await Location.getLastKnownPositionAsync({ maxAge: 30000, requiredAccuracy: 100 }).catch(() => null);
-                if (settled) return;
-                if (recent) return finish(recent);
-            }
-            const options = allowRecentFix ? { accuracy: Location.Accuracy.High, timeInterval: 1000, distanceInterval: 0 } : { accuracy: Location.Accuracy.Balanced };
-            const registered = await Location.watchPositionAsync({ ...options, mayShowUserSettingsDialog: false }, finish, stop);
+            if (!(await Location.hasServicesEnabledAsync()) || settled) return stop();
+            const recent = await Location.getLastKnownPositionAsync({ maxAge: 30000, requiredAccuracy: 100 }).catch(() => null);
+            if (settled) return;
+            if (recent) return finish(recent);
+            const registered = await Location.watchPositionAsync({ accuracy: Location.Accuracy.High, timeInterval: 1000, distanceInterval: 0, mayShowUserSettingsDialog: false }, finish, stop);
             if (settled) registered.remove();
             else subscription = registered;
         }

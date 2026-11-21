@@ -1,12 +1,13 @@
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import * as GPS from 'expo-location';
-import { AppState } from 'react-native';
+import { AppState, Platform, type AppStateStatus } from 'react-native';
+import { ReportLocationPicker } from '../src/report-location-picker';
 import { CitizenReport, type CitizenDraft } from '../src/citizen-report';
 import { CitizenWorkspace } from '../src/citizen-workspace';
 import { categoryResponse } from './category-fixture';
 
 jest.mock('react-native-maps', () => ({ __esModule: true, default: 'MapView', Marker: 'Marker', PROVIDER_GOOGLE: 'google' }));
-jest.mock('expo-location', () => ({ Accuracy: { Balanced: 3 }, requestForegroundPermissionsAsync: jest.fn(), watchPositionAsync: jest.fn() }));
+jest.mock('expo-location', () => ({ Accuracy: { High: 4 }, hasServicesEnabledAsync: jest.fn(), getLastKnownPositionAsync: jest.fn(), getForegroundPermissionsAsync: jest.fn(), requestForegroundPermissionsAsync: jest.fn(), watchPositionAsync: jest.fn() }));
 jest.mock('../src/report-photos', () => ({ pickReportPhoto: jest.fn(async () => 'file:///fake.jpg') }));
 jest.mock('expo-file-system', () => ({
     File: class extends Blob {
@@ -24,6 +25,11 @@ const state = Object.getOwnPropertyDescriptor(AppState, 'currentState')!;
 let reading: GPS.LocationCallback;
 const remove = jest.fn();
 beforeEach(() => {
+    jest.mocked(GPS.getForegroundPermissionsAsync)
+        .mockReset()
+        .mockResolvedValue({ granted: false, canAskAgain: true } as GPS.LocationPermissionResponse);
+    jest.mocked(GPS.hasServicesEnabledAsync).mockReset().mockResolvedValue(true);
+    jest.mocked(GPS.getLastKnownPositionAsync).mockReset().mockResolvedValue(null);
     Object.defineProperty(AppState, 'currentState', { ...state, value: 'active' });
     jest.mocked(GPS.requestForegroundPermissionsAsync).mockReset().mockResolvedValue(granted);
     jest.mocked(GPS.watchPositionAsync)
@@ -45,6 +51,7 @@ it('obtém o ponto no formulário enquanto permite categoria e foto, e envia o G
     const published = jest.fn();
     await render(<CitizenReport {...props} onPublished={published} />);
     expect(screen.getByText('Buscando sua localização…')).toBeVisible();
+    expect(GPS.watchPositionAsync).toHaveBeenCalledWith(expect.objectContaining({ accuracy: GPS.Accuracy.High, distanceInterval: 0 }), expect.any(Function), expect.any(Function));
     await fireEvent.press(await screen.findByRole('button', { name: /^Escolher categoria:/ }));
     await fireEvent.press(screen.getByText('Buraco na via'));
     await fireEvent.press(screen.getByRole('button', { name: 'Adicionar foto' }));
@@ -141,4 +148,79 @@ it('descarta somente o GPS automático ao voltar e adquire posição nova na pr�
     await fireEvent.press(screen.getByRole('button', { name: 'Continuar rascunho' }));
     expect(screen.getByText('Localização obtida por GPS')).toBeVisible();
     expect(GPS.watchPositionAsync).toHaveBeenCalledTimes(2);
+});
+
+it('preenche a nova denúncia com uma posição recente autorizada mesmo quando não chega uma nova amostra', async () => {
+    jest.mocked(GPS.getLastKnownPositionAsync).mockResolvedValueOnce(position);
+    await render(<CitizenReport {...props} />);
+    expect(await screen.findByText('Localização obtida por GPS')).toBeVisible();
+    expect(GPS.getLastKnownPositionAsync).toHaveBeenCalledWith({ maxAge: 30000, requiredAccuracy: 100 });
+    expect(GPS.watchPositionAsync).not.toHaveBeenCalled();
+});
+
+describe.each(['cadastro', 'seletor'])('permissão de localização no %s', (surface) => {
+    async function open() {
+        if (surface === 'cadastro') return render(<CitizenReport {...props} />);
+        const view = await render(<ReportLocationPicker saved={null} cancel={jest.fn()} confirm={jest.fn()} />);
+        await fireEvent.press(screen.getByRole('button', { name: 'Usar GPS' }));
+        return view;
+    }
+    it.each([true, false])('respeita a decisão existente sem novo diálogo (concedida: %s)', async (allowed) => {
+        jest.mocked(GPS.getForegroundPermissionsAsync).mockResolvedValue({ granted: allowed, canAskAgain: false } as GPS.LocationPermissionResponse);
+        await open();
+        expect(GPS.requestForegroundPermissionsAsync).not.toHaveBeenCalled();
+        expect(GPS.watchPositionAsync).toHaveBeenCalledTimes(allowed ? 1 : 0);
+        if (!allowed) expect(screen.getByText(/Localização sem permissão/)).toBeVisible();
+    });
+    it('aguarda o retorno do diálogo ao primeiro plano sem repetir o pedido nem iniciar leitura em segundo plano', async () => {
+        const listeners = new Set<(next: AppStateStatus) => void>();
+        jest.spyOn(AppState, 'addEventListener').mockImplementation((_, callback) => {
+            listeners.add(callback);
+            return { remove: () => listeners.delete(callback) };
+        });
+        function change(next: AppStateStatus) {
+            Object.defineProperty(AppState, 'currentState', { ...state, value: next });
+            for (const listener of [...listeners]) listener(next);
+        }
+        let allow!: (permission: GPS.LocationPermissionResponse) => void;
+        jest.mocked(GPS.requestForegroundPermissionsAsync).mockImplementationOnce(
+            () =>
+                new Promise((resolve) => {
+                    allow = resolve;
+                }),
+        );
+        await open();
+        expect(GPS.requestForegroundPermissionsAsync).toHaveBeenCalledTimes(1);
+        await act(() => change('background'));
+        await act(() => allow(granted));
+        expect(GPS.hasServicesEnabledAsync).not.toHaveBeenCalled();
+        await act(() => change('active'));
+        expect(GPS.requestForegroundPermissionsAsync).toHaveBeenCalledTimes(1);
+        expect(GPS.watchPositionAsync).toHaveBeenCalledTimes(1);
+        await act(() => reading(position));
+        expect(screen.getByText(surface === 'cadastro' ? 'Localização obtida por GPS' : 'Localização do aparelho')).toBeVisible();
+    });
+});
+
+it.each([true, false])('no navegador sem consulta de permissão, respeita a resposta à geolocalização (concedida: %s)', async (allowed) => {
+    jest.replaceProperty(Platform, 'OS', 'web');
+    jest.mocked(GPS.getForegroundPermissionsAsync).mockRejectedValue(new Error('Permissions.query indisponível'));
+    const original = Object.getOwnPropertyDescriptor(navigator, 'geolocation');
+    const clearWatch = jest.fn();
+    const watchPosition = jest.fn((success: PositionCallback, failure: PositionErrorCallback) => {
+        if (allowed) success({ coords: position.coords } as GeolocationPosition);
+        else failure({ code: 1, PERMISSION_DENIED: 1 } as GeolocationPositionError);
+        return 5;
+    });
+    Object.defineProperty(navigator, 'geolocation', { configurable: true, value: { clearWatch, watchPosition } });
+    try {
+        await render(<CitizenReport {...props} />);
+        expect(await screen.findByText(allowed ? 'Localização obtida por GPS' : /Localização sem permissão/)).toBeVisible();
+        expect(watchPosition).toHaveBeenCalledTimes(1);
+        expect(clearWatch).toHaveBeenCalledWith(5);
+        expect(GPS.watchPositionAsync).not.toHaveBeenCalled();
+    } finally {
+        if (original) Object.defineProperty(navigator, 'geolocation', original);
+        else Reflect.deleteProperty(navigator, 'geolocation');
+    }
 });
