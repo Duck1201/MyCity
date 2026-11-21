@@ -61,7 +61,7 @@ services:
     api:
         image: ghcr.io/duck1201/mycity-api@${API_DIGEST:?Digest obrigatório}
         environment:
-            WEB_ORIGIN: ${WEB_ORIGIN:?Configure WEB_ORIGIN no .env do servidor}
+            WEB_ORIGIN: ${WEB_ORIGIN:?Configure WEB_ORIGIN no .env.production do servidor}
             PROXY_HOPS: '2'
             NODE_ENV: production
             NODE_OPTIONS: --max-old-space-size=256
@@ -91,7 +91,7 @@ services:
         init: true
         image: caddy:2.10-alpine
         environment:
-            WEB_ORIGIN: ${WEB_ORIGIN:?Configure WEB_ORIGIN no .env do servidor}
+            WEB_ORIGIN: ${WEB_ORIGIN:?Configure WEB_ORIGIN no .env.production do servidor}
         ports:
             - ${EDGE_PORT:-443}:${EDGE_PORT:-443}
         volumes:
@@ -100,7 +100,7 @@ services:
             - edge-config:/config
         depends_on: [web]
         extra_hosts:
-            - ${PUBLIC_HOST:?Configure PUBLIC_HOST no .env do servidor}:127.0.0.1
+            - ${PUBLIC_HOST:?Configure PUBLIC_HOST no .env.production do servidor}:127.0.0.1
         healthcheck:
             test: [CMD-SHELL, 'wget -q -O /dev/null "$$WEB_ORIGIN/api/v1/health/ready"']
             interval: 5s

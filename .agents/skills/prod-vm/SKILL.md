@@ -67,10 +67,11 @@ O operador mantém uma cópia em `.env.production` na raiz do checkout (ignorada
 
 ```bash
 h='grep -E "^[A-Z_]+=" | while IFS= read -r l; do printf "%s %s\n" "${l%%=*}" "$(printf "%s" "$l" | sha256sum | cut -c1-12)"; done | sort'
-eval "cat .env.production | $h" > /tmp/env-local.txt
-ssh mycity-prod "cat $D/.env.production | $h" > /tmp/env-server.txt
-join -a1 -a2 -e AUSENTE -o 0,1.2,2.2 /tmp/env-local.txt /tmp/env-server.txt | awk '{print $1, ($2==$3?"igual":"DIFERENTE")}'
-rm /tmp/env-local.txt /tmp/env-server.txt
+t=$(umask 077; mktemp -d)
+eval "cat .env.production | $h" > "$t/local"
+ssh mycity-prod "cat $D/.env.production | $h" > "$t/server"
+join -a1 -a2 -e AUSENTE -o 0,1.2,2.2 "$t/local" "$t/server" | awk '{print $1, ($2==$3?"igual":"DIFERENTE")}'
+rm -rf -- "$t"
 ```
 
 ### `.env.production`: enviar a cópia local para o servidor (🟠)

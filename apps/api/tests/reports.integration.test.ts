@@ -17,10 +17,11 @@ const dir = await mkdtemp(join(tmpdir(), 'mycity-reports-'));
 const citizen = { id: randomUUID(), role: 'CITIZEN' as const };
 const pageCategory = randomUUID();
 const manager = { id: randomUUID(), role: 'MANAGER' as const };
-const appFor = (actor: typeof citizen | typeof manager) =>
+const appFor = (actor: typeof citizen | typeof manager, transport: 'cookie' | 'bearer' = 'cookie') =>
     express()
         .use((_req, res, next) => {
             res.locals.user = actor;
+            res.locals.transport = transport;
             next();
         })
         .use('/api/v1/reports', createReportsRouter(db, dir));
@@ -185,6 +186,15 @@ const binary = (res: request.Response, callback: (error: Error | null, body: Buf
     res.on('data', (chunk: Buffer) => chunks.push(chunk));
     res.on('end', () => callback(null, Buffer.concat(chunks)));
 };
+
+it('não deixa o cache HTTP do app guardar as fotos', async () => {
+    const report = (await upload({ ...meta, clientRequestId: randomUUID() }).expect(201)).body.data;
+    const [photo] = report.photos;
+    for (const path of [photo.contentPath, photo.thumbnailPath]) {
+        const fromApp = await request(appFor(manager, 'bearer')).get(path).buffer(true).parse(binary).expect(200);
+        expect(fromApp.headers['cache-control']).toBe('no-store');
+    }
+});
 
 it('gera no envio uma miniatura de até 320 px servida com cache privado e imutável', async () => {
     const large = await sharp({ create: { width: 1200, height: 900, channels: 3, background: 'blue' } })

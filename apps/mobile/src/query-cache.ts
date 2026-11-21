@@ -1,5 +1,5 @@
 import { createContext, createElement, useEffect, useState, type ReactNode } from 'react';
-import { clearPersistedQueries, readPersistedQueries, writePersistedQueries } from './persisted-queries';
+import { clearPersistedQueries, persistGeneration, readPersistedQueries, writePersistedQueries } from './persisted-queries';
 
 const entryLimit = 96;
 
@@ -15,6 +15,7 @@ class SessionCache {
     private revision = 0;
     private readonly listeners = new Set<() => void>();
     private pendingWrite: ReturnType<typeof setTimeout> | undefined;
+    private persistSince = persistGeneration();
 
     constructor(private readonly owner?: string) {}
 
@@ -55,6 +56,7 @@ class SessionCache {
         if (this.owner) {
             clearTimeout(this.pendingWrite);
             clearPersistedQueries();
+            this.persistSince = persistGeneration();
         }
     }
 
@@ -84,7 +86,7 @@ class SessionCache {
         this.pendingWrite = setTimeout(() => {
             const owner = this.owner!;
             const snapshot = new Map([...this.entries].map(([key, value]) => [key, { value, savedAt: this.savedAt.get(key) ?? Date.now() }]));
-            writePersistedQueries(owner, snapshot);
+            writePersistedQueries(owner, snapshot, this.persistSince);
         }, 500);
     }
 }
