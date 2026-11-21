@@ -6,13 +6,13 @@ import { OccurrenceContent, OccurrenceReply } from './components/occurrence-cont
 import { Status } from './queue-presentation';
 import { CategorySymbol } from './components/category-symbol';
 import { useCategoryCatalog } from './category-catalog';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ReportDetail, ReportStatus, ReportEvent, ReportReply, ReportTransition } from '@mycity/contracts';
 import { Check } from 'lucide-react';
 import { reportCategoryLabels, categoryIconFor } from '@mycity/contracts';
 import { QueueLoading } from './components/queue-loading';
 import { useLiveQuery } from './use-live-query';
-import { leave } from './history-motion';
+import { useHistoryExit } from './history-motion';
 export const statuses: Record<ReportStatus, string> = { SENT: 'Enviado', UNDER_REVIEW: 'Em análise', IN_PROGRESS: 'Em andamento', RESOLVED: 'Resolvido', REJECTED: 'Rejeitado', CANCELED: 'Cancelado' };
 export const formatDate = (value: string) => new Date(value).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
 function CaseText({ text, description = false, label }: { text: string; description?: boolean; label?: string }) {
@@ -49,7 +49,7 @@ export function ReportService({ id, onSessionExpired, onChange }: Props) {
     const historyUrl = reportHistoryEndpoint(id);
     const history = useLiveQuery<EventPage>(historyUrl, onSessionExpired);
     const anchor = history.data?.page.nextCursor;
-    const [archive, setArchive] = useState<{ anchor: string; cursor: string; loaded: ReportEvent[] } | null>(null);
+    const [archive, setArchive] = useState<{ anchor: string; cursor: string; loaded: ReportEvent[]; closing?: boolean } | null>(null);
     const expanded = !!archive && archive.anchor === anchor;
     const older = useLiveQuery<EventPage>(expanded ? historyUrl + '&cursor=' + encodeURIComponent(archive.cursor) : null, onSessionExpired);
     const recent = history.data?.data ?? [];
@@ -61,15 +61,11 @@ export function ReportService({ id, onSessionExpired, onChange }: Props) {
         seen.current ??= new Set();
         for (const event of history.data.data) seen.current.add(event.id);
     }, [history.data]);
-    const [leaving, setLeaving] = useState(false);
-    function collapseHistory() {
-        if (leaving) return;
-        setLeaving(true);
-        leave([...document.querySelectorAll('#occurrence-history li[data-archived]')], () => {
-            setArchive(null);
-            setLeaving(false);
-        });
-    }
+    const closing = expanded && !!archive.closing;
+    const archiveOpen = expanded && !closing;
+    const [animateHistory, setAnimateHistory] = useState(false);
+    const finishCollapse = useCallback(() => setArchive(null), []);
+    const archiveRegion = useHistoryExit(closing, finishCollapse);
     const more = older.data?.page.nextCursor;
     const [reason, setReason] = useState('');
     const [rejecting, setRejecting] = useState(false);
@@ -275,7 +271,10 @@ export function ReportService({ id, onSessionExpired, onChange }: Props) {
                                 />
                             )
                         }
-                        count={history.data ? String(events.length) + ((expanded ? more || !older.data : anchor) ? '+' : '') : '…'}
+                        archiveRegion={archiveRegion}
+                        archiveOpen={archiveOpen}
+                        animateHistory={animateHistory}
+                        count={history.data ? String(closing ? recent.length : events.length) + ((archiveOpen ? more || !older.data : anchor) ? '+' : '') : '…'}
                         events={events.map((event, position) => ({
                             id: event.id,
                             archived: position >= recent.length,
@@ -306,16 +305,26 @@ export function ReportService({ id, onSessionExpired, onChange }: Props) {
                         historyControls={
                             anchor && (
                                 <>
-                                    <button type="button" className="history-disclosure" aria-controls="occurrence-history" aria-expanded={expanded} disabled={leaving} onClick={() => (expanded ? collapseHistory() : setArchive({ anchor, cursor: anchor, loaded: [] }))}>
-                                        {expanded ? 'Recolher histórico' : 'Ver registros anteriores'}
+                                    <button
+                                        type="button"
+                                        className="history-disclosure"
+                                        aria-controls="history-archive"
+                                        aria-expanded={archiveOpen}
+                                        onClick={(event) => {
+                                            setAnimateHistory(event.detail > 0);
+                                            if (expanded) setArchive({ ...archive, closing: !closing });
+                                            else setArchive({ anchor, cursor: anchor, loaded: [] });
+                                        }}
+                                    >
+                                        {archiveOpen ? 'Recolher histórico' : 'Ver registros anteriores'}
                                     </button>
-                                    {expanded && older.failed && (
+                                    {archiveOpen && older.failed && (
                                         <p role="alert">
                                             Não foi possível atualizar os registros anteriores. <button onClick={older.refresh}>Tentar novamente</button>
                                         </p>
                                     )}
-                                    {expanded && !older.data && !older.failed && <p role="status">Carregando registros anteriores…</p>}
-                                    {expanded && more && (
+                                    {archiveOpen && !older.data && !older.failed && <p role="status">Carregando registros anteriores…</p>}
+                                    {archiveOpen && more && (
                                         <button type="button" className="history-disclosure" onClick={() => setArchive({ anchor, cursor: more, loaded: [...archive.loaded, ...older.data!.data] })}>
                                             Ver mais registros
                                         </button>

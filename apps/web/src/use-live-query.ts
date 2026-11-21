@@ -16,24 +16,27 @@ export function LiveQueryCacheProvider({ children }: { children: ReactNode }) {
 // own query reports them when it is opened.
 export function useWarm() {
     const cache = useContext(LiveQueryCache);
-    const [inFlight] = useState(() => new Set<string>());
     return useCallback(
         (urls: readonly string[]) => {
             if (!cache) return;
             for (const url of urls) {
-                if (cache.has(url) || inFlight.has(url)) continue;
-                inFlight.add(url);
+                if (cache.has(url)) continue;
+                // A foreground refresh can replace or revoke this pending read.
+                const pending = Symbol();
+                cache.set(url, pending);
                 void fetchWithServerTime(url, { cache: 'no-cache' })
                     .then(async (response) => {
                         if (!response.ok) return;
                         const data: unknown = await response.json();
-                        if (!cache.has(url)) cache.set(url, data);
+                        if (cache.get(url) === pending) cache.set(url, data);
                     })
                     .catch(() => {})
-                    .finally(() => inFlight.delete(url));
+                    .finally(() => {
+                        if (cache.get(url) === pending) cache.delete(url);
+                    });
             }
         },
-        [cache, inFlight],
+        [cache],
     );
 }
 
@@ -87,6 +90,11 @@ export function useLiveQuery<T>(url: string | null, onSessionExpired: () => void
                 const response = await fetchWithServerTime(endpoint, { cache: 'no-cache', signal: controller.signal });
                 if (controller.signal.aborted) return;
                 if (response.status === 401) return onSessionExpired();
+                if (response.status === 403 || response.status === 404) {
+                    cache?.delete(endpoint);
+                    setResult({ url: endpoint, data: undefined, failed: true });
+                    return;
+                }
                 if (!response.ok) throw new Error();
                 const data: T = await response.json();
                 if (controller.signal.aborted) return;
@@ -106,9 +114,10 @@ export function useLiveQuery<T>(url: string | null, onSessionExpired: () => void
             window.clearInterval(timer);
             document.removeEventListener('visibilitychange', read);
         };
-    }, [url, revision, onSessionExpired, remember]);
+    }, [url, revision, onSessionExpired, remember, cache]);
     const current = result?.url === url ? result.data : undefined;
-    const cached = url && current === undefined ? (cache?.get(url) as T | undefined) : undefined;
+    const entry = url && current === undefined ? cache?.get(url) : undefined;
+    const cached = typeof entry === 'symbol' ? undefined : (entry as T | undefined);
     const failed = result?.url === url && result.failed;
     return { previousData: result?.url !== url && cached === undefined ? result?.data : undefined, data: current ?? cached, failed, refresh, replace };
 }
