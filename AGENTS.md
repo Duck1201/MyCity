@@ -58,17 +58,17 @@ Teste falhando é informação sobre o código. Conserte o código, nunca o test
 
 ## Onde está cada regra
 
-| Se a tarefa envolve        | Leia                                                                                                                        | O código fica em                                          |
-| -------------------------- | --------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
-| Regra de negócio, jornada  | [Escopo](docs/scope.md), [vocabulário](docs/context.md), [fluxos](docs/flows.md), [requisitos (AC)](docs/requirements.md)   | `apps/api/src/modules/<módulo>/`                          |
-| API, autenticação, uploads | [Contrato HTTP](docs/api/contract.md), [segurança](docs/security.md). Autorize antes de processar o upload.                 | `apps/api/src/`, DTOs e validação em `packages/contracts` |
-| Banco, migração            | [Modelo de dados](docs/data-model.md), [Prisma](docs/prisma.md). Nunca altere migração publicada.                           | `apps/api/prisma/`                                        |
-| Fronteira entre módulos    | [Arquitetura](docs/architecture.md). Interfaces públicas em memória; cada módulo controla seus dados.                       | `apps/api/src/modules/*/index.ts`                         |
-| Painel do gestor           | [Usabilidade](docs/usability.md)                                                                                            | `apps/web/src/` (React, Tailwind, shadcn)                 |
-| App do cidadão             | [Usabilidade](docs/usability.md), [Android](docs/runbook.md#configuração-do-android)                                        | `apps/mobile/src/` (Expo, StyleSheet)                     |
-| Testes e evidências        | [Estratégia de testes](docs/testing.md)                                                                                     | `*/tests/`, `scripts/tests/`                              |
-| Publicação, servidor       | [Publicação e operação](docs/deploy.md). Detalhes do servidor ficam no servidor, nunca no repositório.                      | `deploy/`, `.github/workflows/`                           |
-| Ambiente local             | [README](README.md#executar-localmente), [runbook](docs/runbook.md), `.env.example`. npm workspaces com o lockfile da raiz. | `scripts/`, `compose.yaml`                                |
+| Se a tarefa envolve        | Leia                                                                                                                                                                      | O código fica em                                          |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| Regra de negócio, jornada  | [Escopo](docs/scope.md), [vocabulário](docs/context.md), [fluxos](docs/flows.md), [requisitos (AC)](docs/requirements.md)                                                 | `apps/api/src/modules/<módulo>/`                          |
+| API, autenticação, uploads | [Contrato HTTP](docs/api/contract.md), [segurança](docs/security.md). Autorize antes de processar o upload.                                                               | `apps/api/src/`, DTOs e validação em `packages/contracts` |
+| Banco, migração            | [Modelo de dados](docs/data-model.md), [Prisma](docs/prisma.md). Nunca altere migração publicada.                                                                         | `apps/api/prisma/`                                        |
+| Fronteira entre módulos    | [Arquitetura](docs/architecture.md). Interfaces públicas em memória; cada módulo controla seus dados.                                                                     | `apps/api/src/modules/*/index.ts`                         |
+| Painel do gestor           | [Usabilidade](docs/usability.md)                                                                                                                                          | `apps/web/src/` (React, Tailwind, shadcn)                 |
+| App do cidadão             | [Usabilidade](docs/usability.md), [Android](docs/runbook.md#configuração-do-android)                                                                                      | `apps/mobile/src/` (Expo, StyleSheet)                     |
+| Testes e evidências        | [Estratégia de testes](docs/testing.md)                                                                                                                                   | `*/tests/`, `scripts/tests/`                              |
+| Publicação, servidor       | [Publicação e operação](docs/deploy.md). Para mexer no servidor, use a skill `prod-vm` (`.agents/skills/`). Detalhes do servidor ficam no servidor, nunca no repositório. | `deploy/`, `.github/workflows/`                           |
+| Ambiente local             | [README](README.md#executar-localmente), [runbook](docs/runbook.md), `.env.example`. npm workspaces com o lockfile da raiz.                                               | `scripts/`, `compose.yaml`                                |
 
 As fontes acadêmicas em `docs/references/` são históricas: não as edite.
 

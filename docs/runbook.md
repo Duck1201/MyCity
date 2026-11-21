@@ -48,7 +48,7 @@ Confira o banco de destino e execute **uma** das opções abaixo, conforme o amb
 
 - Execução local: `npm run db:rotate-demo-passwords -w @mycity/api`.
 - Compose local: `docker compose --profile tools run --rm --build seed npm run db:rotate-demo-passwords -w @mycity/api`.
-- Servidor: veja [senhas das contas](deploy.md#senhas-das-contas).
+- Servidor: veja [o `.env.production`](deploy.md#o-envproduction).
 
 Para uma instalação vazia, use o seed normal. Se faltar uma conta em uma instalação anterior, o seed cria a conta ausente e preserva as demais. Depois execute a rotação para substituir as credenciais antigas.
 

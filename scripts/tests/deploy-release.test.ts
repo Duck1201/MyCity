@@ -9,7 +9,7 @@ let root: string;
 
 beforeEach(() => {
     root = mkdtempSync('/tmp/mycity-release-');
-    writeFileSync(join(root, '.env'), 'POSTGRES_PASSWORD=test-db-password\n', { mode: 0o600 });
+    writeFileSync(join(root, '.env.production'), 'POSTGRES_PASSWORD=test-db-password\n', { mode: 0o600 });
     writeFileSync(join(root, 'commands.sh'), 'docker() { printf "%s\\n" "$*" >> "$TRACE"; }\ncurl() { printf "curl %s\\n" "$*" >> "$TRACE"; }\n');
 });
 afterEach(() => rmSync(root, { recursive: true, force: true }));
@@ -21,9 +21,10 @@ function release(name: string, manifest = ['API', 'TOOLS', 'WEB'].map((image) =>
     writeFileSync(join(directory, 'images.env'), manifest.join('\n') + '\n');
 }
 
-function deploy(name: string) {
-    const run = spawnSync('/bin/bash', ['-c', 'source "$COMMANDS"; source deploy/deploy.sh', 'deploy.sh', root, name, 'tester'], {
-        input: 'fake-registry-token\n',
+function deploy(name: string, ...extra: string[]) {
+    const args = name === '--rollback' ? [root, name] : [root, name, 'tester', ...extra];
+    const run = spawnSync('/bin/bash', ['-c', 'source "$COMMANDS"; source deploy/deploy.sh', 'deploy.sh', ...args], {
+        input: name === '--rollback' ? '' : 'fake-registry-token\n',
         env: { PATH: '/usr/bin:/bin', COMMANDS: join(root, 'commands.sh'), TRACE: join(root, 'trace') },
         encoding: 'utf8',
     });
@@ -79,11 +80,42 @@ it.each(['../v1.0.0-1', 'latest', 'v1.0-1', 'v1.0.0'])('recusa o nome de release
     expect(trace()).toBe('');
 });
 
-it('recusa implantar sem o .env do servidor', () => {
+it('recusa implantar sem o .env.production do servidor', () => {
     release('v1.0.0-1');
-    rmSync(join(root, '.env'));
+    rmSync(join(root, '.env.production'));
     expect(deploy('v1.0.0-1')).not.toBe(0);
     expect(trace()).toBe('');
+});
+
+it('lê as senhas e o endereço público do .env.production do servidor', () => {
+    release('v1.0.0-1');
+    expect(deploy('v1.0.0-1')).toBe(0);
+    expect(trace()).toContain('--env-file ' + join(root, '.env.production') + ' ');
+});
+
+it('volta para a release anterior sem migrar, sem baixar imagens e sem token', () => {
+    release('v1.0.0-1');
+    release('v1.1.0-1');
+    expect(deploy('v1.0.0-1')).toBe(0);
+    expect(deploy('v1.1.0-1')).toBe(0);
+    const before = trace();
+    expect(deploy('--rollback')).toBe(0);
+    const rollback = trace().slice(before.length);
+    expect(rollback).toContain('-f ' + join(root, 'releases', 'v1.0.0-1', 'compose.yaml'));
+    expect(rollback).toContain('up -d --wait api web edge');
+    expect(rollback).not.toMatch(/login|pull|migrate|provision|seed/);
+    expect(readFileSync(join(root, 'current-release'), 'utf8').trim()).toBe('v1.0.0-1');
+    expect(readFileSync(join(root, 'previous-release'), 'utf8').trim()).toBe('v1.1.0-1');
+    expect(readFileSync(join(root, 'current', 'images.env'), 'utf8')).toContain('API_DIGEST=' + digest);
+});
+
+it('recusa o rollback quando não há release anterior registrada', () => {
+    release('v1.0.0-1');
+    expect(deploy('v1.0.0-1')).toBe(0);
+    const before = trace();
+    expect(deploy('--rollback')).not.toBe(0);
+    expect(trace()).toBe(before);
+    expect(readFileSync(join(root, 'current-release'), 'utf8').trim()).toBe('v1.0.0-1');
 });
 
 it('vincula cada serviço publicado ao digest correspondente e coleta os processos da sonda do edge', () => {

@@ -4,12 +4,12 @@ Este guia cobre o caminho do código até o servidor: como o GitHub valida e pub
 
 ## Fluxo de entrega
 
-| Evento                   | O que acontece                                                                                                                                                                                                                                                    |
-| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| PR para `main`           | [CI](../.github/workflows/ci.yml): commits convencionais, segredos, auditoria, formatação, lint, tipos, testes com PostgreSQL, build.                                                                                                                             |
-| Merge na `main` (squash) | A mesma CI roda no commit da `main`. Nada é publicado.                                                                                                                                                                                                            |
-| Tag `vX.Y.Z` na `main`   | [Release](../.github/workflows/release.yml): publica as imagens, implanta no servidor e anexa o APK assinado ao GitHub Release.                                                                                                                                   |
-| Rollback                 | Em **Actions → Release**, abra a execução da versão anterior e use **Re-run jobs → Deploy**. O job reaproveita os digests dela. As migrações só avançam: volte apenas para uma versão compatível com o schema atual ou restaure o backup feito antes da migração. |
+| Evento                   | O que acontece                                                                                                                                                                                                                                                                                                                                                   |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| PR para `main`           | [CI](../.github/workflows/ci.yml): commits convencionais, segredos, auditoria, formatação, lint, tipos, testes com PostgreSQL, build.                                                                                                                                                                                                                            |
+| Merge na `main` (squash) | A mesma CI roda no commit da `main`. Nada é publicado.                                                                                                                                                                                                                                                                                                           |
+| Tag `vX.Y.Z` na `main`   | [Release](../.github/workflows/release.yml): publica as imagens, implanta no servidor e anexa o APK assinado ao GitHub Release.                                                                                                                                                                                                                                  |
+| Rollback                 | Na VM, `deploy.sh <deploy-dir> --rollback` volta para a release anterior com as imagens já baixadas (receita na skill `prod-vm`). Pelo GitHub, **Actions → Release** → execução da versão anterior → **Re-run jobs → Deploy**. As migrações só avançam: volte apenas para uma versão compatível com o schema atual ou restaure o backup feito antes da migração. |
 
 Para lançar uma versão depois do merge:
 
@@ -32,7 +32,7 @@ Environment `demonstration`, que aceita somente tags `v*.*.*` (nenhuma branch):
 | Secret   | `GOOGLE_MAPS_ANDROID_API_KEY`                                       | Chave de Maps restrita ao pacote e ao SHA-1 |
 | Secret   | `ANDROID_RELEASE_KEYSTORE_BASE64`, `ANDROID_RELEASE_STORE_PASSWORD` | Keystore PKCS12 com alias `mycity-release`  |
 
-As senhas do banco e das contas **não** ficam no GitHub: elas existem só no `.env` do servidor. A origem pública da demonstração está em `PUBLIC_ORIGIN` no workflow e é usada no build do APK e na verificação final.
+As senhas do banco e das contas **não** ficam no GitHub: elas existem só no `.env.production` do servidor e na cópia local do operador (veja abaixo). A origem pública da demonstração está em `PUBLIC_ORIGIN` no workflow e é usada no build do APK e na verificação final.
 
 A `main` exige PR, os checks da CI, histórico linear e conversas resolvidas. O ruleset **Release tags** permite que só administradores criem, movam ou apaguem tags `v*`, porque uma tag dispara a publicação com os secrets do environment. Actions usa token somente leitura por padrão e actions fixadas por SHA. O [Dependabot](../.github/dependabot.yml) abre PRs mensais; nenhuma atualização é mesclada sem CI. Não aplique downgrade ou override incompatível só para zerar a auditoria.
 
@@ -40,7 +40,7 @@ A `main` exige PR, os checks da CI, histórico linear e conversas resolvidas. O 
 
 Use Linux x86-64 com Docker e Compose 2.24 ou superior. Aponte um nome DNS para o servidor e escolha um diretório de deploy, como `/srv/mycity`, acessível ao usuário de deploy.
 
-1. Crie `<deploy-dir>/.env` com permissão `0600`:
+1. Crie `<deploy-dir>/.env.production` com permissão `0600`:
 
     ```dotenv
     WEB_ORIGIN=https://mycity.example.org
@@ -100,13 +100,15 @@ Para operar a versão ativa, defina um atalho no servidor:
 mc() {
     local files=(-f "$DEPLOY_DIR/current/compose.yaml")
     [[ -f "$DEPLOY_DIR/compose.override.yaml" ]] && files+=(-f "$DEPLOY_DIR/compose.override.yaml")
-    docker compose --env-file "$DEPLOY_DIR/.env" --env-file "$DEPLOY_DIR/current/images.env" "${files[@]}" "$@"
+    docker compose --env-file "$DEPLOY_DIR/.env.production" --env-file "$DEPLOY_DIR/current/images.env" "${files[@]}" "$@"
 }
 ```
 
-## Senhas das contas
+## O `.env.production`
 
-Cada deploy aplica ao banco as senhas do `.env` das contas já habilitadas e revoga somente as sessões das contas cuja senha mudou. Para trocar as três de uma vez, inclusive contas legadas desabilitadas, edite o `.env` e execute:
+Existe um único `.env.production`, como no projeto Discord: o do servidor, em `<deploy-dir>/.env.production`, espelhado na raiz do checkout do operador (ignorado pelo Git, permissão `0600`). A cópia local é onde você edita; o servidor é o que vale. A skill `prod-vm` traz as receitas para comparar as duas cópias sem exibir valores, enviar a local para o servidor e aplicar a mudança.
+
+Cada deploy aplica ao banco as senhas das contas já habilitadas e revoga somente as sessões das contas cuja senha mudou. Para trocar as três de uma vez, inclusive contas legadas desabilitadas, envie o arquivo novo e execute:
 
 ```bash
 mc --profile tools run --rm seed npm run db:rotate-demo-passwords -w @mycity/api
