@@ -1,5 +1,6 @@
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { readFileSync } from 'node:fs';
 import { useState } from 'react';
 import { expect, it } from 'vitest';
 import { CategoryCatalogView, type Category, type CategoryChange } from '../src/category-catalog-view';
@@ -33,6 +34,29 @@ it('links each non-empty situation slice to the queue filtered by that status', 
     expect(ring.getByRole('link', { name: 'Enviado (2)' })).toHaveAttribute('href', '/atendimento?status=SENT');
     expect(ring.getByRole('link', { name: 'Resolvido (3)' })).toHaveAttribute('href', '/atendimento?status=RESOLVED');
     expect(ring.getByText('6')).toBeInTheDocument();
+});
+
+it('limits pointer input to the painted arcs and highlights the selected situation from the keyboard', async () => {
+    const user = userEvent.setup();
+    render(
+        <div className="console">
+            <style>{readFileSync('src/components/situation-chart.css', 'utf8')}</style>
+            <SituationChart counts={{ SENT: 2, UNDER_REVIEW: 1, IN_PROGRESS: 0, RESOLVED: 0, REJECTED: 0, CANCELED: 0 }} />
+        </div>,
+    );
+    const slice = screen.getByRole('link', { name: 'Enviado (2)' });
+    const arc = slice.querySelector('path')!;
+    expect(getComputedStyle(arc).pointerEvents).toBe('stroke');
+    await user.tab();
+    expect(slice).toHaveFocus();
+    expect(getComputedStyle(slice).outlineStyle).toBe('none');
+    const legend = screen.getByRole('link', { name: 'Filtrar por Enviado' });
+    expect(legend).toHaveAttribute('data-active', 'true');
+    await user.tab();
+    await user.tab();
+    expect(legend).toHaveFocus();
+    await user.keyboard('{Enter}');
+    expect(location.search).toBe('?status=SENT');
 });
 
 function Catalog() {

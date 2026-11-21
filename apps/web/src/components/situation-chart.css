@@ -45,6 +45,13 @@
 .ring-slice {
     stroke: var(--slice);
     cursor: pointer;
+    pointer-events: none;
+}
+.ring-slice :is(circle, path) {
+    pointer-events: stroke;
+}
+.console .ring-slice:focus {
+    outline-style: none;
 }
 .ring-slice[data-muted] {
     opacity: 0.55;
