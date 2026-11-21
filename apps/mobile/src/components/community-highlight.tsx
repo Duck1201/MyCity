@@ -1,13 +1,13 @@
-import { StyleSheet, View, type ImageSourcePropType } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { type ReportStatus } from '@mycity/contracts';
 import { colors, mobileStyles } from '../theme';
 import { statusLabels } from '../report-overview';
 import { Icon } from './civic-header';
 import { MotionPressable } from './motion-pressable';
-import { ReportThumbnail } from './report-photo';
+import { ReportThumbnail, type PhotoSource } from './report-photo';
 import { Text } from './typography';
 
-type Highlight = { description: string; category: string; status: ReportStatus; photo?: ImageSourcePropType | undefined };
+type Highlight = { description: string; category: string; status: ReportStatus; photo?: PhotoSource | undefined };
 type Props = { report?: Highlight | undefined; message?: string | undefined; open: () => void; feed: () => void };
 
 export function CommunityHighlight({ report, message, open, feed }: Props) {
