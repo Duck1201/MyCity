@@ -126,8 +126,16 @@ Os testes automatizados simulam câmera, GPS e mapa. No Galaxy M32 (Android 13),
 - leitura de GPS autorizada e fluidez no APK de **release** (a rodada usou Expo Go);
 - TalkBack e fonte ampliada após os ajustes da última rodada;
 - conexão do app à API na mesma LAN depois de mudar `PORT` e reiniciar o Metro;
-- fotos com `expo-image` no APK de release: miniaturas nas listas e original no detalhe com a sessão Bearer, segunda abertura sem novo download (cache em disco) e cache de imagens apagado ao sair ou expirar.
-- cache em disco do app: fechar e reabrir com sessão válida mostra as denúncias, notificações e categorias guardadas antes da rede responder, e sair ou deixar a sessão expirar apaga `cache/mycity-queries/` (os testes simulam o sistema de arquivos).
+- fotos com `expo-image` no APK de **release** (no Expo Go já foram conferidas, veja abaixo).
+
+### Cache do app no Galaxy M32 (20/11/2026)
+
+Pelo Expo Go, com a API local e um proxy que registrava as requisições e segurava respostas:
+
+- as listas pedem a miniatura (`/thumb`) e o detalhe pede a original;
+- o polling de 5 s volta como `304` sem corpo, com `If-None-Match`;
+- ao fechar e reabrir o app com a resposta de "Minhas denúncias" retida, a lista guardada aparece com "Atualizando…" e as miniaturas saem do disco, sem nova requisição;
+- depois de sair e entrar de novo, a lista mostra "Carregando…" sem dados anteriores e as miniaturas são baixadas outra vez: o logout apagou as leituras guardadas e o cache de imagens.
 
 ## Atualizar as capturas do README
 
