@@ -5,10 +5,20 @@ type Zoom = { scale: number; x: number; y: number };
 const unzoomed: Zoom = { scale: 1, x: 0, y: 0 };
 const tapScale = 2.5;
 const maxScale = 6;
-// Keep a zoomed photo covering the stage instead of sliding off it.
-function bounded(zoom: Zoom, box: { width: number; height: number }): Zoom {
-    const limitX = ((zoom.scale - 1) * box.width) / 2;
-    const limitY = ((zoom.scale - 1) * box.height) / 2;
+type Size = { width: number; height: number };
+// The picture drawn inside the image box by object-fit: contain, which is smaller than the box on one axis.
+function pictureOf(image: HTMLImageElement | null, box: Size): Size {
+    const width = image?.clientWidth || box.width;
+    const height = image?.clientHeight || box.height;
+    if (!image?.naturalWidth || !image.naturalHeight) return { width, height };
+    const ratio = image.naturalWidth / image.naturalHeight;
+    return width / height > ratio ? { width: height * ratio, height } : { width, height: width / ratio };
+}
+// Where the zoomed picture is still smaller than the stage it stays centred; where it is larger,
+// its edges may reach the stage edges but never pull away from them.
+function bounded(zoom: Zoom, box: Size, picture: Size = box): Zoom {
+    const limitX = Math.max(0, (picture.width * zoom.scale - box.width) / 2);
+    const limitY = Math.max(0, (picture.height * zoom.scale - box.height) / 2);
     return { scale: zoom.scale, x: Math.min(limitX, Math.max(-limitX, zoom.x)), y: Math.min(limitY, Math.max(-limitY, zoom.y)) };
 }
 type GalleryPhoto = { image: string; width?: number; height?: number; credit?: { source: string; author: string; licenseUrl: string; license: string } };
@@ -20,6 +30,7 @@ export function PhotoGallery({ photos, category }: { photos: readonly GalleryPho
     const [viewing, setViewing] = useState(false);
     const [zoom, setZoom] = useState<Zoom>(unzoomed);
     const stage = useRef<HTMLDivElement>(null);
+    const image = useRef<HTMLImageElement>(null);
     const drag = useRef<{ x: number; y: number; from: Zoom; moved: boolean } | null>(null);
     const multiple = photos.length > 1;
     const position = Math.min(index, photos.length - 1);
@@ -38,7 +49,7 @@ export function PhotoGallery({ photos, category }: { photos: readonly GalleryPho
             const fx = (clientX ?? box.left + box.width / 2) - (box.left + box.width / 2);
             const fy = (clientY ?? box.top + box.height / 2) - (box.top + box.height / 2);
             const ratio = next / current.scale;
-            return bounded({ scale: next, x: fx - ratio * (fx - current.x), y: fy - ratio * (fy - current.y) }, box);
+            return bounded({ scale: next, x: fx - ratio * (fx - current.x), y: fy - ratio * (fy - current.y) }, box, pictureOf(image.current, box));
         });
     }
     const label = multiple ? 'Foto ' + (position + 1) + ' de ' + photos.length + ' da ocorrência de ' + category : (photo.credit ? 'Foto demonstrativa da ocorrência de ' : 'Foto da ocorrência de ') + category;
@@ -141,7 +152,7 @@ export function PhotoGallery({ photos, category }: { photos: readonly GalleryPho
                                     const dy = event.clientY - start.y;
                                     if (Math.abs(dx) + Math.abs(dy) > 3) start.moved = true;
                                     const box = stage.current?.getBoundingClientRect();
-                                    if (box) setZoom(bounded({ scale: start.from.scale, x: start.from.x + dx, y: start.from.y + dy }, box));
+                                    if (box) setZoom(bounded({ scale: start.from.scale, x: start.from.x + dx, y: start.from.y + dy }, box, pictureOf(image.current, box)));
                                 }}
                                 // The click is read on the stage: after a drag the pointer is captured there, not on the photo.
                                 onClick={(event) => {
@@ -159,6 +170,7 @@ export function PhotoGallery({ photos, category }: { photos: readonly GalleryPho
                                     width={photo.width}
                                     height={photo.height}
                                     alt={label}
+                                    ref={image}
                                     style={{ transform: 'translate(' + zoom.x + 'px, ' + zoom.y + 'px) scale(' + zoom.scale + ')' }}
                                     tabIndex={0}
                                     // Zoom is a click: in at the clicked point, out on the next click. Enter does the same from the keyboard.
