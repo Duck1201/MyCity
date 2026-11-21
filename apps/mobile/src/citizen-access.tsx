@@ -7,6 +7,7 @@ import { View } from 'react-native';
 import { Text } from './components/typography';
 import * as SecureStore from 'expo-secure-store';
 import { clearCachedPhotos } from './components/report-photo';
+import { clearPersistedQueries } from './persisted-queries';
 import { AppLoadingScreen } from './components/app-loading-screen';
 import { ActionButton } from './components/action-button';
 
@@ -30,6 +31,7 @@ export function CitizenAccess({ apiBase, children, onSignedOut, onAuthenticated,
         setPassword('');
         setMessage('Sua sessão expirou. Entre novamente.');
         clearCachedPhotos();
+        clearPersistedQueries();
         void SecureStore.deleteItemAsync(sessionKey).then(
             () => setAccess('login'),
             () => setAccess('offline'),
@@ -107,6 +109,7 @@ export function CitizenAccess({ apiBase, children, onSignedOut, onAuthenticated,
             if (!response.ok && response.status !== 401) throw new Error();
             await SecureStore.deleteItemAsync(sessionKey);
             clearCachedPhotos();
+            clearPersistedQueries();
             setToken('');
             setExpiresAt(0);
             setMessage('');

@@ -12,7 +12,8 @@ const noCacheVersion = () => 0;
 export function useActiveQuery<T>(load: (signal: AbortSignal) => Promise<T>, enabled = true, key?: string) {
     const session = useContext(QueryCache);
     const cache = session?.entries;
-    const version = useSyncExternalStore(session?.subscribe ?? noSubscription, session?.snapshot ?? noCacheVersion, noCacheVersion);
+    useSyncExternalStore(session?.subscribe ?? noSubscription, session?.snapshot ?? noCacheVersion, noCacheVersion);
+    const version = session?.epoch() ?? 0;
     const [lastResult, setResult] = useState<{ version: number; key: string | undefined; value: T | undefined }>();
     const result = lastResult?.version === version ? lastResult : undefined;
     const cached = key ? (cache?.get(key) as T | undefined) : undefined;
@@ -33,16 +34,12 @@ export function useActiveQuery<T>(load: (signal: AbortSignal) => Promise<T>, ena
         async function refresh() {
             if (!foreground || request) return;
             const controller = new AbortController();
-            const startedAt = session?.snapshot() ?? 0;
+            const startedAt = session?.epoch() ?? 0;
             request = controller;
             try {
                 const result = await load(controller.signal);
-                if (!controller.signal.aborted && startedAt === (session?.snapshot() ?? 0)) {
-                    if (key && cache) {
-                        cache.delete(key);
-                        cache.set(key, result);
-                        if (cache.size > 96) cache.delete(cache.keys().next().value!);
-                    }
+                if (!controller.signal.aborted && startedAt === (session?.epoch() ?? 0)) {
+                    if (key) session?.remember(key, result);
                     setResult({ version: startedAt, key, value: result });
                     setFailed(false);
                     setUnavailable(false);
@@ -50,8 +47,8 @@ export function useActiveQuery<T>(load: (signal: AbortSignal) => Promise<T>, ena
             } catch (error) {
                 if (!controller.signal.aborted) {
                     if (error instanceof ApiFailure && [403, 404].includes(error.status)) {
-                        if (session?.snapshot() === startedAt) session.invalidate();
-                        setResult({ version: session?.snapshot() ?? 0, key, value: undefined });
+                        if (session?.epoch() === startedAt) session.invalidate();
+                        setResult({ version: session?.epoch() ?? 0, key, value: undefined });
                         setUnavailable(true);
                     }
                     setFailed(true);
@@ -87,8 +84,8 @@ export function useActiveQuery<T>(load: (signal: AbortSignal) => Promise<T>, ena
             pause();
             const value = typeof next === 'function' ? (next as (prior: T | undefined) => T | undefined)(currentData.current) : next;
             currentData.current = value;
-            if (key) cache?.set(key, value);
-            setResult({ version: session?.snapshot() ?? 0, key, value });
+            if (key) session?.remember(key, value);
+            setResult({ version: session?.epoch() ?? 0, key, value });
             setFailed(false);
         };
         const listener = AppState.addEventListener('change', stateChanged);
@@ -107,7 +104,7 @@ export function useActiveQuery<T>(load: (signal: AbortSignal) => Promise<T>, ena
         unavailable,
         retry: () => retry.current(),
         replace: (next: SetStateAction<T | undefined>, invalidateRelated = false) => {
-            if (version !== (session?.snapshot() ?? 0)) return;
+            if (version !== (session?.epoch() ?? 0)) return;
             if (invalidateRelated) session?.invalidate();
             replace.current(next);
         },

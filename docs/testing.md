@@ -127,6 +127,7 @@ Os testes automatizados simulam câmera, GPS e mapa. No Galaxy M32 (Android 13),
 - TalkBack e fonte ampliada após os ajustes da última rodada;
 - conexão do app à API na mesma LAN depois de mudar `PORT` e reiniciar o Metro;
 - fotos com `expo-image` no APK de release: miniaturas nas listas e original no detalhe com a sessão Bearer, segunda abertura sem novo download (cache em disco) e cache de imagens apagado ao sair ou expirar.
+- cache em disco do app: fechar e reabrir com sessão válida mostra as denúncias, notificações e categorias guardadas antes da rede responder, e sair ou deixar a sessão expirar apaga `cache/mycity-queries/` (os testes simulam o sistema de arquivos).
 
 ## Atualizar as capturas do README
 
