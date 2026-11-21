@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { Animated, Modal, StyleSheet, useWindowDimensions, View } from 'react-native';
-import { FlatList, GestureDetector, GestureHandlerRootView, useExclusiveGestures, usePanGesture, usePinchGesture, useSimultaneousGestures, useTapGesture } from 'react-native-gesture-handler';
+import { GestureDetector, GestureHandlerRootView, useCompetingGestures, usePanGesture, usePinchGesture, useSimultaneousGestures, useTapGesture } from 'react-native-gesture-handler';
 import { Image } from 'expo-image';
 import { MotionPressable } from './motion-pressable';
 import { Text } from './typography';
@@ -8,116 +8,126 @@ import type { PhotoSource } from './report-photo';
 
 const maxScale = 6;
 const tapScale = 2.5;
+const zoomedAt = 1.01;
+// Springs settle the photo after a gesture; while fingers are down it follows them 1:1.
+const spring = { useNativeDriver: true, damping: 22, stiffness: 220, mass: 0.9 } as const;
 
 export type ViewerPhoto = { id: string; source: PhotoSource };
+type Zoom = { scale: Animated.Value; x: Animated.Value; y: Animated.Value };
 
-// One photo at a time, so the gestures run on the JS thread and drive React Native's Animated values.
-// The stage does not move, so gesture coordinates stay in its frame; only the inner layer is transformed.
-function ZoomablePhoto({ photo, index, total, zoomed, onZoomedChange, width, height }: { photo: ViewerPhoto; index: number; total: number; zoomed: boolean; onZoomedChange: (zoomed: boolean) => void; width: number; height: number }) {
-    const animated = useRef({ scale: new Animated.Value(1), x: new Animated.Value(0), y: new Animated.Value(0) }).current;
-    // anchor: the photo point (relative to its centre, unscaled) that sits under the fingers.
-    const current = useRef({ scale: 1, x: 0, y: 0, pinchStart: 1, anchor: { x: 0, y: 0 }, panStart: { x: 0, y: 0 } }).current;
-    const bounded = (scale: number, x: number, y: number) => {
-        const limitX = ((scale - 1) * width) / 2;
-        const limitY = ((scale - 1) * height) / 2;
-        return [Math.min(limitX, Math.max(-limitX, x)), Math.min(limitY, Math.max(-limitY, y))] as const;
-    };
-    function apply(scale: number, x: number, y: number, smooth: boolean) {
-        const [boundX, boundY] = bounded(scale, x, y);
-        Object.assign(current, { scale, x: boundX, y: boundY });
-        if (!smooth) {
-            animated.scale.setValue(scale);
-            animated.x.setValue(boundX);
-            animated.y.setValue(boundY);
+// A report has at most three photos, so they sit side by side on one strip that the same
+// gestures drive: one finger swipes between photos, or moves a zoomed photo; two fingers pinch
+// around the point between them; a double tap zooms in on the tapped point or restores.
+export function PhotoViewer({ photos, start, onClose }: { photos: ViewerPhoto[]; start: number; onClose: () => void }) {
+    const window = useWindowDimensions();
+    const width = window.width;
+    const height = window.height - 120;
+    const [index, setIndex] = useState(start);
+    const [zoomed, setZoomed] = useState(false);
+    const strip = useRef(new Animated.Value(-start * width)).current;
+    const zooms = useRef<Zoom[]>(photos.map(() => ({ scale: new Animated.Value(1), x: new Animated.Value(0), y: new Animated.Value(0) }))).current;
+    // Plain numbers mirror the animated values, because the gesture maths runs on the JS thread.
+    const state = useRef({ index: start, scale: 1, x: 0, y: 0, pinchStart: 1, anchor: { x: 0, y: 0 }, panStart: { x: 0, y: 0 }, pinching: false }).current;
+
+    const bounds = (scale: number) => ({ x: ((scale - 1) * width) / 2, y: ((scale - 1) * height) / 2 });
+    const clamp = (value: number, limit: number) => Math.min(limit, Math.max(-limit, value));
+    function show(scale: number, x: number, y: number, settle: boolean) {
+        const zoom = zooms[state.index]!;
+        Object.assign(state, { scale, x, y });
+        if (!settle) {
+            zoom.scale.setValue(scale);
+            zoom.x.setValue(x);
+            zoom.y.setValue(y);
             return;
         }
-        Animated.parallel([Animated.timing(animated.scale, { toValue: scale, duration: 200, useNativeDriver: true }), Animated.timing(animated.x, { toValue: boundX, duration: 200, useNativeDriver: true }), Animated.timing(animated.y, { toValue: boundY, duration: 200, useNativeDriver: true })]).start();
+        Animated.parallel([Animated.spring(zoom.scale, { ...spring, toValue: scale }), Animated.spring(zoom.x, { ...spring, toValue: x }), Animated.spring(zoom.y, { ...spring, toValue: y })]).start();
     }
-    // Keep the photo point under (focusX, focusY) in place while the scale becomes `scale`.
-    const zoomAround = (focusX: number, focusY: number, scale: number, smooth: boolean) => {
+    // Bring a released photo back inside its bounds (or back to 1x) with a spring.
+    function settle() {
+        const scale = state.scale <= zoomedAt ? 1 : Math.min(maxScale, state.scale);
+        const limit = bounds(scale);
+        show(scale, clamp(state.x, limit.x), clamp(state.y, limit.y), true);
+        setZoomed(scale > zoomedAt);
+    }
+    function toggleZoom(focusX = width / 2, focusY = height / 2) {
+        if (state.scale > zoomedAt) {
+            show(1, 0, 0, true);
+            setZoomed(false);
+            return;
+        }
+        // Keep the tapped point where it is while zooming in.
         const fx = focusX - width / 2;
         const fy = focusY - height / 2;
-        const anchorX = (fx - current.x) / current.scale;
-        const anchorY = (fy - current.y) / current.scale;
-        apply(scale, fx - scale * anchorX, fy - scale * anchorY, smooth);
-    };
-
-    // The screen reader action toggles the zoom from outside the gestures.
-    useEffect(() => {
-        if (zoomed && current.scale <= 1.01) apply(tapScale, 0, 0, true);
-        if (!zoomed && current.scale > 1) apply(1, 0, 0, true);
-    }, [zoomed]);
+        const limit = bounds(tapScale);
+        show(tapScale, clamp(fx - tapScale * fx, limit.x), clamp(fy - tapScale * fy, limit.y), true);
+        setZoomed(true);
+    }
+    function goTo(next: number) {
+        const target = Math.min(photos.length - 1, Math.max(0, next));
+        if (target !== state.index) {
+            show(1, 0, 0, false);
+            state.index = target;
+            Object.assign(state, { scale: 1, x: 0, y: 0 });
+            setIndex(target);
+            setZoomed(false);
+        }
+        Animated.spring(strip, { ...spring, toValue: -target * width }).start();
+    }
 
     const pinch = usePinchGesture({
-        testID: 'photo-viewer-pinch-' + index,
+        testID: 'photo-viewer-pinch',
         runOnJS: true,
-        onBegin: () => {
-            current.pinchStart = current.scale;
-        },
         onActivate: (event) => {
-            current.pinchStart = current.scale;
+            state.pinching = true;
+            state.pinchStart = state.scale;
             const fx = event.focalX - width / 2;
             const fy = event.focalY - height / 2;
-            current.anchor = { x: (fx - current.x) / current.scale, y: (fy - current.y) / current.scale };
+            state.anchor = { x: (fx - state.x) / state.scale, y: (fy - state.y) / state.scale };
         },
         onUpdate: (event) => {
-            const scale = Math.min(maxScale, Math.max(1, current.pinchStart * event.scale));
-            // Moving both fingers also moves the photo, because the anchor follows the current focal point.
-            apply(scale, event.focalX - width / 2 - scale * current.anchor.x, event.focalY - height / 2 - scale * current.anchor.y, false);
+            // Any level the fingers choose; past the limits it resists instead of stopping dead.
+            const wanted = state.pinchStart * event.scale;
+            const scale = wanted > maxScale ? maxScale + (wanted - maxScale) * 0.2 : wanted < 1 ? 1 - (1 - wanted) * 0.4 : wanted;
+            show(scale, event.focalX - width / 2 - scale * state.anchor.x, event.focalY - height / 2 - scale * state.anchor.y, false);
         },
         onDeactivate: () => {
-            if (current.scale <= 1.01) apply(1, 0, 0, true);
-            onZoomedChange(current.scale > 1.01);
+            state.pinching = false;
+            settle();
         },
     });
     const pan = usePanGesture({
-        testID: 'photo-viewer-pan-' + index,
+        testID: 'photo-viewer-pan',
         runOnJS: true,
-        enabled: zoomed,
-        onBegin: () => {
-            current.panStart = { x: current.x, y: current.y };
+        maxPointers: 1,
+        onActivate: () => {
+            state.panStart = { x: state.x, y: state.y };
         },
-        onUpdate: (event) => apply(current.scale, current.panStart.x + event.translationX, current.panStart.y + event.translationY, false),
-    });
-    const doubleTap = useTapGesture({
-        testID: 'photo-viewer-double-tap-' + index,
-        runOnJS: true,
-        numberOfTaps: 2,
-        onActivate: (event) => {
-            if (current.scale > 1.01) {
-                apply(1, 0, 0, true);
-                onZoomedChange(false);
+        onUpdate: (event) => {
+            if (state.pinching) return;
+            if (state.scale > zoomedAt) {
+                show(state.scale, state.panStart.x + event.translationX, state.panStart.y + event.translationY, false);
                 return;
             }
-            zoomAround(event.x ?? width / 2, event.y ?? height / 2, tapScale, true);
-            onZoomedChange(true);
+            // Not zoomed: the strip follows the finger, with resistance past the first and last photo.
+            const edge = (state.index === 0 && event.translationX > 0) || (state.index === photos.length - 1 && event.translationX < 0);
+            strip.setValue(-state.index * width + event.translationX * (edge ? 0.3 : 1));
+        },
+        onDeactivate: (event) => {
+            if (state.pinching) return;
+            if (state.scale > zoomedAt) return settle();
+            const swipe = Math.abs(event.translationX) > width * 0.2 || Math.abs(event.velocityX) > 600;
+            goTo(swipe ? state.index + (event.translationX < 0 ? 1 : -1) : state.index);
         },
     });
-    const gestures = useExclusiveGestures(doubleTap, useSimultaneousGestures(pinch, pan));
-    return (
-        <GestureDetector gesture={gestures}>
-            <View testID={'photo-viewer-stage-' + index} style={[{ width, height }, styles.page]}>
-                <Animated.View testID={'photo-viewer-zoom-' + index} style={[StyleSheet.absoluteFill, { transform: [{ translateX: animated.x }, { translateY: animated.y }, { scale: animated.scale }] }]}>
-                    <Image
-                        source={photo.source}
-                        cachePolicy="disk"
-                        contentFit="contain"
-                        style={StyleSheet.absoluteFill}
-                        accessibilityLabel={'Foto ' + (index + 1) + ' de ' + total + ' da denúncia, ampliada'}
-                        // Zoom is a pinch; screen readers get the same toggle as an action instead of a visible button.
-                        accessibilityActions={[{ name: 'activate', label: zoomed ? 'Restaurar zoom' : 'Aproximar' }]}
-                        onAccessibilityAction={() => onZoomedChange(!zoomed)}
-                    />
-                </Animated.View>
-            </View>
-        </GestureDetector>
-    );
-}
+    const doubleTap = useTapGesture({
+        testID: 'photo-viewer-double-tap',
+        runOnJS: true,
+        numberOfTaps: 2,
+        onActivate: (event) => toggleZoom(event.x, event.y),
+    });
+    // The double tap competes with the drag gestures instead of making the pinch wait for it.
+    const gestures = useCompetingGestures(doubleTap, useSimultaneousGestures(pinch, pan));
 
-export function PhotoViewer({ photos, start, onClose }: { photos: ViewerPhoto[]; start: number; onClose: () => void }) {
-    const { width, height } = useWindowDimensions();
-    const [index, setIndex] = useState(start);
-    const [zoomed, setZoomed] = useState(false);
     return (
         <Modal visible animationType="fade" onRequestClose={onClose} statusBarTranslucent>
             <GestureHandlerRootView style={styles.root}>
@@ -129,25 +139,28 @@ export function PhotoViewer({ photos, start, onClose }: { photos: ViewerPhoto[];
                         <Text style={styles.actionText}>Fechar</Text>
                     </MotionPressable>
                 </View>
-                <FlatList
-                    testID="photo-viewer-pages"
-                    data={photos}
-                    keyExtractor={(photo) => photo.id}
-                    horizontal
-                    pagingEnabled
-                    scrollEnabled={!zoomed}
-                    initialScrollIndex={start}
-                    getItemLayout={(_, i) => ({ length: width, offset: width * i, index: i })}
-                    showsHorizontalScrollIndicator={false}
-                    onMomentumScrollEnd={(event) => {
-                        const next = Math.round(event.nativeEvent.contentOffset.x / width);
-                        if (next !== index) {
-                            setIndex(next);
-                            setZoomed(false);
-                        }
-                    }}
-                    renderItem={({ item, index: i }) => <ZoomablePhoto photo={item} index={i} total={photos.length} zoomed={zoomed && i === index} onZoomedChange={setZoomed} width={width} height={height - 120} />}
-                />
+                <GestureDetector gesture={gestures}>
+                    <View testID="photo-viewer-stage" style={[styles.stage, { width, height }]}>
+                        <Animated.View testID="photo-viewer-strip" style={[styles.strip, { width: width * photos.length, transform: [{ translateX: strip }] }]}>
+                            {photos.map((photo, i) => (
+                                <View key={photo.id} style={[styles.page, { width, height }]}>
+                                    <Animated.View testID={'photo-viewer-zoom-' + i} style={[StyleSheet.absoluteFill, { transform: [{ translateX: zooms[i]!.x }, { translateY: zooms[i]!.y }, { scale: zooms[i]!.scale }] }]}>
+                                        <Image
+                                            source={photo.source}
+                                            cachePolicy="disk"
+                                            contentFit="contain"
+                                            style={StyleSheet.absoluteFill}
+                                            accessibilityLabel={'Foto ' + (i + 1) + ' de ' + photos.length + ' da denúncia, ampliada'}
+                                            // Zoom is a pinch; screen readers get the same toggle as an action instead of a visible button.
+                                            accessibilityActions={[{ name: 'activate', label: zoomed && i === index ? 'Restaurar zoom' : 'Aproximar' }]}
+                                            onAccessibilityAction={() => toggleZoom()}
+                                        />
+                                    </Animated.View>
+                                </View>
+                            ))}
+                        </Animated.View>
+                    </View>
+                </GestureDetector>
             </GestureHandlerRootView>
         </Modal>
     );
@@ -159,5 +172,7 @@ const styles = StyleSheet.create({
     counter: { flex: 1, color: 'white', fontSize: 16 },
     action: { minHeight: 48, justifyContent: 'center', paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: '#ffffff59' },
     actionText: { color: 'white', fontSize: 15, fontWeight: '700' },
+    stage: { overflow: 'hidden' },
+    strip: { flexDirection: 'row', height: '100%' },
     page: { overflow: 'hidden' },
 });
