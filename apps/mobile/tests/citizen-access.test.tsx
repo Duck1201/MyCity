@@ -1,5 +1,5 @@
 import { act, render, screen, userEvent, fireEvent } from '@testing-library/react-native';
-import { Platform, Text } from 'react-native';
+import { AccessibilityInfo, Platform, Text } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { CitizenAccess } from '../src/citizen-access';
 import { CitizenAccessLayout } from '../src/components/citizen-login-screen';
@@ -132,15 +132,25 @@ it('exibe a abertura até concluir a leitura da sessão e então libera o login'
 it('no navegador autentica e revoga em memória sem usar o armazenamento do aparelho', async () => {
     jest.replaceProperty(Platform, 'OS', 'web');
     jest.clearAllMocks();
+    jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(true);
     const apiBase = 'http://localhost/api/v1';
+    let finishLogout!: (response: Response) => void;
+    const pendingLogout = new Promise<Response>((resolve) => {
+        finishLogout = resolve;
+    });
     const transport = jest
         .spyOn(globalThis, 'fetch')
         .mockResolvedValueOnce(Response.json({ data: { token: 'teste-web', expiresAt: new Date(Date.now() + 60000).toISOString(), user: { id: 'demo', role: 'CITIZEN' } } }, { status: 201 }))
+        .mockReturnValueOnce(pendingLogout)
         .mockResolvedValueOnce(new Response(null, { status: 204 }));
     await render(
         <CitizenAccess apiBase={apiBase}>
             {(_token, _expire, leave) => (
-                <CitizenAccessLayout onLeave={leave}>
+                <CitizenAccessLayout
+                    onLeave={() => {
+                        void leave();
+                    }}
+                >
                     <Text>Área privada</Text>
                 </CitizenAccessLayout>
             )}
@@ -151,7 +161,13 @@ it('no navegador autentica e revoga em memória sem usar o armazenamento do apar
     await fireEvent.press(screen.getByRole('button', { name: 'Entrar' }));
     expect(await screen.findByText('Área privada')).toBeVisible();
     await fireEvent.press(screen.getByRole('button', { name: 'Sair' }));
+    expect(screen.getByRole('progressbar', { name: 'Encerrando sua sessão…', busy: true })).toBeVisible();
+    expect(screen.queryByText('Área privada')).toBeNull();
+    expect(screen.queryByLabelText('CPF')).toBeNull();
+    await act(async () => finishLogout(new Response(null, { status: 503 })));
+    await fireEvent.press(await screen.findByRole('button', { name: 'Encerrar sessão' }));
     expect(await screen.findByLabelText('CPF')).toBeVisible();
+    expect(screen.queryByRole('progressbar', { name: 'Encerrando sua sessão…' })).toBeNull();
     expect(transport).toHaveBeenCalledWith(apiBase + '/sessions/current', expect.objectContaining({ method: 'DELETE', headers: { Authorization: 'Bearer teste-web' } }));
     expect(SecureStore.getItemAsync).not.toHaveBeenCalled();
     expect(SecureStore.setItemAsync).not.toHaveBeenCalled();

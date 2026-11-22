@@ -8,6 +8,7 @@ Registro do que ainda está aberto e das decisões que explicam o comportamento 
 | --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
 | C25 | Auditoria de 21/11/2026: 22 ocorrências moderadas, zero altas ou críticas. A revisão avaliou Expo 58.0.26 e jest-expo 58.0.15. jest-runtime 30.5.2 pede glob ^13.0.6 e test-exclude 7.0.2 pede ^10.4.1, faixas afetadas. | Reavaliar quando as cadeias Expo/Jest aceitarem versões corrigidas de glob/minimatch e conferir testes e export Android.                 |
 | C48 | A primeira publicação do pacote de hospedagem e a emissão do certificado público do Caddy dependem de uma release e de um servidor com DNS público.                                                                      | Em uma release autorizada, baixar e verificar o pacote publicado, implantar em um servidor de teste e abrir o painel pelo domínio HTTPS. |
+| C49 | Validação física da ação **Também vi isso** no Feed e no detalhe pendente.                                                                                                                                               | Conferir toque, quebra de linha com fonte ampliada e anúncio dos estados no TalkBack em um Android físico.                               |
 
 ## Decisões em vigor
 

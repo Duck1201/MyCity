@@ -10,6 +10,7 @@ import { clearCachedPhotos } from './components/report-photo';
 import { clearPersistedQueries } from './persisted-queries';
 import { AppLoadingScreen } from './components/app-loading-screen';
 import { ActionButton } from './components/action-button';
+import { ScreenLoading } from './components/screen-loading';
 
 const sessionKey = 'mycity.session';
 type Access = 'checking' | 'login' | 'citizen' | 'denied' | 'offline' | 'signingOut' | 'logoutFailed';
@@ -123,14 +124,16 @@ export function CitizenAccess({ apiBase, children, onSignedOut, onAuthenticated,
     if (!ready || access === 'checking') return <AppLoadingScreen />;
     if (access === 'login') return <CitizenLoginScreen onEnter={enter} credentials={{ cpf, password, setCpf, setPassword, message, busy, motion }} />;
     if (access === 'citizen') return children(token, expire, leave);
+    if (access === 'signingOut') {
+        return (
+            <CitizenAccessLayout>
+                <ScreenLoading label="Encerrando sua sessão…" />
+            </CitizenAccessLayout>
+        );
+    }
     return (
         <CitizenAccessLayout onLeave={access === 'denied' ? leave : undefined}>
             <View style={accessStyles.form}>
-                {access === 'signingOut' && (
-                    <Text accessibilityLiveRegion="polite" style={mobileStyles.meta}>
-                        Encerrando sua sessão…
-                    </Text>
-                )}
                 {access === 'denied' && (
                     <Text accessibilityLiveRegion="polite" style={mobileStyles.error}>
                         O aplicativo exige uma conta de cidadão. Saia para entrar com outra conta.
