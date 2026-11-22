@@ -4,7 +4,7 @@ import { Text } from './typography';
 
 export function ScreenLoading({ label }: { label: string }) {
     return (
-        <View style={styles.loading} accessible accessibilityRole="progressbar" accessibilityLabel={label} accessibilityState={{ busy: true }}>
+        <View style={styles.loading} accessible accessibilityRole="progressbar" accessibilityLabel={label} aria-busy={true}>
             <ActivityIndicator accessible={false} color={colors.teal} />
             <Text accessible={false} style={mobileStyles.meta}>
                 {label}

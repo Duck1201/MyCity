@@ -5,7 +5,7 @@ import type { ReportSummary } from '@mycity/contracts';
 import { ApiFailure, type CitizenRequest } from './citizen-api';
 import { Text } from './components/typography';
 import { activeStatuses } from './report-filters';
-import { colors } from './theme';
+import { colors, mobileStyles } from './theme';
 
 export const confirmationLabel = (count: number) => (count === 1 ? '1 confirmação' : count + ' confirmações');
 type ConfirmationReport = Pick<ReportSummary, 'confirmationCount' | 'confirmedByMe' | 'isMine' | 'status'>;
@@ -45,15 +45,21 @@ export function ReportConfirmation({ report, allowedActions, onChange, refresh, 
         <View style={styles.section}>
             <View style={styles.row}>
                 {canChange && (
-                    <Pressable accessibilityRole="button" accessibilityLabel={context ? label + ', ' + context : label} accessibilityState={{ disabled: busy, busy, selected: report.confirmedByMe }} disabled={busy} onPress={submit} style={({ pressed }) => [styles.button, report.confirmedByMe && styles.selected, (pressed || busy) && styles.pressed]}>
+                    <Pressable accessibilityRole="button" accessibilityLabel={context ? label + ', ' + context : label} accessibilityState={{ disabled: busy, busy, selected: report.confirmedByMe }} disabled={busy} onPress={submit} style={({ pressed }) => [mobileStyles.textButton, styles.button, report.confirmedByMe && styles.selected, pressed && styles.pressed, busy && styles.busy]}>
                         <Svg width={17} height={17} viewBox="0 0 24 24" stroke={colors.teal} strokeWidth={1.8} fill="none" strokeLinejoin="round" strokeLinecap="round" {...(Platform.OS !== 'web' && { accessible: false })} aria-hidden focusable={false}>
-                            <Path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z" />
-                            <Path d="M7 10v12" />
+                            {report.confirmedByMe ? (
+                                <Path d="m5 12 4 4L19 6" />
+                            ) : (
+                                <>
+                                    <Path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z" />
+                                    <Path d="M7 10v12" />
+                                </>
+                            )}
                         </Svg>
                         <Text style={styles.action}>{label}</Text>
                     </Pressable>
                 )}
-                <Text style={styles.count}>{confirmationLabel(report.confirmationCount)}</Text>
+                <Text style={[styles.count, canChange && styles.actionCount]}>{confirmationLabel(report.confirmationCount)}</Text>
                 {report.isMine ? <Text style={styles.count}>Sua denúncia</Text> : !activeStatuses.includes(report.status) && <Text style={styles.count}>Confirmações encerradas</Text>}
             </View>
             {!!message && (
@@ -74,11 +80,13 @@ export function ApiConfirmation({ report, request, update, refresh, allowedActio
 }
 const styles = StyleSheet.create({
     section: { gap: 4 },
-    row: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 12 },
-    button: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: colors.line, borderRadius: 8, paddingHorizontal: 10 },
-    selected: { backgroundColor: colors.pale, borderColor: colors.teal },
-    pressed: { opacity: 0.7 },
-    action: { color: colors.teal, fontSize: 14, fontWeight: '700' },
+    row: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', columnGap: 12, rowGap: 4 },
+    button: { maxWidth: '100%', flexDirection: 'row', justifyContent: 'flex-start', gap: 6, paddingHorizontal: 8 },
+    selected: { backgroundColor: colors.pale },
+    pressed: { backgroundColor: colors.line },
+    busy: { opacity: 0.7 },
+    action: { flexShrink: 1, color: colors.teal, fontSize: 14, fontWeight: '700' },
     count: { color: colors.muted, fontSize: 14, fontWeight: '600' },
+    actionCount: { flexGrow: 1, maxWidth: '100%', textAlign: 'right' },
     feedback: { color: colors.ink, fontSize: 14 },
 });
